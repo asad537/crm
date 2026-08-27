@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: crm_l10_php:8.2-cli-gd
+    container_name: crm_l10_app
+    working_dir: /var/www
+    volumes:
+      - .:/var/www:delegated
+    ports:
+      - "8000:8000"
+    command: php -S 0.0.0.0:8000 -t public
+    environment:
+      PHP_OPCACHE_ENABLE: "1"
+      PHP_OPCACHE_MEMORY_CONSUMPTION: "256"
+      PHP_OPCACHE_INTERNED_STRINGS_BUFFER: "16"
+      PHP_OPCACHE_MAX_ACCELERATED_FILES: "20000"
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      PHP_OPCACHE_REVALIDATE_FREQ: "60"
+      PHP_OPCACHE_SAVE_COMMENTS: "1"
+      PHP_OPCACHE_JIT: "tracing"
+      PHP_OPCACHE_JIT_BUFFER_SIZE: "64M"
+      PHP_OPCACHE_ENABLE_FILE_OVERRIDE: "0"
+    depends_on:
+      - redis
+      - mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm_l10_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - crm_l10_redis:/data
+
+  mysql:
+    image: mysql:8.0
+    container_name: crm_l10_mysql
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ""
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: crm_l10
+    # Scale tuning for millions of rows (persisted across restarts):
+    #  - buffer_pool 1G: keeps hot data+indexes in RAM (avoids disk reads)
+    #  - log_file 256M + flush_at_trx_commit=2: fast bulk writes
+    #  - O_DIRECT: skip double OS caching
+    command: >
+      --innodb-buffer-pool-size=1G
+      --innodb-log-file-size=256M
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-flush-method=O_DIRECT
+      --max-connections=200
+      --innodb-buffer-pool-instances=4
+    volumes:
+      - crm_l10_mysql:/var/lib/mysql
+
+volumes:
+  crm_l10_redis:
+  crm_l10_mysql:

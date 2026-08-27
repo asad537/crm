@@ -1,0 +1,182 @@
+/* Image Optimization Styles */
+
+/* Ensure images don't cause layout shift */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Optimize image rendering */
+img[loading="lazy"] {
+    content-visibility: auto;
+}
+
+/* Add aspect ratio boxes to prevent CLS */
+.img-aspect-ratio {
+    position: relative;
+    overflow: hidden;
+}
+
+.img-aspect-ratio::before {
+    content: "";
+    display: block;
+}
+
+/* Common aspect ratios */
+.img-aspect-ratio-1-1::before {
+    padding-top: 100%; /* 1:1 Aspect Ratio */
+}
+
+.img-aspect-ratio-4-3::before {
+    padding-top: 75%; /* 4:3 Aspect Ratio */
+}
+
+.img-aspect-ratio-16-9::before {
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+}
+
+.img-aspect-ratio-3-2::before {
+    padding-top: 66.66%; /* 3:2 Aspect Ratio */
+}
+
+.img-aspect-ratio img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Optimize box images on homepage */
+.cp-services-img img {
+    will-change: transform;
+    transform: translateZ(0);
+}
+
+/* Optimize product images */
+.product-thumb img,
+.cp-services-item img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* Prevent image flickering on hover */
+.product-single img,
+.cp-services-item img {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Optimize testimonial images */
+.cp-testimonial2-author img {
+    will-change: auto;
+}
+
+/* Reduce paint on scroll */
+.lazy-bg {
+    will-change: background-image;
+}
+
+/* Optimize hero images */
+.hero-image-content img {
+    image-rendering: auto;
+    transform: translateZ(0);
+}
+
+/* Performance: Reduce repaints */
+.img-fluid {
+    display: block;
+}
+
+/* Optimize circular images */
+img[style*="border-radius: 50%"],
+img[style*="border-radius:50px"] {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Prevent layout shift for images with explicit dimensions */
+img[width][height] {
+    aspect-ratio: attr(width) / attr(height);
+}
+
+/* Modern browsers: use aspect-ratio */
+@supports (aspect-ratio: 1 / 1) {
+    .cp-services-img {
+        aspect-ratio: 1 / 1;
+    }
+    
+    .product-thumb {
+        aspect-ratio: 1 / 1;
+    }
+}
+
+/* Optimize image loading states */
+img:not([src]) {
+    visibility: hidden;
+}
+
+/* Smooth image fade-in when loaded */
+img[loading="lazy"] {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+img[loading="lazy"].loaded,
+img[loading="lazy"]:not([src=""]) {
+    opacity: 1;
+}
+
+/* Optimize WebP images */
+img[src$=".webp"] {
+    image-rendering: -webkit-optimize-contrast;
+}
+
+/* Reduce CLS for testimonial images */
+.cp-testimonial2-author img {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+}
+
+/* Box image optimization */
+.box-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Prevent layout shift in grid items */
+.grid-item img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Optimize footer images */
+footer img {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Performance hint for large images */
+@media (min-width: 1200px) {
+    .hero-image-content img {
+        content-visibility: auto;
+        contain-intrinsic-size: 668px 445px;
+    }
+}
+
+/* Mobile optimization */
+@media (max-width: 767px) {
+    img[loading="lazy"] {
+        content-visibility: auto;
+    }
+    
+    /* Reduce image quality on mobile for faster loading */
+    .cp-services-img img,
+    .product-thumb img {
+        image-rendering: -webkit-optimize-contrast;
+    }
+}

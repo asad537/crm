@@ -1,0 +1,5 @@
+<html><head><meta charset="utf-8"><style>body{font-family:Arial;color:#172033}h1{color:{{ $brand['color'] }};margin:0}p{color:#64748b}table{width:100%;border-collapse:collapse;font-size:11px}th{background:{{ $brand['color'] }};color:#fff;padding:9px;border:1px solid {{ $brand['color'] }};text-align:left}td{padding:8px;border:1px solid #cbd5e1}.role{color:#64748b}.num{text-align:center;font-weight:bold}</style></head><body>
+<h1>{{ $brand['name'] }} — Team Performance</h1><p>{{ $dateRangeLabel }} · Generated {{ $generatedAt }}</p>
+<table><thead><tr><th>Team Member</th><th>Role</th><th>Metric 1</th><th>Value</th><th>Metric 2</th><th>Value</th><th>Metric 3</th><th>Value</th><th>Total Activity</th></tr></thead><tbody>
+@forelse($performanceData as $data)<tr><td>{{ $data['name'] }}</td><td class="role">{{ $data['role_label'] }}</td>@foreach($data['metrics'] as $metric)<td>{{ $metric['label'] }}</td><td class="num">{{ $metric['value'] }}</td>@endforeach<td class="num">{{ $data['score'] }}</td></tr>@empty<tr><td colspan="9">No team members found.</td></tr>@endforelse
+</tbody></table></body></html>

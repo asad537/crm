@@ -1,0 +1,346 @@
+/* ULTRA-AGGRESSIVE Mobile Performance Optimizations */
+/* Target: FCP < 1.5s, LCP < 2.5s, TBT < 150ms */
+
+@media (max-width: 767px) {
+
+    /* KILL ALL ANIMATIONS - Zero tolerance */
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 0 !important;
+        transition: none !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+    }
+
+    /* Remove ALL transforms and shadows */
+    * {
+        transform: none !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+        backdrop-filter: none !important;
+        will-change: auto !important;
+        perspective: none !important;
+    }
+
+    /* Optimize rendering */
+    html {
+        scroll-behavior: auto !important;
+    }
+
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeSpeed;
+        -webkit-overflow-scrolling: touch;
+        overflow-x: hidden;
+        contain: layout style;
+    }
+
+    /* Contain layout recalculations */
+    header,
+    main,
+    footer,
+    section,
+    .container,
+    .container-fluid {
+        contain: layout style;
+    }
+
+    /* Optimize images */
+    img {
+        content-visibility: auto;
+        image-rendering: -webkit-optimize-contrast;
+    }
+
+    /* SVG optimization */
+    svg {
+        shape-rendering: optimizeSpeed;
+    }
+
+    /* Remove hover effects entirely */
+    a:hover,
+    button:hover,
+    .btn:hover,
+    .hero-btn:hover,
+    .cp-btn:hover,
+    *:hover {
+        transform: none !important;
+        box-shadow: none !important;
+        filter: none !important;
+    }
+
+    /* Optimize scrolling */
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Reduce shadow complexity */
+    .hero-btn,
+    .cp-btn,
+    .review-badge {
+        box-shadow: none !important;
+    }
+
+    /* Optimize gradients */
+    .hero-section-mobile {
+        background: #c6d8b7ff !important;
+    }
+
+    /* Disable hover effects on mobile */
+    .hero-btn:hover,
+    .cp-btn:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Optimize testimonial section */
+    .cp-testimonial2-area {
+        contain: layout style;
+    }
+
+    /* Reduce font rendering cost */
+    body,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p,
+    span,
+    a {
+        text-rendering: optimizeSpeed;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Optimize circular images */
+    img[style*="border-radius: 50%"],
+    img[style*="border-radius:50px"] {
+        will-change: auto !important;
+        transform: none !important;
+    }
+
+    /* Reduce layout complexity */
+    .container,
+    .container-fluid {
+        contain: layout;
+    }
+
+    /* Optimize hero image */
+    .hero-image-content {
+        contain: layout style paint;
+    }
+
+    /* Disable expensive filters */
+    .cp-services-img img:hover {
+        filter: none !important;
+    }
+
+    /* Optimize trust badges */
+    .logos-wrapper {
+        contain: layout;
+    }
+
+    /* Reduce CLS for mobile hero */
+    .hero-section-mobile .text-center {
+        min-height: 300px;
+    }
+
+    /* Optimize product grid */
+    .grid-item {
+        contain: layout style;
+    }
+
+    /* Reduce paint on scroll */
+    .sticky-header {
+        will-change: auto !important;
+    }
+
+    /* Optimize footer */
+    footer {
+        contain: layout style;
+    }
+}
+
+/* Optimize for very small screens */
+@media (max-width: 480px) {
+
+    /* Further reduce complexity */
+    .hero-section-mobile img {
+        max-width: 100% !important;
+        height: auto !important;
+        transform: none !important;
+    }
+
+    /* Simplify layouts */
+    .logos-wrapper {
+        gap: 15px !important;
+    }
+
+    /* Reduce font sizes for faster rendering */
+    h1 {
+        font-size: 24px !important;
+    }
+
+    p {
+        font-size: 14px !important;
+    }
+}
+
+/* Critical CSS for above-the-fold mobile content */
+@media (max-width: 767px) {
+
+    /* Hero section critical styles */
+    .hero-section-mobile {
+        display: block !important;
+        background: #c6d8b7ff;
+        padding: 20px 0;
+        min-height: 400px;
+    }
+
+    .hero-section {
+        display: none !important;
+    }
+
+    /* Ensure logo is visible immediately */
+    .logo {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .logo img {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 280px !important;
+        height: auto !important;
+    }
+
+    /* Header critical styles */
+    .header-main {
+        min-height: 60px;
+        background: white;
+    }
+
+    /* CTA button critical styles */
+    .hero-btn {
+        display: inline-block;
+        padding: 14px 35px;
+        background-color: #86C342;
+        color: white !important;
+        font-size: 17px;
+        font-weight: 600;
+        border-radius: 5px;
+        text-decoration: none;
+    }
+}
+
+/* Preload hints for mobile */
+@media (max-width: 767px) {
+
+    /* Optimize image loading */
+    img[loading="eager"] {
+        content-visibility: auto;
+    }
+
+    /* Reduce initial render cost */
+    .hide-on-mobile {
+        display: none !important;
+        visibility: hidden !important;
+    }
+}
+
+/* Additional aggressive mobile optimizations for TBT reduction */
+@media (max-width: 767px) {
+
+    /* Disable smooth scrolling to reduce JS execution */
+    html {
+        scroll-behavior: auto !important;
+    }
+
+    /* Reduce reflows */
+    * {
+        scroll-margin-top: 0 !important;
+        scroll-padding-top: 0 !important;
+    }
+
+    /* Optimize event handling */
+    a,
+    button,
+    input,
+    select,
+    textarea {
+        touch-action: manipulation;
+    }
+
+    /* Reduce paint complexity */
+    .swiper-container,
+    .owl-carousel,
+    .cp-testimonial2-active {
+        will-change: auto !important;
+    }
+
+    /* Disable parallax effects */
+    [data-parallax],
+    .parallax {
+        transform: none !important;
+        will-change: auto !important;
+    }
+
+    /* Simplify complex selectors */
+    .cp-services-item:hover,
+    .product-single:hover {
+        transform: none !important;
+    }
+
+    /* Reduce JavaScript-heavy animations */
+    .wow,
+    .animated {
+        animation: none !important;
+    }
+
+    /* Optimize form elements */
+    input,
+    select,
+    textarea {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    /* Reduce layout thrashing */
+    .container,
+    .container-fluid,
+    .row {
+        contain: layout;
+    }
+
+    /* Optimize sticky elements */
+    .sticky-header {
+        position: fixed !important;
+        will-change: auto !important;
+    }
+
+    /* Disable expensive filters */
+    img:hover,
+    .cp-services-img:hover img {
+        filter: none !important;
+        transform: none !important;
+    }
+
+    /* Reduce JavaScript event listeners */
+    .meanmenu-reveal {
+        pointer-events: auto;
+    }
+
+    /* Optimize carousel/slider */
+    .swiper-slide {
+        will-change: auto !important;
+    }
+}

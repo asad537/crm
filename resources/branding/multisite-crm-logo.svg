@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="116" viewBox="0 0 440 116" role="img" aria-labelledby="title desc">
+  <title id="title">MultiSite CRM</title>
+  <desc id="desc">Connect, manage and grow across business workspaces</desc>
+  <defs>
+    <linearGradient id="ring" x1="15" y1="12" x2="101" y2="101" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset=".52" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="cubeLeft" x1="37" y1="50" x2="64" y2="87" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1596D2"/><stop offset="1" stop-color="#0F69B4"/>
+    </linearGradient>
+    <linearGradient id="cubeRight" x1="63" y1="49" x2="88" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/><stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <filter id="shadow" x="-35%" y="-35%" width="170%" height="180%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#312E81" flood-opacity=".2"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M59 9 97 31v44L59 97 21 75V31Z" fill="#fff" stroke="url(#ring)" stroke-width="4" stroke-linejoin="round"/>
+    <g fill="url(#ring)" stroke="#fff" stroke-width="2.5">
+      <circle cx="59" cy="9" r="7"/><circle cx="97" cy="31" r="7"/><circle cx="97" cy="75" r="7"/>
+      <circle cx="59" cy="97" r="7"/><circle cx="21" cy="75" r="7"/><circle cx="21" cy="31" r="7"/>
+    </g>
+    <g transform="translate(0 -12)">
+      <path d="m59 39 25 14-25 14-25-14Z" fill="#EEF2FF" stroke="#C7D2FE" stroke-width="1.5"/>
+      <path d="m34 53 25 14v25L34 78Z" fill="url(#cubeLeft)"/>
+      <path d="m84 53-25 14v25l25-14Z" fill="url(#cubeRight)"/>
+      <path d="m44 48 15-9 15 9-15 9Z" fill="#fff" stroke="#E0E7FF" stroke-width="1.5"/>
+    </g>
+  </g>
+  <text x="120" y="58" font-family="Inter,Arial,sans-serif" font-size="38" font-weight="800" letter-spacing="-1.4" fill="#172033">MultiSite <tspan fill="url(#ring)">CRM</tspan></text>
+  <text x="121" y="83" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" letter-spacing="2" fill="#64748B">CONNECT • MANAGE • GROW</text>
+</svg>

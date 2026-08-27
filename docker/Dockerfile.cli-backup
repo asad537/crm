@@ -1,0 +1,8 @@
+# Persistent PHP 8.2 CLI image for CRM (GD + IMAP baked in)
+FROM serversideup/php:8.2-cli
+
+USER root
+# serversideup ships mlocati's install-php-extensions — it builds imap cleanly
+# on Debian bookworm (the classic apt libc-client-dev route is broken there).
+RUN install-php-extensions gd imap
+USER www-data

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printing & Packaging ERP Integration Plan</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --primary-light: #ede9fe;
+            --secondary: #10b981;
+            --secondary-light: #dcfce7;
+            --dark: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-400: #94a3b8;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+            --gradient: linear-gradient(135deg, #6c5ce7 0%, #8b5cf6 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f1f5f9;
+            color: var(--slate-800);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Header Style */
+        header {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--gradient);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 45px;
+            height: 45px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .logo-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--dark);
+        }
+
+        .logo-text span {
+            font-size: 0.75rem;
+            color: var(--slate-400);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+
+        .doc-meta {
+            font-size: 0.85rem;
+            color: var(--slate-600);
+            background: var(--light);
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        /* Section Card */
+        .card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 0.75rem;
+        }
+
+        .card-title i {
+            color: var(--primary);
+        }
+
+        h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--slate-800);
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        p {
+            font-size: 0.95rem;
+            color: var(--slate-600);
+            margin-bottom: 1rem;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 1.25rem;
+            display: flex;
+            gap: 12px;
+            font-size: 0.9rem;
+        }
+
+        .alert-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fde047;
+            color: #854d0e;
+        }
+
+        .alert-info {
+            background-color: #f0f9ff;
+            border: 1px solid #7dd3fc;
+            color: #0369a1;
+        }
+
+        /* Lists */
+        ul {
+            list-style-type: none;
+            margin-left: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            font-size: 0.95rem;
+            color: var(--slate-600);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        li::before {
+            content: "\f00c";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            color: var(--secondary);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        /* Database Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: 1rem 0;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--light);
+            color: var(--slate-800);
+            font-weight: 700;
+            padding: 0.85rem 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--slate-600);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge-type {
+            font-family: monospace;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        /* Mermaid Wrapper */
+        .mermaid-container {
+            background: #fafafa;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* File Links */
+        .file-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .file-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fas fa-project-diagram"></i></div>
+                <div class="logo-text">
+                    <h1>ERP System Integration Plan</h1>
+                    <span>My Box Printing - Development Roadmap</span>
+                </div>
+            </div>
+            <div class="doc-meta">
+                <span><i class="far fa-user"></i> Antigravity AI</span>
+                <span><i class="far fa-calendar-alt"></i> June 11, 2026</span>
+                <span><i class="fas fa-code-branch"></i> main</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Executive Summary -->
+    <div class="card">
+        <h2 class="card-title"><i class="fas fa-info-circle"></i> 1. Executive Summary</h2>
+        <p>This plan outlines the integration of the 6-phase Printing & Packaging ERP workflow into the active Laravel project (<code>jmd_sol_laravel</code>). The roadmap implements detailed tracking, validation gates, and revision handling without disrupting existing API services or the mobile app.</p>
+        
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <strong>Mobile App API Compatibility:</strong> Database tables <code>custom_projects</code>, <code>production_orders</code>, and <code>sample_orders</code> are actively in use by a mobile application. All new columns must be nullable or have default values. No existing columns should be renamed or deleted.
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-check-circle"></i>
+            <div>
+                <strong>Staged Changes:</strong> An invoice creation and sending layout (with <code>billing_address</code>, <code>shipping_address</code>, <code>payment_status</code>, and <code>signature</code> migrations/views) is currently staged in git. Let us know if we should commit this first.
+            </div>
+        </div>
+    </div>
+
+    <!-- The Three Key Modules -->
+    <div class="card">
+        <h2 class="card-title"><i class="fas fa-layer-group"></i> 2. Core ERP Modules</h2>
+        <p>The system adds three critical custom modules to handle complex business rules, revisions, and quality control checks.</p>
+        
+        <!-- Module 1 -->
+        <h3>Centralized Approval Workflow</h3>
+        <p>A centralized model (<code>CrmApproval</code>) tracks transitions. Each approval step (Sales review, Customer decision, Proof approval, Color match, Balance payment check) is logged with authorization details and feedback.</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Field Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>approvable_type</code></td>
+                        <td><span class="badge-type">string</span></td>
+                        <td>Polymorphic model type (e.g. CrmEmail, CustomProject)</td>
+                    </tr>
+                    <tr>
+                        <td><code>approvable_id</code></td>
+                        <td><span class="badge-type">unsignedBigInteger</span></td>
+                        <td>Polymorphic model ID</td>
+                    </tr>
+                    <tr>
+                        <td><code>stage</code></td>
+                        <td><span class="badge-type">string</span></td>
+                        <td>Workflow step (e.g. <code>sales_agent_review</code>, <code>proof_review</code>)</td>
+                    </tr>
+                    <tr>
+                        <td><code>status</code></td>
+                        <td><span class="badge-type">string</span></td>
+                        <td>State (<code>pending</code>, <code>approved</code>, <code>rejected</code>, <code>revision_requested</code>)</td>
+                    </tr>
+                    <tr>
+                        <td><code>approver_id</code></td>
+                        <td><span class="badge-type">unsignedBigInteger</span></td>
+                        <td>ID of user/agent or customer identifier</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Module 2 -->
+        <h3>Design Proof Revisions Tracking</h3>
+        <p>Instead of overwriting files, this module logs historical proofs (v1, v2, v3) under <code>ProofRevision</code>, tracking files along with customer feedback notes when revision requests are logged.</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Field Name</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>custom_project_id</code></td>
+                        <td><span class="badge-type">unsignedBigInteger</span></td>
+                        <td>Linked project foreign key</td>
+                    </tr>
+                    <tr>
+                        <td><code>version_number</code></td>
+                        <td><span class="badge-type">integer</span></td>
+                        <td>Auto-incrementing version count (1, 2, 3...)</td>
+                    </tr>
+                    <tr>
+                        <td><code>file_path</code></td>
+                        <td><span class="badge-type">string</span></td>
+                        <td>Path to file asset on disk/storage</td>
+                    </tr>
+                    <tr>
+                        <td><code>feedback_notes</code></td>
+                        <td><span class="badge-type">text</span></td>
+                        <td>Customer feedback input detailing changes requested</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Module 3 -->
+        <h3>QC (Quality Control) Module</h3>
+        <p>Before any shipment labels can be generated, a QC inspector must complete a checklist. If any of the 6 checks fail, the order is blocked.</p>
+        <ul>
+            <li><strong>Dimension Check:</strong> Verify physical sizing against specifications.</li>
+            <li><strong>Fold Color Check:</strong> Verify alignment and folding color accuracy.</li>
+            <li><strong>Quantity Check:</strong> Verify final physical sheet counts.</li>
+            <li><strong>Glue Strength Check:</strong> Ensure gluing passes strength tests.</li>
+            <li><strong>Barcode Scan:</strong> Scan barcode to verify correct labels.</li>
+            <li><strong>Packaging Inspection:</strong> Confirm final palletization standards.</li>
+        </ul>
+    </div>
+
+    <!-- The Mermaid Flowchart -->
+    <div class="card">
+        <h2 class="card-title"><i class="fas fa-sitemap"></i> 3. Complete ERP Flowchart</h2>
+        <p>This interactive diagram maps all 6 stages of the packaging factory pipeline:</p>
+        
+        <div class="mermaid-container">
+            <pre class="mermaid">
+flowchart TD
+    %% Styling Configuration
+    classDef startEnd fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef process fill:#e1f5fe,stroke:#0288d1,stroke-width:1px;
+    classDef decision fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef stage fill:#f1f8e9,stroke:#558b2f,stroke-width:1px;
+
+    %% Phase 1: CRM & Quoting Engine
+    A["Lead Sources\n(Email / Phone / Web / WhatsApp / Social / Ads / Walk-In)"] --> B[Lead Created]
+    B --> C[Sales Agent Assigned]
+    C --> D[Sales Follow-up]
+    D --> E{Qualified Lead?}
+    class E decision;
+    
+    E -- No --> F[Nurture Campaign]
+    E -- Yes --> G[Customer / Prospect Created]
+    
+    G --> H[Quote Request]
+    H --> I["Product Selection\n(Boxes / Gift Boxes / Bumper Stickers / Signs / Banners / Car Wraps / Labels)"]
+    I --> J["Quote Specs\n(Size / Qty / Material / Colors / Coating / Lamination / Die / Glue / Shipping)"]
+    J --> K[Estimation Tools]
+    K --> L["Costing Engine\n(Paper / Ink / Plate / Die / Labor / Machine / Shipping / Margin)"]
+    L --> M[Quote Created]
+    M --> N[Quote Sent to Sales Agent]
+    N --> O[Sales Agent Review Quote]
+    O --> P{Sales Agent Approved?}
+    class P decision;
+    
+    P -- "Needs Change" --> K
+    P -- "Approved" --> Q[Sales Agent Sends Quote to Customer]
+    
+    Q --> R{Customer Decision}
+    class R decision;
+    
+    R -- "Rejected" --> S[Assign to Customer Retention Team]
+    R -- "Approved" --> T[Sales Order Created]
+    R -- "Revision Requested" --> K
+
+    %% Phase 2: Customer Retention & Payment Terms
+    S --> S1["Capture Rejection Reason\n(Price / Delivery / Specs / Competitor / Budget)"]
+    S1 --> S2[Incentive Follow-up Call]
+    S2 --> S3["Offer Options\n(Discount / Free Qty / Better Terms / Faster Delivery)"]
+    S3 --> S4{Customer Interested Again?}
+    class S4 decision;
+    
+    S4 -- "Yes" --> G
+    S4 -- "No" --> S5[Lost Quote]
+    S5 --> S6["Nurture Campaign (7 / 30 / 90 Day Follow-up)"]
+
+    T --> U{Payment Terms}
+    class U decision;
+    
+    U -- "Credit Customer" --> U1["Credit Approval\n(Net 15 / Net 30 / Net 45 / Net 60)"] --> U2[Credit Approved] --> V[Artwork Upload]
+    U -- "Optional" --> U3[100% Deposit] --> U4[Advance Payment Received] --> V
+    U -- "Default" --> U5[50% Advance Required] --> U4
+
+    %% Phase 3: Design Proofing & Pre-Press Quality Checks
+    V --> W[Design Ticket Created]
+    W --> X[Design Department]
+    X --> Y[Proof Created]
+    Y --> Z[Proof Sent to Customer]
+    
+    Z --> AA{Artwork Approved?}
+    class AA decision;
+    
+    AA -- "Revision Needed" --> X
+    AA -- "Revision / Hold" --> AB[Order Hold / Cancel]
+    AA -- "Approved" --> AC[Prepress]
+    
+    AC --> AD[File Check]
+    AD --> AE[Font Check]
+    AE --> AF[Bleed Check]
+    AF --> AG[CMYK / Pantone Color Check]
+    AG --> AH[Resolution Check]
+    AH --> AI[Barcode Check]
+    AI --> AJ[Die Line Check]
+    AJ --> AK[Inspection]
+    AK --> AL[CTP Plate Making]
+    AL --> AM[Production Job Ticket]
+
+    %% Phase 4: Facility Routing & Printing Operations
+    AM --> AN{Select Production Facility}
+    class AN decision;
+    
+    AN -- "Dubai UAE" --> AN1[Dubai UAE] --> AO[Production Planning]
+    AN -- "Lahore Pakistan" --> AN2[Lahore Pakistan] --> AO
+    AN -- "Chicago USA" --> AN3[Chicago USA] --> AO
+    
+    AO --> AP[Machine Scheduling]
+    AP --> AQ[Printing Stage]
+    
+    AQ --> AQ1[Offset Printing] --> AR[First Sheet Pull]
+    AQ --> AQ2[Digital Printing] --> AR
+    AQ --> AQ3[Large Format Printing] --> AR
+    AQ --> AQ4[UV Printing] --> AR
+    AQ --> AQ5[Screen Printing] --> AR
+    AQ --> AQ6[Press Setup / Autoplate] --> AR
+
+    AR --> AS[Color Match / Press Check]
+    
+    AS --> AS1[Match approved Proof] --> AT{Color Approved?}
+    AS --> AS2[CMYK Density check] --> AT
+    AS --> AS3[Pantone / Spot Color Check] --> AT
+    AS --> AS4[Registration Check] --> AT
+    AS --> AS5[Print Defect Check] --> AT
+    AS --> AS6[Supervisor Approval] --> AT
+    class AT decision;
+    
+    AT -- "No" --> AU[Adjust Ink / Density / Registration] --> AQ6
+    AT -- "Yes" --> AV[Full Production Run]
+
+    %% Phase 5: Coating, Lamination, Die-Cutting & Gluing
+    AV --> AW[In-Process Color Checks]
+    
+    AW --> AW1[Every X Sheets Check] --> AX[Coating Options]
+    AW --> AW2[Density Reading] --> AX
+    AW --> AW3[Color Variation Check] --> AX
+    AW --> AW4[Registration Check] --> AX
+    
+    AX --> AX1[Gloss Coating] --> AY[Lamination Options]
+    AX --> AX2[Matte Coating] --> AY
+    AX --> AX3[UV Coating] --> AY
+    AX --> AX4[Aqueous Coating] --> AY
+    AX --> AX5[Soft Touch Coating] --> AY
+    
+    AY --> AY1[Gloss Lamination] --> AZ[Die Cutting]
+    AY --> AY2[Matte Lamination] --> AZ
+    AY --> AY3[Soft Touch Lamination] --> AZ
+    
+    AZ --> BA[Stripping]
+    BA --> BB[Blank Separation]
+    BB --> BC[Gluing Stage]
+    
+    BC --> BC1[Straight Line Glue] --> BD[Quality Control]
+    BC --> BC2[Auto Lock Bottom] --> BD
+    BC --> BC3[4 Corner Glue] --> BD
+    BC --> BC4[5 Corner Glue] --> BD
+    BC --> BC5[6 Corner Glue] --> BD
+    BC --> BC6[Burger Box Glue] --> BD
+    BC --> BC7[Gift Box Assembly] --> BD
+
+    %% Phase 6: Quality Control, Shipping & Fulfillment
+    BD --> BD1[Dimension Check] --> BE[Packing]
+    BD --> BD2[Fold Color Check] --> BE
+    BD --> BD3[Quantity Check] --> BE
+    BD --> BD4[Glue Strength Check] --> BE
+    BD --> BD5[Barcode Scan] --> BE
+    BD --> BD6[Packaging Inspection] --> BE
+    
+    BE --> BF[Palletization]
+    BF --> BG["Warehouse / Ready to Ship"]
+    
+    BG --> BH{Balance Payment Check}
+    class BH decision;
+    
+    BH -- "Non-Credit Customer" --> BI[50% Balance Received Before Shipping] --> BJ[Final Payment Received] --> BK[Ready to Ship]
+    BH -- "Credit Customer" --> BL[Ship Allowed on Credit Terms] --> BK
+
+    BK --> BM[Shipping Department]
+    
+    BM --> BM1[LTL Freight] --> BN[Generate Shipping Label]
+    BM --> BM2[FedEx] --> BN
+    BM --> BM3[DHL] --> BN
+    BM --> BM4[USPS] --> BN
+    BM --> BM5[UPS] --> BN
+
+    BN --> BO[Tracking Number Generated]
+    BO --> BP[Customer Notification]
+    BP --> BQ[In Transit]
+    BQ --> BR[Delivered]
+    BR --> BS[Invoice / Final Invoice]
+    BS --> BT[Payment Posted]
+    BT --> BU[Order Completed]
+    BU --> BV[Customer Success Follow-up]
+    BV --> BW["Reorder Reminder / Upsell / Retention"]
+            </pre>
+        </div>
+    </div>
+</div>
+
+<!-- Render script for flowchart -->
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+</body>
+</html>
