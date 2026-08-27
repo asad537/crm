@@ -472,7 +472,7 @@
             </div>
             <div>
                 <div class="brand-logo-card">
-                    <img src="{{ url('brand-assets/multisite-crm-logo.svg') }}" alt="MultiSite CRM">
+                    <img src="{{ asset('multisite-crm-logo.svg') }}" alt="MultiSite CRM">
                 </div>
                 <div class="brand-message">
                     <span class="brand-kicker">{{ $__loginCopy['kicker'] }}</span>
@@ -497,7 +497,7 @@
             <span class="login-flow-icon target"><i class="fa-solid fa-bullseye"></i></span>
         </div>
         <div class="portal-brand">
-            <img src="{{ url('brand-assets/multisite-crm-logo.svg') }}" alt="MultiSite CRM — Connect, Manage, Grow">
+            <img src="{{ asset('multisite-crm-logo.svg') }}" alt="MultiSite CRM — Connect, Manage, Grow">
         </div>
 
         <div class="welcome">
