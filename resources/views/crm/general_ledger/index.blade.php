@@ -57,6 +57,12 @@
     .gl-ico.red { background: var(--red-soft); color: var(--red); }
     .gl-stat.green .gl-v { color: var(--green); }
     .gl-stat.red .gl-v { color: var(--red); }
+    /* Clickable stat cards → jump to that tab's records */
+    .gl-stat-link, .gl-stat-link *, .gl-stat-link:hover, .gl-stat-link:hover * { text-decoration: none !important; }
+    .gl-stat-link { color: inherit; cursor: pointer; transition: transform .12s, box-shadow .12s, border-color .12s; }
+    .gl-stat-link:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px rgba(15,23,42,.18); border-color: var(--brand); }
+    .gl-stat-go { margin-left: auto; color: var(--faint); font-size: .8rem; transition: transform .12s, color .12s; }
+    .gl-stat-link:hover .gl-stat-go { color: var(--brand); transform: translateX(3px); }
     .gl-bar { height: 5px; border-radius: 99px; background: var(--line-soft); margin-top: .8rem; overflow: hidden; }
     .gl-bar span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--brand), var(--brand-deep)); }
 
@@ -180,52 +186,53 @@
     @if(session('error'))<div style="background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;font-size:.86rem;padding:.85rem 1.1rem;border-radius:10px;margin-bottom:1rem">{{ session('error') }}</div>@endif
 
     <div class="gl-stats">
+        @php $__glBase = request()->except(['tab','page']); @endphp
         @if($isAll)
-            <div class="gl-stat">
-                <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-hand-holding-usd"></i></span><span class="gl-k">Receivable Pending</span></div>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'receivable'])) }}" class="gl-stat gl-stat-link" title="View all receivables">
+                <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-hand-holding-usd"></i></span><span class="gl-k">Receivable Pending</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($receivableTotals['pending']) }} <small>AED</small></div>
                 <div class="gl-note">{{ $receivableTotals['count'] }} customer order(s)</div>
-            </div>
-            <div class="gl-stat red">
-                <div class="gl-stat-top"><span class="gl-ico red"><i class="fas fa-truck-loading"></i></span><span class="gl-k">Payable Balance</span></div>
+            </a>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'payable'])) }}" class="gl-stat red gl-stat-link" title="View all payables">
+                <div class="gl-stat-top"><span class="gl-ico red"><i class="fas fa-truck-loading"></i></span><span class="gl-k">Payable Balance</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($payableTotals['balance']) }} <small>AED</small></div>
                 <div class="gl-note">{{ $payableTotals['count'] }} vendor purchase(s)</div>
-            </div>
+            </a>
             <div class="gl-stat {{ $netPosition >= 0 ? 'green' : 'red' }}">
                 <div class="gl-stat-top"><span class="gl-ico {{ $netPosition >= 0 ? 'green' : 'red' }}"><i class="fas fa-balance-scale"></i></span><span class="gl-k">Overall Balance {{ $netPosition >= 0 ? '(In your favour)' : '(You owe)' }}</span></div>
                 <div class="gl-v">{{ $netPosition < 0 ? '-' : '+' }}{{ $fmt(abs($netPosition)) }} <small>AED</small></div>
                 <div class="gl-note">Money clients still owe you ({{ $fmt($receivableTotals['pending']) }}) minus money you owe vendors ({{ $fmt($payableTotals['balance']) }}).</div>
             </div>
         @elseif($isPayable)
-            <div class="gl-stat">
-                <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-file-invoice"></i></span><span class="gl-k">Total Purchases</span></div>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'payable','status'=>'all'])) }}" class="gl-stat gl-stat-link" title="Show all purchases">
+                <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-file-invoice"></i></span><span class="gl-k">Total Purchases</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($payableTotals['total']) }} <small>AED</small></div>
                 <div class="gl-bar"><span style="width:{{ round($paidRatio) }}%"></span></div>
                 <div class="gl-note">{{ $payableTotals['count'] }} purchase(s) · {{ round($paidRatio) }}% settled</div>
-            </div>
-            <div class="gl-stat green">
-                <div class="gl-stat-top"><span class="gl-ico green"><i class="fas fa-check-circle"></i></span><span class="gl-k">Paid to Vendors</span></div>
+            </a>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'payable','status'=>'paid'])) }}" class="gl-stat green gl-stat-link" title="Show fully-paid purchases">
+                <div class="gl-stat-top"><span class="gl-ico green"><i class="fas fa-check-circle"></i></span><span class="gl-k">Paid to Vendors</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($payableTotals['paid']) }} <small>AED</small></div>
-            </div>
-            <div class="gl-stat red">
-                <div class="gl-stat-top"><span class="gl-ico red"><i class="fas fa-exclamation-circle"></i></span><span class="gl-k">Balance Payable</span></div>
+            </a>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'payable','status'=>'unpaid'])) }}" class="gl-stat red gl-stat-link" title="Show unpaid purchases">
+                <div class="gl-stat-top"><span class="gl-ico red"><i class="fas fa-exclamation-circle"></i></span><span class="gl-k">Balance Payable</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($payableTotals['balance']) }} <small>AED</small></div>
-            </div>
+            </a>
         @else
-            <div class="gl-stat">
-                <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-file-invoice-dollar"></i></span><span class="gl-k">Total Receivable</span></div>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'receivable','status'=>'all'])) }}" class="gl-stat gl-stat-link" title="Show all receivables">
+                <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-file-invoice-dollar"></i></span><span class="gl-k">Total Receivable</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($receivableTotals['total']) }} <small>AED</small></div>
                 <div class="gl-bar"><span style="width:{{ round($paidRatio) }}%"></span></div>
                 <div class="gl-note">{{ $receivableTotals['count'] }} order(s) · {{ round($paidRatio) }}% collected</div>
-            </div>
-            <div class="gl-stat green">
-                <div class="gl-stat-top"><span class="gl-ico green"><i class="fas fa-check-circle"></i></span><span class="gl-k">Received</span></div>
+            </a>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'receivable','status'=>'received'])) }}" class="gl-stat green gl-stat-link" title="Show received payments">
+                <div class="gl-stat-top"><span class="gl-ico green"><i class="fas fa-check-circle"></i></span><span class="gl-k">Received</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($receivableTotals['received']) }} <small>AED</small></div>
-            </div>
-            <div class="gl-stat red">
-                <div class="gl-stat-top"><span class="gl-ico red"><i class="fas fa-hourglass-half"></i></span><span class="gl-k">Pending</span></div>
+            </a>
+            <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'receivable','status'=>'pending'])) }}" class="gl-stat red gl-stat-link" title="Show pending receivables">
+                <div class="gl-stat-top"><span class="gl-ico red"><i class="fas fa-hourglass-half"></i></span><span class="gl-k">Pending</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($receivableTotals['pending']) }} <small>AED</small></div>
-            </div>
+            </a>
         @endif
     </div>
 
