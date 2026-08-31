@@ -133,7 +133,7 @@ class DielineApiController extends Controller
                 }
 
                 $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
-                $uploadDir = 'uploads/dielines/';
+                $uploadDir = public_path('uploads/dielines');
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
@@ -342,7 +342,7 @@ class DielineApiController extends Controller
             $extension   = $file->getClientOriginalExtension();
             $filename    = time() . '_user_mockup_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
 
-            $mockupDir = 'uploads/mockups/';
+            $mockupDir = public_path('uploads/mockups');
             if (!file_exists($mockupDir)) {
                 mkdir($mockupDir, 0755, true);
             }

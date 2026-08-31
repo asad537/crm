@@ -322,7 +322,7 @@ class HomeApiController extends Controller
                 $file = $request->file($fileKey);
                 $extension = $file->getClientOriginalName();
                 $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $extension);
-                $file->move('images/blog/', $filename);
+                $file->move(public_path('images/blog'), $filename);
             }
 
             $to = "quotes@myboxprinting.com";
@@ -528,7 +528,7 @@ class HomeApiController extends Controller
                 $file = $request->file($fileKey);
                 $extension = $file->getClientOriginalName();
                 $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $extension);
-                $file->move('images/blog/', $filename);
+                $file->move(public_path('images/blog'), $filename);
             }
 
             $to = "quotes@myboxprinting.com";
@@ -703,6 +703,5 @@ class HomeApiController extends Controller
         }
     }
 }
-
 
 

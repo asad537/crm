@@ -73,8 +73,8 @@ class ProjectApiController extends Controller
                 if ($request->hasFile($dbField)) {
                     $file = $request->file($dbField);
                     $filename = time() . '_' . $dbField . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $file->getClientOriginalName());
-                    // Save to root images/projects/ (web-accessible outside public)
-                    $uploadPath = base_path('images/projects');
+                    // Save below the public web root so the legacy image URL remains reachable.
+                    $uploadPath = public_path('images/projects');
                     if (!file_exists($uploadPath)) {
                         mkdir($uploadPath, 0755, true);
                     }
