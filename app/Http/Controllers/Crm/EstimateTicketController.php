@@ -30,17 +30,20 @@ class EstimateTicketController extends Controller
             elseif ($tab === 'mine') $query->where('status', 'team_lead_open')->where('team_lead_id', $user->id);
             else $query->where('status', 'team_lead_review')->whereNull('team_lead_id');
         } elseif ($tab === 'approvals') {
-            $query->where('status', 'owner_review');
+            // Owner/admin approvals queue now includes the shared team_lead_review pending
+            // tickets, so the owner can approve alongside the team lead (first wins).
+            $query->whereIn('status', ['owner_review', 'team_lead_review']);
         } elseif ($tab === 'history') {
             $query->whereIn('status', $user->isEstimator()
                 ? ['team_lead_review', 'team_lead_open', 'owner_review', 'estimated', 'completed', 'returned_to_design', 'returned_to_sales']
-                : ['owner_review', 'estimated', 'completed', 'returned_to_sales']);
+                : ['team_lead_review', 'team_lead_open', 'owner_review', 'estimated', 'completed', 'returned_to_sales']);
             if ($user->isEstimator()) $query->where('estimator_id', $user->id);
         } elseif ($tab === 'mine') {
             $query->whereIn('status', ['open', 'revision_requested']);
             if ($user->isEstimator()) $query->where('estimator_id', $user->id);
-            // Al Massa admins/owners see every in-progress (open) ticket for oversight.
-            elseif ($user->isAdmin() && $this->isAlMassaWorkspace()) { /* all open/revision */ }
+            // Admins/owners (both workspaces) see every in-progress (open) ticket so they
+            // can pull it and produce the estimate themselves.
+            elseif ($user->isAdmin() || $user->isSuperAdmin()) { /* all open/revision */ }
             else $query->whereRaw('1 = 0');
         } else {
             $query->where('status', 'pending');
@@ -92,7 +95,7 @@ class EstimateTicketController extends Controller
                 : ['owner_review', 'estimated', 'completed', 'returned_to_sales'];
             $historyCount  = $sumBy(fn ($r) => in_array($r->status, $historyStatuses, true));
         }
-        $approvalsCount = $sumBy(fn ($r) => $r->status === 'owner_review');
+        $approvalsCount = $sumBy(fn ($r) => in_array($r->status, ['owner_review', 'team_lead_review']));
 
         $tickets = $query->paginate(15)->appends($request->all());
         return view('crm.estimate_tickets.index', compact('tickets', 'tab', 'activeCount', 'mineCount', 'historyCount', 'approvalsCount'));
@@ -150,9 +153,8 @@ class EstimateTicketController extends Controller
     {
         $ticket = EstimateTicket::with(['options', 'estimator', 'requester', 'teamLead', 'lead'])->findOrFail($id);
         $this->authorizeTicket($ticket);
-        if ($this->isAlMassaWorkspace()) {
-            return view('crm.estimate_tickets.show_al_massa', compact('ticket'));
-        }
+        // Al Massa now uses the same estimation detail page as My Box (rate matrix +
+        // calculator), so both workspaces share one estimation model/UI.
         $rateMatrices = CrmEstimationRateMatrix::orderBy('type')->orderBy('paper_size')->orderBy('gsm')->get();
         return view('crm.estimate_tickets.show', compact('ticket', 'rateMatrices'));
     }
@@ -381,7 +383,7 @@ class EstimateTicketController extends Controller
     {
         $user = Auth::guard('crm')->user();
         // Al Massa admins may open/claim and estimate a ticket themselves; other workspaces stay estimator/team-lead only.
-        $adminCanClaim = $user->isAdmin() && $this->isAlMassaWorkspace();
+        $adminCanClaim = $user->isAdmin() || $user->isSuperAdmin();
         if (!$user->isEstimator() && !$user->isTeamLead() && !$adminCanClaim) {
             abort(403, 'Only an Estimator or Team Lead can open and claim this ticket.');
         }
@@ -609,13 +611,15 @@ class EstimateTicketController extends Controller
                 'estimator_notes' => $data['estimator_notes'] ?? null,
                 'currency' => $data['currency'],
                 'team_lead_id' => $isDraft ? $ticket->team_lead_id : null,
-                // Al Massa quotes go to the owner/admin for approval before sales sees them.
-                'status' => $isDraft ? 'open' : ($isAlMassa ? 'owner_review' : 'team_lead_review'),
+                // Unified review: quote goes to the shared "team_lead_review" pending queue,
+                // which BOTH the team lead and the owner/admin can act on — whoever approves
+                // first releases it to sales.
+                'status' => $isDraft ? 'open' : 'team_lead_review',
                 'submitted_at' => $isDraft ? $ticket->submitted_at : now(),
             ]);
             if ($ticket->lead) {
                 $ticket->lead->update([
-                    'estimate_status' => $isDraft ? 'pending' : ($isAlMassa ? 'owner_review' : 'team_lead_review'),
+                    'estimate_status' => $isDraft ? 'pending' : 'team_lead_review',
                     'vat_percentage' => (float) ($data['vat_percentage'] ?? 0),
                 ]);
             }
@@ -645,8 +649,10 @@ class EstimateTicketController extends Controller
             abort(403, 'Only owner / admin / sales manager can approve quotes.');
         }
         $ticket = EstimateTicket::with(['options', 'lead'])->findOrFail($id);
-        if ($ticket->status !== 'owner_review') {
-            return back()->with('error', 'Only a quote awaiting owner approval can be approved.');
+        // Owner/admin is a super-approver: they can approve a quote whether it is
+        // awaiting owner review OR still sitting in team-lead review.
+        if (!in_array($ticket->status, ['owner_review', 'team_lead_review'])) {
+            return back()->with('error', 'Only a quote awaiting approval can be approved.');
         }
 
         DB::transaction(function () use ($ticket) {

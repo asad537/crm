@@ -527,6 +527,21 @@
 </div>
 @endif
 
+@php
+    $__ownerCanApprove = ($u->isAdmin() || $u->isSuperAdmin() || $u->isSalesManager())
+        && in_array($ticket->status, ['owner_review', 'team_lead_review'])
+        && $ticket->options->contains(function ($option) { return $option->offer_price !== null; });
+@endphp
+@if($__ownerCanApprove)
+<div class="es-card">
+    <h3><i class="fas fa-user-shield" style="color:var(--primary-purple);margin-right:.4rem"></i> Owner Approval</h3>
+    <div class="es-sub" style="margin-bottom:1rem">Approve the estimator's offer and release these prices to sales.</div>
+    <form method="POST" action="{{ route('crm.estimate_tickets.owner_approve',$ticket->id) }}" onsubmit="return confirm('Approve this quote and release it to sales?')">{{ csrf_field() }}
+        <button class="es-btn es-primary" style="width:100%"><i class="fas fa-check-circle"></i> Approve &amp; Release to Sales</button>
+    </form>
+</div>
+@endif
+
 @if($ticket->status === 'team_lead_open' || $ticket->options->filter(function ($option) { return $option->offer_price !== null; })->count())
 <div class="es-card">
     <h3><i class="fas fa-user-check" style="color:var(--primary-purple);margin-right:.4rem"></i> Team Lead Final Offer</h3>
