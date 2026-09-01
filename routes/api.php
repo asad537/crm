@@ -650,6 +650,7 @@ Route::post('/store-custom-project', [\App\Http\Controllers\Api\ProjectApiContro
 // Projects & Orders
 Route::get('/custom-projects', [\App\Http\Controllers\Api\ProjectApiController::class, 'index']);
 Route::post('/custom-projects', [\App\Http\Controllers\Api\ProjectApiController::class, 'store']);
+Route::delete('/custom-projects/{id}', [\App\Http\Controllers\Api\ProjectApiController::class, 'destroy']);
 Route::post('/projects/{id}/place-order', [\App\Http\Controllers\Api\ProjectApiController::class, 'placeOrder']);
 
 // Production Order Tracking

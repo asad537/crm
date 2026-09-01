@@ -375,6 +375,67 @@ class ProjectApiController extends Controller
     }
 
     /**
+     * Delete an un-ordered project owned by the current Firebase user.
+     */
+    public function destroy(Request $request, $projectId)
+    {
+        $validator = Validator::make($request->all(), [
+            'firebase_uid' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Firebase user is required.'], 422);
+        }
+
+        try {
+            $user = \App\User::where('firebase_uid', $request->input('firebase_uid'))->first();
+            $project = CustomProject::find($projectId);
+
+            if (!$project) {
+                return response()->json(['success' => false, 'message' => 'Project not found.'], 404);
+            }
+
+            if (!$user || (int) $project->user_id !== (int) $user->id) {
+                return response()->json(['success' => false, 'message' => 'You cannot delete this project.'], 403);
+            }
+
+            if (ProductionOrder::where('project_id', $project->id)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Projects with a production order cannot be deleted.',
+                ], 422);
+            }
+
+            $dielines = \App\Dieline::with('mockups')->where('project_id', $project->id)->get();
+            $filePaths = $dielines->pluck('file_path')
+                ->merge($dielines->flatMap(fn ($dieline) => $dieline->mockups->pluck('file_path')))
+                ->filter()
+                ->unique();
+
+            \Illuminate\Support\Facades\DB::transaction(function () use ($dielines, $project) {
+                foreach ($dielines as $dieline) {
+                    $dieline->mockups()->delete();
+                }
+
+                \App\Dieline::where('project_id', $project->id)->delete();
+                $project->delete();
+            });
+
+            foreach ($filePaths as $path) {
+                $absolutePath = public_path($path);
+                if (is_file($absolutePath)) {
+                    @unlink($absolutePath);
+                }
+            }
+
+            return response()->json(['success' => true, 'message' => 'Project deleted successfully.']);
+        } catch (\Throwable $e) {
+            Log::error('ProjectApiController@destroy Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to delete project.'], 500);
+        }
+    }
+
+    /**
      * Place a production order for a project
      * 
      * @param \Illuminate\Http\Request $request
