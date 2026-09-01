@@ -133,6 +133,7 @@ class DielineApiController extends Controller
                 }
 
                 $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
+                $fileSize = $this->formatBytes($file->getSize());
                 $uploadDir = public_path('uploads/dielines');
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
@@ -140,7 +141,6 @@ class DielineApiController extends Controller
                 
                 $file->move($uploadDir, $filename);
                 $path = 'uploads/dielines/' . $filename;
-                $fileSize = $this->formatBytes($file->getSize());
 
                 $dieline = Dieline::create([
                     'project_id' => $request->project_id,
@@ -341,6 +341,7 @@ class DielineApiController extends Controller
             $originalName = $file->getClientOriginalName();
             $extension   = $file->getClientOriginalExtension();
             $filename    = time() . '_user_mockup_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
+            $fileSize    = $this->formatBytes($file->getSize());
 
             $mockupDir = public_path('uploads/mockups');
             if (!file_exists($mockupDir)) {
@@ -349,7 +350,6 @@ class DielineApiController extends Controller
 
             $file->move($mockupDir, $filename);
             $filePath = 'uploads/mockups/' . $filename;
-            $fileSize = $this->formatBytes($file->getSize());
 
             $mockup = Mockup::create([
                 'dieline_id'             => $dielineId,

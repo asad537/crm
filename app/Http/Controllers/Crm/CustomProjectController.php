@@ -157,6 +157,7 @@ class CustomProjectController extends Controller
             }
 
             $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
+            $fileSize = $this->formatBytes($file->getSize());
 
             $uploadDir = public_path('uploads/dielines');
             if (!file_exists($uploadDir))
@@ -169,7 +170,7 @@ class CustomProjectController extends Controller
                 'project_id' => $id,
                 'file_name' => 'Company Dieline',
                 'file_path' => 'uploads/dielines/' . $filename,
-                'file_size' => $this->formatBytes($file->getSize()),
+                'file_size' => $fileSize,
                 'status' => 'pending',
                 'is_company_upload' => true,
             ]);
@@ -250,6 +251,7 @@ class CustomProjectController extends Controller
             }
 
             $filename = time() . '_mockup_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
+            $fileSize = $this->formatBytes($file->getSize());
 
             $mockupDir = public_path('uploads/mockups');
             if (!file_exists($mockupDir))
@@ -260,7 +262,7 @@ class CustomProjectController extends Controller
                 'dieline_id' => $dielineId,
                 'file_name' => $originalName,
                 'file_path' => 'uploads/mockups/' . $filename,
-                'file_size' => $this->formatBytes($file->getSize()),
+                'file_size' => $fileSize,
                 'status' => 'pending',
                 'is_company' => true,
             ]);
@@ -313,6 +315,7 @@ class CustomProjectController extends Controller
                 $file = $request->file('file');
                 $originalName = $file->getClientOriginalName();
                 $filename = time() . '_mockup_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
+                $fileSize = $this->formatBytes($file->getSize());
 
                 $uploadDir = 'uploads/mockups/';
                 if (!file_exists($uploadDir)) {
@@ -321,7 +324,6 @@ class CustomProjectController extends Controller
 
                 $file->move($uploadDir, $filename);
                 $path = 'uploads/mockups/' . $filename;
-                $fileSize = $this->formatBytes($file->getSize());
 
                 $mockup->update([
                     'file_name' => $originalName,
@@ -353,6 +355,7 @@ class CustomProjectController extends Controller
                 $file = $request->file('file');
                 $originalName = $file->getClientOriginalName();
                 $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
+                $fileSize = $this->formatBytes($file->getSize());
 
                 $uploadDir = public_path('uploads/dielines');
                 if (!file_exists($uploadDir)) {
@@ -361,7 +364,6 @@ class CustomProjectController extends Controller
 
                 $file->move($uploadDir, $filename);
                 $path = 'uploads/dielines/' . $filename;
-                $fileSize = $this->formatBytes($file->getSize());
 
                 // Permanent flag: is_company_upload = true. Naming no longer affects source detection.
                 $dieline->update([
