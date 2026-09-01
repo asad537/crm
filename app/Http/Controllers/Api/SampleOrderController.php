@@ -61,7 +61,7 @@ class SampleOrderController extends Controller
                 'data' => $sampleOrder
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('SampleOrderController@store Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -111,7 +111,7 @@ class SampleOrderController extends Controller
                 'data' => $samples
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('SampleOrderController@index Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -141,7 +141,7 @@ class SampleOrderController extends Controller
                 'timeline' => $timeline
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Sample request not found'
@@ -237,7 +237,7 @@ class SampleOrderController extends Controller
 
             try {
                 Mail::to('quotes@myboxprinting.com')->send(new SendMail($data));
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Mail Error in SampleOrderController@cancelSample: ' . $e->getMessage());
             }
 
@@ -246,7 +246,7 @@ class SampleOrderController extends Controller
                 'message' => 'Sample request cancelled successfully'
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('SampleOrderController@cancelSample Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to cancel sample request'], 500);
         }

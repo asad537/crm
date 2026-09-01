@@ -78,7 +78,7 @@ class AuthController extends Controller
                 'user' => $user
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('AuthController@syncFirebaseUser Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -124,7 +124,7 @@ class AuthController extends Controller
 
             return response()->json(['success' => false, 'message' => 'User not found'], 404);
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('AuthController@deleteFirebaseUser Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,

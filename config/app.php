@@ -57,6 +57,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Public marketing-site domain — outward-facing product/blog page links in API
+    // responses use this (the CRM may be hosted on a different domain).
+    'public_site_url' => env('PUBLIC_SITE_URL', 'https://www.myboxprinting.com'),
+
     'asset_url' => env('ASSET_URL'),
 
     /*

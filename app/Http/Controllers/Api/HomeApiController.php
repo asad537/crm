@@ -28,7 +28,7 @@ class HomeApiController extends Controller
                 'data' => $styles
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch box styles',
@@ -58,7 +58,7 @@ class HomeApiController extends Controller
                     return [
                         'id' => $product->id,
                         'name' => $product->prod_name,
-                        'url' => url(str_replace(' ', '-', strtolower($product->prod_url))),
+                        'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url)),
                         'image' => url('images/' . $product->prod_image),
                         'gallery' => $prodGallery ? array_map(function ($img) {
                             return url('images/' . $img);
@@ -76,7 +76,7 @@ class HomeApiController extends Controller
                 'total' => $popularBoxes->count()
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch popular boxes',
@@ -111,7 +111,7 @@ class HomeApiController extends Controller
                 'data' => $data
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch categories',
@@ -148,7 +148,7 @@ class HomeApiController extends Controller
                 'total' => count($data)
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch products',
@@ -185,7 +185,7 @@ class HomeApiController extends Controller
                 'total' => count($data)
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch style boxes',
@@ -220,7 +220,7 @@ class HomeApiController extends Controller
                 'total' => count($data)
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch printing products',
@@ -271,7 +271,7 @@ class HomeApiController extends Controller
             $data = [
                 'id' => $product->id,
                 'name' => $product->prod_name ?? '',
-                'url' => $product->prod_url ? url(str_replace(' ', '-', strtolower($product->prod_url))) : '',
+                'url' => $product->prod_url ? rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url)) : '',
                 'img' => $product->prod_image ? url('images/' . $product->prod_image) : '',
                 'images' => $galleryUrls,
                 'short_description' => $product->prod_short_desc ?? '',
@@ -282,7 +282,7 @@ class HomeApiController extends Controller
                 'data' => $data
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch product detail',
@@ -428,7 +428,7 @@ class HomeApiController extends Controller
                 'message' => 'Thank you for the inquiry, our sales representative will contact soon!'
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('ApiProductQuote Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -487,7 +487,7 @@ class HomeApiController extends Controller
                 'message' => 'Thank you for your feedback!'
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('ApiFeedback Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -634,7 +634,7 @@ class HomeApiController extends Controller
                 'message' => 'Thank you for the inquiry, our sales representative will contact soon!'
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('ApiBeatMyPrice Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -670,11 +670,13 @@ class HomeApiController extends Controller
         }
 
         try {
-            Mail::send([], [], function ($message) use ($to, $subject, $htmlContent, $replyTo, $fromEmail) {
+            // L10: SwiftMailer's setBody() no longer exists (threw a TypeError that the
+            // catch(\Exception) below missed → uncaught 500 even though the lead saved).
+            // Mail::html() is the Symfony-Mailer-safe way to send raw HTML.
+            Mail::html($htmlContent, function ($message) use ($to, $subject, $replyTo, $fromEmail) {
                 $message->to($to)
                     ->subject($subject)
-                    ->from($fromEmail, config('mail.from.name') ?: 'My Box Printing')
-                    ->setBody($htmlContent, 'text/html');
+                    ->from($fromEmail, config('mail.from.name') ?: 'My Box Printing');
 
                 if ($replyTo) {
                     $message->replyTo($replyTo);
@@ -689,7 +691,7 @@ class HomeApiController extends Controller
             }
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($emailLog) {
                 // Update status to failed with error message
                 $emailLog->update([

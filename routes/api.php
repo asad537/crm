@@ -63,7 +63,7 @@ Route::get('/popular-boxes', function () {
             $popularBoxes[] = [
                 'id' => $product->id,
                 'name' => $product->prod_name ?? '',
-                'url' => url(str_replace(' ', '-', strtolower($product->prod_url ?? ''))),
+                'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url ?? '')),
                 'image' => url('images/' . ($product->prod_image ?? '')),
                 'gallery' => $galleryUrls,
                 'meta_title' => $product->meta_title ?? '',
@@ -117,7 +117,7 @@ Route::get('/boxes-by-industry', function () {
             $industryBoxes[] = [
                 'id' => $category->id,
                 'name' => $category->cate_name ?? '',
-                'url' => url(str_replace(' ', '-', strtolower($category->cate_url ?? ''))),
+                'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($category->cate_url ?? '')),
                 'image' => url('images/' . ($category->cate_image ?? '')),
                 'overlay_image' => url('images/' . ($category->cate_overlay_image ?? '')),
                 'banner' => url('images/' . ($category->cate_banner ?? '')),
@@ -179,7 +179,7 @@ Route::get('/boxes-by-style', function () {
             $boxesByStyle[] = [
                 'id' => $box->id,
                 'name' => $box->prod_name ?? '',
-                'url' => url(str_replace(' ', '-', strtolower($box->prod_url ?? ''))),
+                'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($box->prod_url ?? '')),
                 'image' => url('images/' . ($box->prod_image ?? '')),
                 'gallery' => $galleryUrls,
                 'short_description' => $box->prod_short_desc ?? '',
@@ -242,7 +242,7 @@ Route::get('/printing-products', function () {
             $products[] = [
                 'id' => $product->id,
                 'name' => $product->prod_name ?? '',
-                'url' => url(str_replace(' ', '-', strtolower($product->prod_url ?? ''))),
+                'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url ?? '')),
                 'image' => url('images/' . ($product->prod_image ?? '')),
                 'gallery' => $galleryUrls,
                 'short_description' => $product->prod_short_desc ?? '',
@@ -308,7 +308,7 @@ Route::get('/navigation-menu', function () {
                 return [
                     'id' => $item->id,
                     'name' => $item->prod_name ?? '',
-                    'url' => url(str_replace(' ', '-', strtolower($item->prod_url ?? ''))),
+                    'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($item->prod_url ?? '')),
                     'image' => url('images/' . ($item->prod_image ?? ''))
                 ];
             }),
@@ -316,7 +316,7 @@ Route::get('/navigation-menu', function () {
                 return [
                     'id' => $item->id,
                     'name' => $item->cate_name ?? '',
-                    'url' => url(str_replace(' ', '-', strtolower($item->cate_url ?? ''))),
+                    'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($item->cate_url ?? '')),
                     'image' => url('images/' . ($item->cate_image ?? ''))
                 ];
             }),
@@ -324,7 +324,7 @@ Route::get('/navigation-menu', function () {
                 return [
                     'id' => $item->id,
                     'name' => $item->prod_name ?? '',
-                    'url' => url(str_replace(' ', '-', strtolower($item->prod_url ?? ''))),
+                    'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($item->prod_url ?? '')),
                     'image' => url('images/' . ($item->prod_image ?? ''))
                 ];
             }),
@@ -332,7 +332,7 @@ Route::get('/navigation-menu', function () {
                 return [
                     'id' => $item->id,
                     'name' => $item->prod_name ?? '',
-                    'url' => url(str_replace(' ', '-', strtolower($item->prod_url ?? ''))),
+                    'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($item->prod_url ?? '')),
                     'image' => url('images/' . ($item->prod_image ?? ''))
                 ];
             })
@@ -392,7 +392,7 @@ Route::get('/product/{id}', function ($id) {
         $productDetail = [
             'id' => $product->id,
             'name' => $product->prod_name ?? '',
-            'url' => url(str_replace(' ', '-', strtolower($product->prod_url ?? ''))),
+            'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url ?? '')),
             'image' => url('images/' . ($product->prod_image ?? '')),
             'gallery' => $galleryUrls,
             'short_description' => $product->prod_short_desc ?? '',
@@ -462,7 +462,7 @@ Route::get('/category/{id}/products', function ($id) {
             $categoryProducts[] = [
                 'id' => $product->id,
                 'name' => $product->prod_name ?? '',
-                'url' => url(str_replace(' ', '-', strtolower($product->prod_url ?? ''))),
+                'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url ?? '')),
                 'image' => url('images/' . ($product->prod_image ?? '')),
                 'gallery' => $galleryUrls,
                 'short_description' => $product->prod_short_desc ?? '',
@@ -520,7 +520,7 @@ Route::get('/search', function (Request $request) {
             $searchResults[] = [
                 'id' => $product->id,
                 'name' => $product->prod_name ?? '',
-                'url' => url(str_replace(' ', '-', strtolower($product->prod_url ?? ''))),
+                'url' => rtrim(config('app.public_site_url'),'/').'/'.str_replace(' ', '-', strtolower($product->prod_url ?? '')),
                 'image' => url('images/' . ($product->prod_image ?? '')),
                 'short_description' => $product->prod_short_desc ?? '',
                 'meta_title' => $product->meta_title ?? '',
@@ -560,7 +560,7 @@ Route::get('/latest-blogs', function () {
                 'id' => $blog->t_id ?? 0,
                 'name' => $blog->t_title ?? 'Blog Post',
                 'image_url' => !empty($blog->t_featured_image) ? url('images/blog/' . $blog->t_featured_image) : url('images/blog/default-blog.jpg'),
-                'blog_url' => !empty($blog->t_slug) ? url('blog/' . $blog->t_slug) : url('blog/' . $blog->t_id),
+                'blog_url' => !empty($blog->t_slug) ? rtrim(config('app.public_site_url'),'/').'/blog/'.$blog->t_slug : rtrim(config('app.public_site_url'),'/').'/blog/'.$blog->t_id,
                 'date' => $blog->time ?? date('Y-m-d'),
             ];
         }
@@ -602,7 +602,7 @@ Route::get('/blog-detail/{id}', function ($id) {
             'id' => $blog->t_id ?? 0,
             'name' => $blog->t_title ?? 'Blog Post',
             'image_url' => !empty($blog->t_featured_image) ? url('images/blog/' . $blog->t_featured_image) : url('images/blog/default-blog.jpg'),
-            'blog_url' => !empty($blog->t_slug) ? url('blog/' . $blog->t_slug) : url('blog/' . $blog->t_id),
+            'blog_url' => !empty($blog->t_slug) ? rtrim(config('app.public_site_url'),'/').'/blog/'.$blog->t_slug : rtrim(config('app.public_site_url'),'/').'/blog/'.$blog->t_id,
             'date' => $blog->time ?? date('Y-m-d'),
             'meta_description' => $blog->metadesc ?? '',
             'keywords' => $blog->keywords ?? '',

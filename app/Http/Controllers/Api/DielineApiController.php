@@ -67,7 +67,7 @@ class DielineApiController extends Controller
                 'success' => true,
                 'data' => $dielines
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch dielines',
@@ -175,7 +175,7 @@ class DielineApiController extends Controller
                 'data'    => $dieline,
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -214,7 +214,7 @@ class DielineApiController extends Controller
                 'message' => 'Status updated successfully',
                 'data' => $dieline
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -241,7 +241,7 @@ class DielineApiController extends Controller
                 'message' => 'File renamed successfully',
                 'data' => $dieline
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -265,7 +265,7 @@ class DielineApiController extends Controller
                 'success' => true,
                 'message' => 'Dieline deleted successfully'
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -313,7 +313,7 @@ class DielineApiController extends Controller
                 'data'    => ['id' => $mockup->id, 'status' => 'pending_company_design'],
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Company mockup request failed', ['error' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -383,7 +383,7 @@ class DielineApiController extends Controller
                 ],
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('User mockup upload failed', ['error' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -429,7 +429,7 @@ class DielineApiController extends Controller
                 'message' => 'Mockup status updated successfully',
                 'data'    => $mockup
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

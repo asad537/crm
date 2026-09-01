@@ -364,7 +364,7 @@ class ProjectApiController extends Controller
                 'data' => $formattedProjects
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('ProjectApiController@index Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -434,7 +434,7 @@ class ProjectApiController extends Controller
                 'data' => $order
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('ProjectApiController@placeOrder Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to place order', 'error' => $e->getMessage()], 500);
         }
@@ -471,7 +471,7 @@ class ProjectApiController extends Controller
 
             try {
                 Mail::to('quotes@myboxprinting.com')->send(new SendMail($data));
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Mail Error in ProjectApiController@cancelOrder: ' . $e->getMessage());
             }
 
@@ -480,7 +480,7 @@ class ProjectApiController extends Controller
                 'message' => 'Order cancelled successfully'
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('ProjectApiController@cancelOrder Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to cancel order'], 500);
         }

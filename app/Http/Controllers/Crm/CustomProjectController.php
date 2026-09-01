@@ -158,7 +158,7 @@ class CustomProjectController extends Controller
 
             $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
 
-            $uploadDir = 'uploads/dielines/';
+            $uploadDir = public_path('uploads/dielines');
             if (!file_exists($uploadDir))
                 mkdir($uploadDir, 0755, true);
             $file->move($uploadDir, $filename);
@@ -242,7 +242,7 @@ class CustomProjectController extends Controller
 
             $filename = time() . '_mockup_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
 
-            $mockupDir = 'uploads/mockups/';
+            $mockupDir = public_path('uploads/mockups');
             if (!file_exists($mockupDir))
                 mkdir($mockupDir, 0755, true);
             $file->move($mockupDir, $filename);
@@ -345,7 +345,7 @@ class CustomProjectController extends Controller
                 $originalName = $file->getClientOriginalName();
                 $filename = time() . '_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
 
-                $uploadDir = 'uploads/dielines/';
+                $uploadDir = public_path('uploads/dielines');
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }

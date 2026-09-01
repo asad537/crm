@@ -73,7 +73,7 @@ class CreditsController extends Controller
                 ]
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('CreditsController@credits Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to fetch credits'], 500);
@@ -183,7 +183,7 @@ class CreditsController extends Controller
                             Log::error("Apple Verification Failed: HTTP {$httpCode} - {$response}");
                             return response()->json(['success' => false, 'message' => "Apple HTTP {$httpCode}: {$response}"], 400);
                         }
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Log::error("Apple JWT Error: " . $e->getMessage());
                         return response()->json(['success' => false, 'message' => "Apple Exception: " . $e->getMessage()], 400);
                     }
@@ -248,7 +248,7 @@ class CreditsController extends Controller
                             return response()->json(['success' => false, 'message' => 'Purchase not verified or pending. State: ' . ($purchase->purchaseState ?? 'unknown')], 400);
                         }
                         $isValid = true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Log::error("Google API Error: " . $e->getMessage());
                         return response()->json(['success' => false, 'message' => "Google API Exception: " . $e->getMessage()], 400);
                     }
@@ -311,7 +311,7 @@ class CreditsController extends Controller
                 ]
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('CreditsController@verifyPurchase Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to process purchase', 'error' => $e->getMessage()], 500);
@@ -410,7 +410,7 @@ class CreditsController extends Controller
                 'data' => json_decode($response)
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('CreditsController@generateProxy Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to generate dieline proxy', 'error' => $e->getMessage()], 500);
@@ -456,7 +456,7 @@ class CreditsController extends Controller
             }
             
             return response()->json(['success' => true], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Apple Webhook Error: ' . $e->getMessage());
             return response()->json(['success' => false], 500);
         }
@@ -488,7 +488,7 @@ class CreditsController extends Controller
             }
 
             return response()->json(['success' => true], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Google Webhook Error: ' . $e->getMessage());
             return response()->json(['success' => false], 500);
         }
@@ -562,7 +562,7 @@ class CreditsController extends Controller
             }
 
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('handleRefund Error: ' . $e->getMessage());
         }
