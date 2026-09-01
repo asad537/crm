@@ -19,3 +19,21 @@ yarn-error.log
 /.idea
 /.vscode
 /.config
+
+# Legacy site assets & user uploads — served locally/from server, NOT tracked in git
+# (repo stays code-only; deploy copies these separately)
+/public/uploads/
+/public/adminassets/
+/public/assets/
+/public/box_assets/
+/public/customboxes/
+/public/adones/
+/public/docx_badges/
+/public/docx_render_sig/
+/public/docx_render_sig2/
+/public/finishing/
+/public/icon/
+/public/material/
+/public/materials/
+/public/images/blog/
+/public/images/projects/
