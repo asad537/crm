@@ -182,8 +182,17 @@ class CustomProjectController extends Controller
 
     public function updateDielineStatus(Request $request, $id)
     {
+        $request->validate([
+            'status' => 'required|in:pending,approved,change_requested',
+        ]);
+
         try {
             $dieline = \App\Dieline::findOrFail($id);
+
+            if ($request->status === 'approved' && !$dieline->file_path) {
+                return back()->with('error', 'Upload the dieline file before marking it as approved.');
+            }
+
             $dieline->update(['status' => $request->status]);
             return back()->with('success', 'Status updated to ' . $request->status);
         } catch (\Exception $e) {

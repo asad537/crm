@@ -483,10 +483,12 @@
                     @forelse($project->dielines as $dieline)
                     <tr style="{{ $dieline->status == 'pending_company_design' ? 'background: #fffbeb;' : '' }}">
                         <td style="padding-left: 1.5rem;">
-                            @if($dieline->status == 'pending_company_design')
+                            @if(!$dieline->file_path)
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     <i class="fas fa-hourglass-half" style="color: #f59e0b;"></i>
-                                    <span style="font-weight: 600; color: #92400e;">Design Requested by Customer</span>
+                                    <span style="font-weight: 600; color: #92400e;">
+                                        {{ $dieline->status == 'pending_company_design' ? 'Design Requested by Customer' : 'Dieline file not uploaded' }}
+                                    </span>
                                 </div>
                             @else
                                 @php 
