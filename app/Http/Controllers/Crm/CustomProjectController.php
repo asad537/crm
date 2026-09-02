@@ -304,9 +304,12 @@ class CustomProjectController extends Controller
 
     public function fulfillMockupRequest(Request $request, $id)
     {
-        $request->validate([
-            'file' => 'required|file|max:204800', // 200MB
-        ]);
+        $uploadedFile = $request->file('file');
+        if (!$uploadedFile || !$uploadedFile->isValid()) {
+            $message = $uploadedFile ? $uploadedFile->getErrorMessage() : 'No file was received. Please choose a file first.';
+            return redirect()->back()->with('error', 'Mockup upload failed: ' . $message);
+        }
+        $request->validate(['file' => 'required|file|max:204800']);
 
         try {
             $mockup = \App\Mockup::findOrFail($id);
@@ -317,7 +320,7 @@ class CustomProjectController extends Controller
                 $filename = time() . '_mockup_' . preg_replace('/[^A-Za-z0-9.\-]/', '_', $originalName);
                 $fileSize = $this->formatBytes($file->getSize());
 
-                $uploadDir = 'uploads/mockups/';
+                $uploadDir = public_path('uploads/mockups');
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
@@ -344,9 +347,12 @@ class CustomProjectController extends Controller
 
     public function fulfillDielineRequest(Request $request, $id)
     {
-        $request->validate([
-            'file' => 'required|file|max:204800', // 200MB
-        ]);
+        $uploadedFile = $request->file('file');
+        if (!$uploadedFile || !$uploadedFile->isValid()) {
+            $message = $uploadedFile ? $uploadedFile->getErrorMessage() : 'No file was received. Please choose a file first.';
+            return redirect()->back()->with('error', 'Dieline upload failed: ' . $message);
+        }
+        $request->validate(['file' => 'required|file|max:204800']);
 
         try {
             $dieline = \App\Dieline::findOrFail($id);
