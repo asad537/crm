@@ -360,6 +360,13 @@
     @endif
 </div>
 
+@if(session('error') || $errors->any())
+    <div style="margin: 1rem 1.5rem; padding: .9rem 1.1rem; background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; color:#991b1b; font-weight:600;">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ session('error') ?: $errors->first() }}
+    </div>
+@endif
+
 <!-- Tab 1: Overview -->
 <div id="overview-tab" class="tab-content {{ (!$project->sampleOrder && !$project->productionOrders->count()) ? 'active' : '' }}">
     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
