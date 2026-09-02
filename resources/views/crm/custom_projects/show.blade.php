@@ -537,8 +537,9 @@
                                 @else
                                 <form action="{{ route('crm.dielines.fulfill', $dieline->id) }}" method="POST" enctype="multipart/form-data">
                                     @csrf
-                                    <label for="f-{{ $dieline->id }}" class="action-btn" style="background:#f59e0b; color:white; border:none; cursor: pointer;"><i class="fas fa-file-upload"></i></label>
-                                    <input type="file" name="file" id="f-{{ $dieline->id }}" style="display:none" onchange="this.form.submit()">
+                                    <label for="f-{{ $dieline->id }}" class="action-btn" style="background:#f59e0b; color:white; border:none; cursor: pointer;" title="Choose dieline file"><i class="fas fa-file-upload"></i></label>
+                                    <input type="file" name="file" id="f-{{ $dieline->id }}" style="display:none">
+                                    <button type="submit" class="action-btn" style="background:#16a34a; color:white; border:none; cursor:pointer;" title="Upload selected dieline"><i class="fas fa-check"></i></button>
                                 </form>
                                 @endif
                                 <form action="{{ route('crm.dielines.destroy', $dieline->id) }}" method="POST" onsubmit="return confirm('Delete?')">
@@ -590,7 +591,8 @@
                                             <form action="{{ route('crm.mockups.fulfill', $mockup->id) }}" method="POST" enctype="multipart/form-data" style="margin-top:5px;" class="no-click">
                                                 @csrf
                                                 <label for="fm-{{ $mockup->id }}" style="display:block; background:#f59e0b; color:white; text-align:center; padding:4px; border-radius:4px; font-size:0.65rem; font-weight:800; cursor:pointer;">UPLOAD MOCKUP</label>
-                                                <input type="file" name="file" id="fm-{{ $mockup->id }}" style="display:none" onchange="this.form.submit()">
+                                                <input type="file" name="file" id="fm-{{ $mockup->id }}" style="display:none">
+                                                <button type="submit" style="display:block; width:100%; background:#16a34a; color:white; text-align:center; padding:4px; border:none; border-radius:4px; font-size:0.65rem; font-weight:800; cursor:pointer; margin-top:4px;">UPLOAD MOCKUP</button>
                                             </form>
                                         @endif
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;" class="no-click">
