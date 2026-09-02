@@ -138,7 +138,7 @@ class CustomProjectController extends Controller
     public function uploadDieline(Request $request, $id)
     {
         $request->validate([
-            'file' => 'required|file|max:10240',
+            'file' => 'required|file|max:51200',
             'file_name' => 'nullable|string'
         ]);
 
@@ -232,7 +232,7 @@ class CustomProjectController extends Controller
     public function uploadMockup(Request $request, $dielineId)
     {
         $request->validate([
-            'file' => 'required|file|max:10240',
+            'file' => 'required|file|max:51200',
             'file_name' => 'nullable|string'
         ]);
 
@@ -305,7 +305,7 @@ class CustomProjectController extends Controller
     public function fulfillMockupRequest(Request $request, $id)
     {
         $request->validate([
-            'file' => 'required|file|max:10240', // 10MB
+            'file' => 'required|file|max:51200', // 50MB
         ]);
 
         try {
@@ -345,7 +345,7 @@ class CustomProjectController extends Controller
     public function fulfillDielineRequest(Request $request, $id)
     {
         $request->validate([
-            'file' => 'required|file|max:10240', // 10MB
+            'file' => 'required|file|max:51200', // 50MB
         ]);
 
         try {
