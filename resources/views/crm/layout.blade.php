@@ -1569,7 +1569,12 @@
         });
         // Toast System
         function showToast(message, type = 'success') {
-            const container = document.getElementById('toast-container');
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
             const toast = document.createElement('div');
             toast.className = `premium-toast ${type}`;
             const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
