@@ -92,6 +92,7 @@ class CreditsController extends Controller
             'transaction_id' => 'nullable|string',
             'receipt_data' => 'required_if:platform,apple|string',
             'purchase_token' => 'required_if:platform,google|string',
+            'amount' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -325,7 +326,8 @@ class CreditsController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'firebase_uid' => 'required|string',
-            'template_id' => 'required|string',
+            'template_id' => 'nullable|string',
+            'template' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -333,7 +335,10 @@ class CreditsController extends Controller
         }
 
         $uid = $request->input('firebase_uid');
-        $templateId = $request->input('template_id');
+        $templateId = $request->input('template_id') ?: $request->input('template');
+        if (!$templateId) {
+            return response()->json(['success' => false, 'message' => 'template or template_id is required'], 422);
+        }
 
         try {
             DB::beginTransaction();
@@ -358,7 +363,7 @@ class CreditsController extends Controller
             $url = rtrim($baseUrl, '/') . "/dieline-templates/{$templateId}/dielines";
 
             // Exclude backend-only params before forwarding
-            $payload = $request->except(['firebase_uid', 'template_id']);
+            $payload = $request->except(['firebase_uid', 'template_id', 'template']);
 
             // Send request via cURL
             $ch = curl_init($url);
@@ -415,6 +420,29 @@ class CreditsController extends Controller
             Log::error('CreditsController@generateProxy Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to generate dieline proxy', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /** Return credit ledger entries for the app credit history screen. */
+    public function history(Request $request)
+    {
+        $validator = Validator::make($request->all(), ['firebase_uid' => 'required|string']);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $rows = CreditTransaction::where('firebase_uid', $request->input('firebase_uid'))
+            ->latest()->limit(200)->get();
+
+        return response()->json(['success' => true, 'data' => $rows->map(function ($row) {
+            return [
+                'date_time' => optional($row->created_at)->toIso8601String(),
+                'transaction_id' => $row->transaction_id,
+                'description' => $row->reason,
+                'amount' => data_get($row->raw_payload, 'amount'),
+                'credits' => $row->change,
+                'balance_after' => $row->balance_after,
+            ];
+        })]);
     }
 
     /**

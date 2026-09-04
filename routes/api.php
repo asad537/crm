@@ -690,6 +690,7 @@ Route::prefix('samples')->group(function () {
 
 // Dieline Credit & Webhook routes
 Route::get('/credits', [\App\Http\Controllers\Api\CreditsController::class, 'credits']);
+Route::get('/credits/history', [\App\Http\Controllers\Api\CreditsController::class, 'history']);
 Route::post('/credits/verify-purchase', [\App\Http\Controllers\Api\CreditsController::class, 'verifyPurchase']);
 Route::post('/dielines/generate-proxy', [\App\Http\Controllers\Api\CreditsController::class, 'generateProxy']);
 Route::post('/webhooks/apple', [\App\Http\Controllers\Api\CreditsController::class, 'webhookApple']);
