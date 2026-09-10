@@ -130,6 +130,7 @@ class DesignTicketController extends Controller
             'open_width' => ($hasPerProduct ? 'nullable' : 'required').'|numeric|min:0.01',
             'flat_length' => 'nullable|numeric|min:0.01',
             'flat_width' => 'nullable|numeric|min:0.01',
+            'flat_height' => 'nullable|numeric|min:0.01',
             'unit' => 'required|string|in:mm,cm,inches',
             'designer_notes' => 'nullable|string|max:3000',
             'designer_files' => 'nullable|array|max:10', 'designer_files.*' => 'file|max:51200',
@@ -142,9 +143,12 @@ class DesignTicketController extends Controller
         if ($hasPerProduct) {
             foreach ((array) $request->input('product_sizes') as $pid => $s) {
                 $ol = $s['open_l'] ?? ''; $ow = $s['open_w'] ?? '';
-                $fl = $s['flat_l'] ?? ''; $fw = $s['flat_w'] ?? '';
+                $fl = $s['flat_l'] ?? ''; $fw = $s['flat_w'] ?? ''; $fh = $s['flat_h'] ?? '';
                 $open = ($ol !== '' && $ow !== '') ? $this->formatDimension($ol).' x '.$this->formatDimension($ow) : null;
-                $flat = ($fl !== '' && $fw !== '') ? $this->formatDimension($fl).' x '.$this->formatDimension($fw) : $open;
+                // Flat size supports an optional height → "L x W x H".
+                $flat = ($fl !== '' && $fw !== '')
+                    ? $this->formatDimension($fl).' x '.$this->formatDimension($fw).($fh !== '' ? ' x '.$this->formatDimension($fh) : '')
+                    : $open;
                 \App\CrmInquiryProduct::where('id', $pid)
                     ->where('crm_email_id', $ticket->crm_email_id)
                     ->update(['open_size' => $open, 'flat_size' => $flat]);
@@ -157,6 +161,7 @@ class DesignTicketController extends Controller
         $data['flat_size'] = $firstFlat
             ?: ((!empty($data['flat_length']) && !empty($data['flat_width']))
                 ? $this->formatDimension($data['flat_length']).' x '.$this->formatDimension($data['flat_width'])
+                    .(!empty($data['flat_height']) ? ' x '.$this->formatDimension($data['flat_height']) : '')
                 : $data['open_size']);
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($request, $data, $ticket, $user) {
