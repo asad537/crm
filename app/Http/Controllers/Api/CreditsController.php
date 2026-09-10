@@ -439,6 +439,7 @@ class CreditsController extends Controller
                 'transaction_id' => $row->transaction_id,
                 'description' => $row->reason,
                 'amount' => data_get($row->raw_payload, 'amount'),
+                'template_id' => data_get($row->raw_payload, 'template_id') ?: data_get($row->raw_payload, 'template'),
                 'credits' => $row->change,
                 'balance_after' => $row->balance_after,
             ];

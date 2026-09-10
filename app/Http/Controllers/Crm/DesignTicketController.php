@@ -120,11 +120,19 @@ class DesignTicketController extends Controller
         $data = $request->validate([
             'open_length' => 'required|numeric|min:0.01',
             'open_width' => 'required|numeric|min:0.01',
+            // Flat size is optional — when both given it is sent to the estimator,
+            // otherwise the open size keeps standing in for it (legacy behaviour).
+            'flat_length' => 'nullable|numeric|min:0.01',
+            'flat_width' => 'nullable|numeric|min:0.01',
             'unit' => 'required|string|in:mm,cm,inches',
             'designer_notes' => 'nullable|string|max:3000',
-            'designer_files' => 'required|array|min:1|max:10', 'designer_files.*' => 'file|max:51200',
+            // Design files are optional now — a requirement can go to the estimator without artwork.
+            'designer_files' => 'nullable|array|max:10', 'designer_files.*' => 'file|max:51200',
         ]);
         $data['open_size'] = $this->formatDimension($data['open_length']).' x '.$this->formatDimension($data['open_width']);
+        $data['flat_size'] = (!empty($data['flat_length']) && !empty($data['flat_width']))
+            ? $this->formatDimension($data['flat_length']).' x '.$this->formatDimension($data['flat_width'])
+            : $data['open_size'];
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($request, $data, $ticket, $user) {
             $inquiry = $ticket->inquiry;
@@ -150,7 +158,7 @@ class DesignTicketController extends Controller
                 'client_email' => $inquiry->client_email, 'product_style' => $inquiry->product_name,
                 'length' => $inquiry->length, 'width' => $inquiry->width, 'height' => $inquiry->height,
                 'unit' => $data['unit'], 'stock' => $inquiry->stock, 'printing' => $inquiry->printing,
-                'finish_size' => $inquiry->finish_size, 'flat_size' => $data['open_size'],
+                'finish_size' => $inquiry->finish_size, 'flat_size' => $data['flat_size'],
                 'colors' => $inquiry->color, 'coating' => $inquiry->coating,
                 'lamination' => $inquiry->lamination, 'die_cutting' => $inquiry->die,
                 'gluing' => $inquiry->glue, 'shipping_region' => $inquiry->shipping_region,
