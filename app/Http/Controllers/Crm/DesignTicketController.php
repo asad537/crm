@@ -11,7 +11,7 @@ class DesignTicketController extends Controller
     {
         $user = \Auth::guard('crm')->user();
         $tab = request('tab', 'active');
-        $query = \App\DesignRequirementTicket::with(['inquiry.inquiryAttachments', 'designer', 'requester']);
+        $query = \App\DesignRequirementTicket::with(['inquiry.inquiryAttachments', 'inquiry.products', 'designer', 'requester']);
         if ($tab === 'history') {
             $query->whereIn('status', ['completed', 'forwarded', 'returned_to_sales']);
         } elseif ($tab === 'mine') {

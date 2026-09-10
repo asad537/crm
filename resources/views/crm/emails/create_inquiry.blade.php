@@ -150,6 +150,32 @@
             </div>
         </div>
 
+        <div class="mi-addprod-block" style="margin:0 0 1.1rem">
+            <div id="additionalProducts"></div>
+            <button class="mi-add" type="button" onclick="addProduct()" style="border:1px dashed var(--primary-purple);color:var(--primary-purple);background:var(--primary-soft);padding:.55rem 1rem;border-radius:9px;font-weight:700"><i class="fas fa-plus"></i> Add Another Product</button>
+            <div class="mi-help" style="margin-top:.35rem">Har additional product apni dimensions, quantities aur finishing ke saath designer/estimator tak jayega.</div>
+        </div>
+
+        <template id="additionalProductTemplate">
+            <div class="mi-addprod-row" style="position:relative;border:1px solid #e2e8f0;border-radius:12px;padding:1rem 1.1rem;margin-bottom:.8rem;background:#fbfcfe">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem">
+                    <strong style="color:var(--primary-purple);font-size:.85rem"><i class="fas fa-box"></i> Product <span class="mi-addprod-num"></span></strong>
+                    <button type="button" class="mi-remove" onclick="this.closest('.mi-addprod-row').remove();renumberProducts()" title="Remove product"><i class="fas fa-times"></i></button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem">
+                    <div><label class="mi-mini-label">Product *</label><input class="mi-control" name="products[IDX][product_name]" list="productOptions" autocomplete="off" required></div>
+                    <div><label class="mi-mini-label">Printing</label><input class="mi-control" name="products[IDX][printing]" list="printingOptions" autocomplete="off"></div>
+                    <div><label class="mi-mini-label">Dimensions (L×W×H)</label><div style="display:flex;gap:.3rem"><input class="mi-control" name="products[IDX][length]" type="number" step="0.01" min="0" placeholder="L"><input class="mi-control" name="products[IDX][width]" type="number" step="0.01" min="0" placeholder="W"><input class="mi-control" name="products[IDX][height]" type="number" step="0.01" min="0" placeholder="H"></div></div>
+                    <div><label class="mi-mini-label">Unit</label><select class="mi-control" name="products[IDX][unit]"><option value="mm">mm</option><option value="cm" selected>cm</option><option value="inches">inches</option></select></div>
+                    <div><label class="mi-mini-label">Open Size (L×W)</label><div style="display:flex;gap:.3rem"><input class="mi-control mi-addprod-openl" type="number" step="0.01" min="0" placeholder="L"><input class="mi-control mi-addprod-openw" type="number" step="0.01" min="0" placeholder="W"><input type="hidden" name="products[IDX][open_size]" class="mi-addprod-opensize"></div></div>
+                    <div><label class="mi-mini-label">Stock</label><input class="mi-control" name="products[IDX][stock]" list="stockOptions" autocomplete="off"></div>
+                    <div><label class="mi-mini-label">Finishing (comma separated)</label><input class="mi-control" name="products[IDX][finishing_options]" placeholder="e.g. Gloss Lamination, Spot UV"></div>
+                    <div><label class="mi-mini-label">Quantities (comma separated) *</label><input class="mi-control" name="products[IDX][quantities]" placeholder="e.g. 500, 1000, 2000" required></div>
+                    <div><label class="mi-mini-label">Price Offered</label><input class="mi-control" name="products[IDX][price_offered]" type="number" step=".01" min="0"></div>
+                </div>
+            </div>
+        </template>
+
         <div class="mi-extra">
             <div class="mi-field"><label>Inquiry Date *</label><input class="mi-control" type="date" name="inquiry_date" value="{{ old('inquiry_date',date('Y-m-d')) }}" required></div>
             <div class="mi-field"><label>Inquiry Source *</label><select class="mi-control" name="source" required>@foreach(['website'=>'Website','call'=>'Call','walk_in'=>'Walk-in','social_media'=>'Social Media','whatsapp'=>'WhatsApp','live_chat'=>'Live Chat','email'=>'Email'] as $value=>$label)<option value="{{ $value }}" {{ old('source','website')===$value?'selected':'' }}>{{ $label }}</option>@endforeach</select></div>
@@ -181,7 +207,27 @@
 @endsection
 
 @section('scripts')
+<style>.mi-mini-label{display:block;font-size:.66rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem}</style>
 <script>
+// ── Additional products (multi-product inquiry) ──
+var __prodIndex = 0;
+function addProduct(){
+    var tpl=document.getElementById('additionalProductTemplate');
+    var html=tpl.innerHTML.replace(/IDX/g,__prodIndex);
+    var wrap=document.createElement('div');wrap.innerHTML=html.trim();
+    var row=wrap.firstChild;
+    document.getElementById('additionalProducts').appendChild(row);
+    // open-size L/W → hidden open_size "L x W"
+    var l=row.querySelector('.mi-addprod-openl'),w=row.querySelector('.mi-addprod-openw'),h=row.querySelector('.mi-addprod-opensize');
+    function sync(){var a=(l.value||'').trim(),b=(w.value||'').trim();h.value=(a&&b)?(a+' x '+b):(a||b||'')}
+    l.addEventListener('input',sync);w.addEventListener('input',sync);
+    __prodIndex++;renumberProducts();
+}
+function renumberProducts(){
+    document.querySelectorAll('#additionalProducts .mi-addprod-row').forEach(function(row,i){
+        row.querySelector('.mi-addprod-num').textContent='#'+(i+2); // #1 is the main row
+    });
+}
 function addQuantity(){var list=document.getElementById('quantityList'),row=document.createElement('div');row.className='mi-quantity';row.innerHTML='<input class="mi-control" type="number" name="quantities[]" min="1" placeholder="e.g. 1000" required><button class="mi-remove" type="button" onclick="removeQuantity(this)"><i class="fas fa-times"></i></button>';list.appendChild(row)}
 function removeQuantity(button){var rows=document.querySelectorAll('.mi-quantity');if(rows.length>1)button.parentNode.remove();else button.parentNode.querySelector('input').value=''}
 function openFinishingDialog(){document.getElementById('finishingDialog').classList.add('open');document.getElementById('finishingParent').focus()}

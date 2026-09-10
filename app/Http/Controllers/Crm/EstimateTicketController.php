@@ -151,7 +151,7 @@ class EstimateTicketController extends Controller
 
     public function show($id)
     {
-        $ticket = EstimateTicket::with(['options', 'estimator', 'requester', 'teamLead', 'lead'])->findOrFail($id);
+        $ticket = EstimateTicket::with(['options', 'estimator', 'requester', 'teamLead', 'lead', 'lead.products'])->findOrFail($id);
         $this->authorizeTicket($ticket);
         // Al Massa now uses the same estimation detail page as My Box (rate matrix +
         // calculator), so both workspaces share one estimation model/UI.

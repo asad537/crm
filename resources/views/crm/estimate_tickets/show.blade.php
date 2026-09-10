@@ -274,6 +274,29 @@
         <div class="es-info"><span class="es-label">Shipping Address</span><div class="es-value" style="white-space:pre-line">{{ optional($ticket->lead)->shipping_address ?: 'Not provided' }}</div></div>
         <div class="es-info"><span class="es-label">Designer Files</span>@forelse(($ticket->attachments ?: []) as $file)<a class="es-file" target="_blank" rel="noopener" href="{{ $estimatorAttachmentUrl($file) }}"><i class="fas fa-paperclip"></i>{{ basename($file) }}</a>@empty<div class="es-value">No files</div>@endforelse</div>
     </div>
+    @php $__estProducts = optional($ticket->lead)->products ?? collect(); @endphp
+    @if($__estProducts->count() > 1)
+    <div style="margin-top:1rem">
+        <span class="es-label" style="display:block;margin-bottom:.5rem">Products in this inquiry ({{ $__estProducts->count() }})</span>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+            <thead><tr style="background:var(--primary-soft)">
+                @foreach(['#','Product','Printing','Dimensions','Open/Flat','Stock','Quantities','Finishing'] as $h)
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0;font-weight:700">{{ $h }}</th>
+                @endforeach
+            </tr></thead>
+            <tbody>@foreach($__estProducts as $i => $p)<tr>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $i+1 }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0"><strong>{{ $p->product_name }}</strong></td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->printing ?: '—' }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->dimension_label }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->flat_size ?: ($p->open_size ?: '—') }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->stock ?: '—' }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ implode(', ', $p->quantities ?: []) }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '—' }}</td>
+            </tr>@endforeach</tbody>
+        </table></div>
+    </div>
+    @endif
 </div>
 
 @if($ticket->return_note && !$u->isTeamLead())

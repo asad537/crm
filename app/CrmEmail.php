@@ -137,6 +137,12 @@ class CrmEmail extends Model
         return $this->hasMany(CrmOrderItem::class, 'crm_email_id');
     }
 
+    /** Multiple products captured on this inquiry (multi-product inquiries). */
+    public function products()
+    {
+        return $this->hasMany(CrmInquiryProduct::class, 'crm_email_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     public function latestMessage()
     {
         return $this->hasOne(CrmMessage::class, 'crm_email_id')

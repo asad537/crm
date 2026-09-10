@@ -1486,12 +1486,55 @@ class EmailController extends Controller
         return back()->with('success', 'Sales offer prices saved. The client estimate PDF will use these prices.');
     }
 
+    /**
+     * Normalise the posted products[] array into a clean list of product rows.
+     * Returns [] when the legacy single-product form (flat fields) was used.
+     */
+    private function normaliseInquiryProducts(Request $request)
+    {
+        $raw = $request->input('products');
+        if (!is_array($raw)) return [];
+        $out = [];
+        foreach ($raw as $p) {
+            if (!is_array($p)) continue;
+            $name = trim((string) ($p['product_name'] ?? ''));
+            if ($name === '') continue; // skip blank rows
+            // quantities / finishing may arrive as a comma-separated string (compact rows) or an array.
+            $splitCsv = function ($v) {
+                if (is_array($v)) return array_values(array_filter(array_map('trim', $v), 'strlen'));
+                return array_values(array_filter(array_map('trim', explode(',', (string) $v)), 'strlen'));
+            };
+            $qty = array_values(array_filter(array_map('intval', $splitCsv($p['quantities'] ?? '')), function ($n) { return $n > 0; }));
+            $out[] = [
+                'product_name' => $name,
+                'printing' => $p['printing'] ?? null,
+                'length' => ($p['length'] ?? '') !== '' ? $p['length'] : null,
+                'width' => ($p['width'] ?? '') !== '' ? $p['width'] : null,
+                'height' => ($p['height'] ?? '') !== '' ? $p['height'] : null,
+                'unit' => $p['unit'] ?? null,
+                'finish_size' => $p['finish_size'] ?? null,
+                'open_size' => $p['open_size'] ?? null,
+                'stock' => $p['stock'] ?? null,
+                'price_offered' => ($p['price_offered'] ?? '') !== '' ? $p['price_offered'] : null,
+                'finishing_options' => $splitCsv($p['finishing_options'] ?? ''),
+                'quantities' => $qty,
+            ];
+        }
+        return $out;
+    }
+
     public function createInquiry(Request $request)
     {
         $currentUser = \Auth::guard('crm')->user();
         if (!$currentUser || (!$currentUser->isAdmin() && !$currentUser->isSalesManager() && !$currentUser->isSales())) {
             abort(403);
         }
+
+        // Multi-product support: the rich first row posts the flat fields (product #1);
+        // any "+ Add Another Product" rows post as products[N][field] (additional products).
+        // Both are persisted to crm_inquiry_products; crm_emails keeps product #1 for
+        // backward compatibility with all existing single-product code.
+        $additionalProducts = $this->normaliseInquiryProducts($request);
 
         if (!$request->filled('quantities') && $request->filled('quantity')) {
             $request->merge(['quantities' => [$request->quantity]]);
@@ -1534,7 +1577,7 @@ class EmailController extends Controller
             ? $data['route_to'] === 'designer'
             : empty($data['open_size']);
 
-        $inquiry = DB::transaction(function () use ($request, $data, $currentUser, $inquiryDate, $quantities, $toDesign) {
+        $inquiry = DB::transaction(function () use ($request, $data, $currentUser, $inquiryDate, $quantities, $toDesign, $additionalProducts) {
             $attributes = [
                 'source' => $data['source'], 'client_name' => $data['client_name'],
                 'client_email' => $data['client_email'], 'client_phone' => $data['client_phone'] ?? null,
@@ -1561,6 +1604,31 @@ class EmailController extends Controller
             $inquiry = new CrmEmail($attributes);
             $inquiry->created_at = $inquiryDate;
             $inquiry->save();
+
+            // Product #1 = the rich first row (flat fields); then any additional rows.
+            $rows = array_merge([[
+                'product_name' => $data['product_name'], 'printing' => $data['printing'] ?? null,
+                'length' => $data['length'] ?? null, 'width' => $data['width'] ?? null,
+                'height' => $data['height'] ?? null, 'unit' => $data['unit'] ?? null,
+                'finish_size' => $data['finish_size'] ?? null, 'open_size' => $data['open_size'] ?? null,
+                'stock' => $data['stock'] ?? null, 'price_offered' => $data['price_offered'] ?? null,
+                'finishing_options' => $data['finishing_options'] ?? [], 'quantities' => $quantities,
+            ]], $additionalProducts);
+            foreach ($rows as $i => $p) {
+                $pq = array_values(array_unique(array_map('intval', array_filter((array) ($p['quantities'] ?? []), 'strlen'))));
+                \App\CrmInquiryProduct::create([
+                    'crm_email_id' => $inquiry->id,
+                    'product_name' => $p['product_name'] ?? 'Product',
+                    'printing' => $p['printing'] ?? null,
+                    'length' => $p['length'] ?? null, 'width' => $p['width'] ?? null, 'height' => $p['height'] ?? null,
+                    'unit' => $p['unit'] ?? ($data['unit'] ?? null),
+                    'finish_size' => $p['finish_size'] ?? null, 'open_size' => $p['open_size'] ?? null,
+                    'stock' => $p['stock'] ?? null, 'price_offered' => $p['price_offered'] ?? null,
+                    'finishing_options' => !empty($p['finishing_options']) ? array_values((array) $p['finishing_options']) : null,
+                    'quantities' => $pq ?: $quantities,
+                    'sort_order' => $i,
+                ]);
+            }
 
             DB::table('crm_assignment_logs')->insert([
                 'crm_email_id' => $inquiry->id, 'assigned_by' => $currentUser->id,

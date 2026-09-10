@@ -116,6 +116,33 @@
 @php $isOrderArtworkTicket = strpos($ticket->ticket_number, 'ART-') === 0; @endphp
 <form class="dt-form" method="POST" enctype="multipart/form-data" action="{{ route('crm.design_requirements.complete',$ticket->id) }}">{{ csrf_field() }}
     <div class="dt-summary"><div><span>Product Name</span><strong>{{ optional($ticket->inquiry)->product_name ?: 'Inquiry unavailable' }}</strong></div><div><span>Dimensions</span><strong>{{ optional($ticket->inquiry)->finish_size ?: '-' }} {{ optional($ticket->inquiry)->unit }}</strong></div><div><span>Quantities</span><strong>{{ implode(', ', $ticket->quantities ?: []) }}</strong></div><div><span>Stock</span><strong>{{ optional($ticket->inquiry)->stock ?: '-' }}</strong></div><div><span>Printing</span><strong>{{ optional($ticket->inquiry)->printing ?: '-' }}</strong></div></div>
+    @php $__products = optional($ticket->inquiry)->products ?? collect(); @endphp
+    @if($__products->count() > 1)
+    <div class="dt-field"><label>Products in this inquiry ({{ $__products->count() }})</label>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+            <thead><tr style="background:var(--primary-soft)">
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">#</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Product</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Printing</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Dimensions</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Open Size</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Stock</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Qty</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Finishing</th>
+            </tr></thead>
+            <tbody>@foreach($__products as $i => $p)<tr>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $i+1 }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0"><strong>{{ $p->product_name }}</strong></td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->printing ?: '-' }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->dimension_label }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->open_size ?: '-' }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->stock ?: '-' }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ implode(', ', $p->quantities ?: []) }}</td>
+                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '-' }}</td>
+            </tr>@endforeach</tbody>
+        </table></div>
+    </div>
+    @endif
     @if($ticket->return_note)<div class="dt-return-box"><label>Estimator Return Note</label><div>{{ $ticket->return_note }}</div></div>@endif
     @if($isOrderArtworkTicket)
     <div class="dt-field"><label>Customer Artwork</label><div class="dt-files">@forelse($ticket->attachments->where('stage','order_artwork') as $file)<a class="dt-file" href="{{ $designerAttachmentUrl($file->file_path) }}" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> {{ $file->original_name }}</a>@empty<span class="dt-muted">No artwork attached</span>@endforelse</div></div>
