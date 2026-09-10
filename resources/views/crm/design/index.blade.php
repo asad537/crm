@@ -49,8 +49,19 @@
         @endphp
         <tr>
             <td><strong>{{ $ticket->ticket_number }}</strong><div class="dt-muted">{{ $ticket->created_at->format('d M Y, h:i A') }}</div></td>
-            <td><div class="dt-client"><strong>{{ optional($inquiry)->product_name ?: 'Inquiry unavailable' }}</strong><div class="dt-muted">{{ optional($inquiry)->stock ?: 'No stock detail' }}</div></div></td>
-            <td>@foreach(($ticket->quantities ?: []) as $qty)<span class="dt-chip">{{ number_format($qty) }}</span> @endforeach</td>
+            @php $__rowProducts = optional($inquiry)->products ?? collect(); $__rowMulti = $__rowProducts->count() > 1; @endphp
+            <td><div class="dt-client"><strong>{{ optional($inquiry)->product_name ?: 'Inquiry unavailable' }}</strong>
+                @if($__rowMulti)<div class="dt-muted"><span class="dt-chip" style="background:var(--primary-soft);color:var(--primary-purple)">+{{ $__rowProducts->count() - 1 }} more product{{ $__rowProducts->count() - 1 > 1 ? 's' : '' }}</span></div>@else<div class="dt-muted">{{ optional($inquiry)->stock ?: 'No stock detail' }}</div>@endif
+            </div></td>
+            <td>
+                @if($__rowMulti)
+                    @foreach($__rowProducts as $__rp)
+                        <div style="margin-bottom:.25rem"><span class="dt-muted" style="font-size:.66rem">{{ \Illuminate\Support\Str::limit($__rp->product_name, 14) }}:</span> @foreach(($__rp->quantities ?: []) as $qty)<span class="dt-chip">{{ number_format($qty) }}</span> @endforeach</div>
+                    @endforeach
+                @else
+                    @foreach(($ticket->quantities ?: []) as $qty)<span class="dt-chip">{{ number_format($qty) }}</span> @endforeach
+                @endif
+            </td>
             <td>{{ $ticket->designer ? $ticket->designer->name : 'Unassigned' }}</td>
             <td>
                 @if($ticket->return_note && in_array($ticket->status, ['open', 'new']))
