@@ -156,7 +156,11 @@ class EstimateTicketController extends Controller
         // Al Massa now uses the same estimation detail page as My Box (rate matrix +
         // calculator), so both workspaces share one estimation model/UI.
         $rateMatrices = CrmEstimationRateMatrix::orderBy('type')->orderBy('paper_size')->orderBy('gsm')->get();
-        return view('crm.estimate_tickets.show', compact('ticket', 'rateMatrices'));
+        // Sibling per-product estimate tickets for the same inquiry (multi-product) → shown as tabs.
+        $siblingTickets = EstimateTicket::where('crm_email_id', $ticket->crm_email_id)
+            ->whereNotNull('inquiry_product_id')
+            ->orderBy('id')->get(['id', 'ticket_number', 'product_style', 'inquiry_product_id', 'status']);
+        return view('crm.estimate_tickets.show', compact('ticket', 'rateMatrices', 'siblingTickets'));
     }
 
     protected function isAlMassaWorkspace()

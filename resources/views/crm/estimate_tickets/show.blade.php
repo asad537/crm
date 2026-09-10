@@ -236,6 +236,21 @@
     <div class="es-head-main"><a class="es-back" href="{{ route('crm.estimate_tickets.index', ['tab' => in_array($ticket->status,['estimated','completed']) ? 'history' : 'mine']) }}"><i class="fas fa-arrow-left"></i> Back to estimate tickets</a><h2>{{ $ticket->ticket_number }}</h2><div class="es-sub">Requested by {{ $ticket->requester->name ?? 'Unknown' }} · {{ $ticket->created_at->format('d M Y, h:i A') }}</div></div>
     <div class="es-status-wrap"><span class="es-status">{{ ucwords(str_replace('_',' ',$ticket->status)) }}</span></div>
 </div>
+
+@if(isset($siblingTickets) && $siblingTickets->count() > 1)
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:0 0 1rem">
+    <span style="color:#8190a4;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-right:.3rem"><i class="fas fa-layer-group"></i> Products:</span>
+    @foreach($siblingTickets as $i => $st)
+        <a href="{{ route('crm.estimate_tickets.show', $st->id) }}"
+           style="padding:.5rem .9rem;border-radius:9px;font-weight:800;font-size:.78rem;text-decoration:none;{{ $st->id === $ticket->id ? 'background:var(--primary-purple);color:#fff;box-shadow:0 6px 14px var(--primary-shadow)' : 'background:#eef2f7;color:#526176' }}">
+           Product {{ $i+1 }}
+           <span style="opacity:.8;font-weight:600">· {{ \Illuminate\Support\Str::limit($st->product_style, 16) }}</span>
+           @if(in_array($st->status,['estimated','completed']))<i class="fas fa-check-circle" style="margin-left:.3rem;{{ $st->id === $ticket->id ? '' : 'color:#16a34a' }}"></i>@endif
+        </a>
+    @endforeach
+    <span style="color:#94a3b8;font-size:.68rem;margin-left:.4rem">Har product ki alag estimation — tab pe click karke estimate karein</span>
+</div>
+@endif
 <div class="es-progress" aria-label="Estimate progress">
     @foreach([
         ['Request received','fa-inbox'],

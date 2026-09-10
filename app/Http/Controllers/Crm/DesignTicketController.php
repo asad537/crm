@@ -182,40 +182,75 @@ class DesignTicketController extends Controller
             $estimator = \App\CrmUser::inWorkspace(null, ['estimator'])->orderBy('id')->first();
             if (!$estimator) abort(422, 'No estimator is configured for this project.');
             $paths = $inquiry->inquiryAttachments()->pluck('file_path')->all();
-            $estimateData = [
-                'ticket_number' => $inquiry->workflow_number,
+            $products = $inquiry->products;
+            $baseData = [
                 'crm_email_id' => $inquiry->id, 'client_name' => $inquiry->client_name,
-                'client_email' => $inquiry->client_email, 'product_style' => $inquiry->product_name,
-                'length' => $inquiry->length, 'width' => $inquiry->width, 'height' => $inquiry->height,
-                'unit' => $data['unit'], 'stock' => $inquiry->stock, 'printing' => $inquiry->printing,
-                'finish_size' => $inquiry->finish_size, 'flat_size' => $data['flat_size'],
+                'client_email' => $inquiry->client_email,
+                'unit' => $data['unit'],
                 'colors' => $inquiry->color, 'coating' => $inquiry->coating,
                 'lamination' => $inquiry->lamination, 'die_cutting' => $inquiry->die,
                 'gluing' => $inquiry->glue, 'shipping_region' => $inquiry->shipping_region,
                 'currency' => $inquiry->invoice_currency ?: 'USD',
-                'requirements' => trim(
-                    ($inquiry->message ?: '').
-                    (!empty($inquiry->custom_specs['Finishing Options']) ? "\nFinishing Options: ".implode(', ', $inquiry->custom_specs['Finishing Options']) : '').
-                    "\nDesigner: ".($data['designer_notes'] ?? '')
-                ),
                 'attachments' => $paths, 'estimator_id' => null,
-                'requested_by' => $ticket->requested_by, 'status' => 'pending',
+                'requested_by' => $ticket->requested_by, 'status' => 'team_lead_review',
                 'returned_to' => null, 'return_note' => null, 'returned_by' => null, 'returned_at' => null,
             ];
-            $estimate = $ticket->estimate_ticket_id
-                ? \App\EstimateTicket::find($ticket->estimate_ticket_id)
-                : null;
-            if ($estimate) {
-                unset($estimateData['ticket_number']);
-                $estimate->update($estimateData);
-            } else {
-                $estimate = \App\EstimateTicket::create($estimateData);
-            }
-            if (!$estimate->options()->exists()) {
-                foreach (($ticket->quantities ?: [$inquiry->quantity]) as $quantity) {
-                    $estimate->options()->create(['quantity' => (int)$quantity]);
+            $firstEstimateId = null;
+
+            if ($products->count() > 1) {
+                // One estimate ticket per product — each gets its own calculator + price.
+                foreach ($products as $i => $p) {
+                    $estData = array_merge($baseData, [
+                        'ticket_number' => $inquiry->workflow_number.'-P'.($i + 1),
+                        'inquiry_product_id' => $p->id,
+                        'product_style' => $p->product_name,
+                        'length' => $p->length, 'width' => $p->width, 'height' => $p->height,
+                        'stock' => $p->stock, 'printing' => $p->printing,
+                        'finish_size' => $p->flat_size ?: ($p->open_size ?: $inquiry->finish_size),
+                        'flat_size' => $p->flat_size ?: ($p->open_size ?: $data['flat_size']),
+                        'requirements' => trim(
+                            ($inquiry->message ?: '').
+                            (!empty($p->finishing_options) ? "\nFinishing Options: ".implode(', ', $p->finishing_options) : '').
+                            "\nDesigner: ".($data['designer_notes'] ?? '')
+                        ),
+                    ]);
+                    $estimate = \App\EstimateTicket::where('crm_email_id', $inquiry->id)
+                        ->where('inquiry_product_id', $p->id)->first();
+                    if ($estimate) { unset($estData['ticket_number']); $estimate->update($estData); }
+                    else { $estimate = \App\EstimateTicket::create($estData); }
+                    if (!$estimate->options()->exists()) {
+                        foreach (($p->quantities ?: [$inquiry->quantity]) as $quantity) {
+                            $estimate->options()->create(['quantity' => (int) $quantity]);
+                        }
+                    }
+                    if ($firstEstimateId === null) $firstEstimateId = $estimate->id;
                 }
+            } else {
+                // Single product — behaves exactly as before (one ticket for the inquiry).
+                $estData = array_merge($baseData, [
+                    'ticket_number' => $inquiry->workflow_number,
+                    'inquiry_product_id' => optional($products->first())->id,
+                    'product_style' => $inquiry->product_name,
+                    'length' => $inquiry->length, 'width' => $inquiry->width, 'height' => $inquiry->height,
+                    'stock' => $inquiry->stock, 'printing' => $inquiry->printing,
+                    'finish_size' => $inquiry->finish_size, 'flat_size' => $data['flat_size'],
+                    'requirements' => trim(
+                        ($inquiry->message ?: '').
+                        (!empty($inquiry->custom_specs['Finishing Options']) ? "\nFinishing Options: ".implode(', ', $inquiry->custom_specs['Finishing Options']) : '').
+                        "\nDesigner: ".($data['designer_notes'] ?? '')
+                    ),
+                ]);
+                $estimate = $ticket->estimate_ticket_id ? \App\EstimateTicket::find($ticket->estimate_ticket_id) : null;
+                if ($estimate) { unset($estData['ticket_number']); $estimate->update($estData); }
+                else { $estimate = \App\EstimateTicket::create($estData); }
+                if (!$estimate->options()->exists()) {
+                    foreach (($ticket->quantities ?: [$inquiry->quantity]) as $quantity) {
+                        $estimate->options()->create(['quantity' => (int) $quantity]);
+                    }
+                }
+                $firstEstimateId = $estimate->id;
             }
+            $estimate = \App\EstimateTicket::find($firstEstimateId); // for the code below (design ticket link)
             $inquiry->update(['estimator_id' => null]);
             $ticket->update([
                 'open_size' => $data['open_size'], 'unit' => $data['unit'],

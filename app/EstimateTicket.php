@@ -29,7 +29,7 @@ class EstimateTicket extends Model
     }
 
     protected $fillable = [
-        'workspace_id', 'ticket_number', 'crm_email_id', 'client_name', 'client_email', 'product_style',
+        'workspace_id', 'ticket_number', 'crm_email_id', 'inquiry_product_id', 'client_name', 'client_email', 'product_style',
         'length', 'width', 'height', 'unit', 'stock', 'colors', 'coating',
         'printing', 'finish_size', 'flat_size', 'shipping', 'weight',
         'lamination', 'die_cutting', 'gluing', 'shipping_region',
