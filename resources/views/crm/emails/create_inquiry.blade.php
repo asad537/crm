@@ -95,83 +95,63 @@
         </div>
 
         <div class="mi-table-block mi-product-block">
-            <div class="mi-grid mi-product-grid">
+            <div class="mi-grid mi-product-grid mi-product-head">
                 <div class="mi-label">Product</div><div class="mi-label">Printing</div><div class="mi-label">Dimensions</div><div class="mi-label">Finishing Options</div><div class="mi-label">Open Size</div><div class="mi-label">Stock</div><div class="mi-label">Quantity Options</div><div class="mi-label">Price Offered</div>
-                <div class="mi-cell" data-label="Product"><input class="mi-control mi-combo" name="product_name" list="productOptions" autocomplete="off" value="{{ old('product_name') }}" required><datalist id="productOptions">@foreach(['Folding Carton Boxes','Rigid Boxes','Corrugated Boxes','Mailer Boxes','Product Boxes','Cosmetic Boxes','Perfume Boxes','Food Packaging Boxes','Medicine Boxes','Gift Boxes','Jewelry Boxes','Display Boxes','Sleeve Boxes','Pillow Boxes','Gable Boxes','Tuck End Boxes','Auto Lock Bottom Boxes','Window Boxes','Balloon Boxes','Paper Bags','Labels & Stickers','Brochures & Flyers','Business Cards','Booklets & Catalogs'] as $option)<option value="{{ $option }}">@endforeach</datalist></div>
-                <div class="mi-cell" data-label="Printing"><input class="mi-control mi-combo" name="printing" list="printingOptions" autocomplete="off" value="{{ old('printing') }}"><datalist id="printingOptions">@foreach(['Full-Color CMYK Offset Printing','Pantone (PMS) Printing','Digital Printing','Flexographic Printing','Screen Printing','UV Printing','Inside & Outside Printing','Outside Printing Only','Single-Color Printing','Two-Color Printing','No Printing / Plain','Metallic Ink Printing','White Ink Printing','Soy-Based Ink Printing'] as $option)<option value="{{ $option }}">@endforeach</datalist></div>
-                <div class="mi-cell" data-label="Dimensions">
-                    <div class="mi-size" style="margin-bottom: .4rem"><input class="mi-control" id="finishL" name="length" type="number" step="0.01" min="0" inputmode="decimal" value="{{ old('length') }}" placeholder="L"><input class="mi-control" id="finishW" name="width" type="number" step="0.01" min="0" inputmode="decimal" value="{{ old('width') }}" placeholder="W"><input class="mi-control" id="finishH" name="height" type="number" step="0.01" min="0" inputmode="decimal" value="{{ old('height') }}" placeholder="H"></div>
-                    <select class="mi-control mi-unit" name="unit"><option value="mm" {{ old('unit','cm') === 'mm' ? 'selected' : '' }}>mm</option><option value="cm" {{ old('unit','cm') === 'cm' ? 'selected' : '' }}>cm</option><option value="inches" {{ old('unit','cm') === 'inches' ? 'selected' : '' }}>inches</option></select>
-                    <input type="hidden" name="finish_size" id="finishSize">
-                </div>
-                <div class="mi-cell" data-label="Finishing Options">
-                    <div class="mi-finish mi-finish-all" data-title="Finishing Options">
-                        <button class="mi-control mi-finish-trigger" type="button"><span class="mi-finish-label">Select Finishing Options</span><span class="mi-finish-count">0</span></button>
-                        <div class="mi-finish-panel">
-                            <div class="mi-finish-tools"><input class="mi-control mi-finish-search" placeholder="Search finishing options..."><button class="mi-finish-add" type="button" onclick="openFinishingDialog()"><i class="fas fa-plus"></i> Add Finishing</button></div>
-                            <div class="mi-finish-options">
-                                <div class="mi-finish-section-heading"><i class="fas fa-star"></i> Popular Finishing</div>
-                                @foreach($__popularFinishingGroups as $group => $options)
-                                    <div class="mi-finish-group">
-                                        <strong class="mi-finish-group-title">{{ $group }}</strong>
-                                        @foreach($options as $option)
-                                            @php
-                                                $finishValue = $group.' — '.$option;
-                                            @endphp
-                                            <label class="mi-finish-option" data-search="{{ strtolower($group.' '.$option) }}"><input type="checkbox" name="finishing_options[]" value="{{ $finishValue }}" {{ in_array($finishValue,$__selectedFinishing,true)?'checked':'' }}><span>{{ $option }}</span></label>
-                                        @endforeach
-                                    </div>
-                                @endforeach
-                                <div class="mi-finish-section-heading mi-finish-more-heading">More Finishing Options</div>
-                                @foreach($__moreFinishingGroups as $group => $options)
-                                    <div class="mi-finish-group">
-                                        <strong class="mi-finish-group-title">{{ $group }}</strong>
-                                        @foreach($options as $option)
-                                            @php $finishValue = $group.' — '.$option; @endphp
-                                            <label class="mi-finish-option" data-search="{{ strtolower($group.' '.$option) }}"><input type="checkbox" name="finishing_options[]" value="{{ $finishValue }}" {{ in_array($finishValue,$__selectedFinishing,true)?'checked':'' }}><span>{{ $option }}</span></label>
-                                        @endforeach
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                        <div class="mi-finish-selected" aria-live="polite"></div>
-                    </div>
-                </div>
-                <div class="mi-cell" data-label="Open Size">
-                    <div class="mi-size open">
-                        <input class="mi-control" id="openL" type="number" step="0.01" min="0" inputmode="decimal" value="{{ $__openSizeParts[0] }}" placeholder="L">
-                        <input class="mi-control" id="openW" type="number" step="0.01" min="0" inputmode="decimal" value="{{ $__openSizeParts[1] }}" placeholder="W">
-                    </div>
-                    <input type="hidden" name="open_size" id="openSize" value="{{ old('open_size') }}">
-                </div>
-                <div class="mi-cell" data-label="Stock"><input class="mi-control mi-combo" name="stock" list="stockOptions" autocomplete="off" value="{{ old('stock') }}"><datalist id="stockOptions">@foreach(['12pt Cardboard Stock','14pt Cardboard Stock','16pt Cardboard Stock','18pt Cardboard Stock','20pt Cardboard Stock','24pt Cardboard Stock','Kraft Paper Stock','Recycled Kraft Stock','SBS Paperboard','FBB Paperboard','CCNB Paperboard','Corrugated E-Flute','Corrugated B-Flute','Corrugated C-Flute','Double Wall Corrugated','Grey Chipboard','Rigid Board 1.5mm','Rigid Board 2mm','Rigid Board 3mm','Art Paper 128gsm','Art Paper 157gsm','Art Paper 200gsm','Art Paper 250gsm','Art Paper 300gsm','Art Paper 350gsm'] as $option)<option value="{{ $option }}">@endforeach</datalist></div>
-                <div class="mi-cell" data-label="Quantity Options"><div class="mi-quantity-list" id="quantityList"><div class="mi-quantity"><input class="mi-control" type="number" name="quantities[]" min="1" placeholder="e.g. 500" required><button class="mi-remove" type="button" onclick="removeQuantity(this)"><i class="fas fa-times"></i></button></div></div><button class="mi-add" type="button" onclick="addQuantity()"><i class="fas fa-plus"></i> Add Quantity</button></div>
-                <div class="mi-cell" data-label="Price Offered"><input class="mi-control" type="number" step=".01" min="0" name="price_offered" value="{{ old('price_offered') }}"></div>
             </div>
+            <div id="productRows"></div>
+            <button class="mi-add" type="button" onclick="addProductRow()" style="margin-top:.7rem;border:1px dashed var(--primary-purple);color:var(--primary-purple);background:var(--primary-soft);padding:.55rem 1rem;border-radius:9px;font-weight:700"><i class="fas fa-plus"></i> Add Another Product</button>
         </div>
 
-        <div class="mi-addprod-block" style="margin:0 0 1.1rem">
-            <div id="additionalProducts"></div>
-            <button class="mi-add" type="button" onclick="addProduct()" style="border:1px dashed var(--primary-purple);color:var(--primary-purple);background:var(--primary-soft);padding:.55rem 1rem;border-radius:9px;font-weight:700"><i class="fas fa-plus"></i> Add Another Product</button>
-            <div class="mi-help" style="margin-top:.35rem">Har additional product apni dimensions, quantities aur finishing ke saath designer/estimator tak jayega.</div>
-        </div>
-
-        <template id="additionalProductTemplate">
-            <div class="mi-addprod-row" style="position:relative;border:1px solid #e2e8f0;border-radius:12px;padding:1rem 1.1rem;margin-bottom:.8rem;background:#fbfcfe">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem">
-                    <strong style="color:var(--primary-purple);font-size:.85rem"><i class="fas fa-box"></i> Product <span class="mi-addprod-num"></span></strong>
-                    <button type="button" class="mi-remove" onclick="this.closest('.mi-addprod-row').remove();renumberProducts()" title="Remove product"><i class="fas fa-times"></i></button>
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem">
-                    <div><label class="mi-mini-label">Product *</label><input class="mi-control" name="products[IDX][product_name]" list="productOptions" autocomplete="off" required></div>
-                    <div><label class="mi-mini-label">Printing</label><input class="mi-control" name="products[IDX][printing]" list="printingOptions" autocomplete="off"></div>
-                    <div><label class="mi-mini-label">Dimensions (L×W×H)</label><div style="display:flex;gap:.3rem"><input class="mi-control" name="products[IDX][length]" type="number" step="0.01" min="0" placeholder="L"><input class="mi-control" name="products[IDX][width]" type="number" step="0.01" min="0" placeholder="W"><input class="mi-control" name="products[IDX][height]" type="number" step="0.01" min="0" placeholder="H"></div></div>
-                    <div><label class="mi-mini-label">Unit</label><select class="mi-control" name="products[IDX][unit]"><option value="mm">mm</option><option value="cm" selected>cm</option><option value="inches">inches</option></select></div>
-                    <div><label class="mi-mini-label">Open Size (L×W)</label><div style="display:flex;gap:.3rem"><input class="mi-control mi-addprod-openl" type="number" step="0.01" min="0" placeholder="L"><input class="mi-control mi-addprod-openw" type="number" step="0.01" min="0" placeholder="W"><input type="hidden" name="products[IDX][open_size]" class="mi-addprod-opensize"></div></div>
-                    <div><label class="mi-mini-label">Stock</label><input class="mi-control" name="products[IDX][stock]" list="stockOptions" autocomplete="off"></div>
-                    <div><label class="mi-mini-label">Finishing (comma separated)</label><input class="mi-control" name="products[IDX][finishing_options]" placeholder="e.g. Gloss Lamination, Spot UV"></div>
-                    <div><label class="mi-mini-label">Quantities (comma separated) *</label><input class="mi-control" name="products[IDX][quantities]" placeholder="e.g. 500, 1000, 2000" required></div>
-                    <div><label class="mi-mini-label">Price Offered</label><input class="mi-control" name="products[IDX][price_offered]" type="number" step=".01" min="0"></div>
+        {{-- Full rich product row template — cloned for every product (products[IDX][...]). --}}
+        <template id="productRowTemplate">
+            <div class="mi-product-row">
+                <div class="mi-product-row-head"><strong class="mi-product-row-title"><i class="fas fa-box"></i> Product <span class="mi-product-num"></span></strong><button type="button" class="mi-remove mi-product-remove" onclick="removeProductRow(this)" title="Remove product"><i class="fas fa-times"></i></button></div>
+                <div class="mi-grid mi-product-grid">
+                    <div class="mi-cell" data-label="Product"><input class="mi-control mi-combo" name="products[IDX][product_name]" list="productOptions" autocomplete="off" required></div>
+                    <div class="mi-cell" data-label="Printing"><input class="mi-control mi-combo" name="products[IDX][printing]" list="printingOptions" autocomplete="off"></div>
+                    <div class="mi-cell" data-label="Dimensions">
+                        <div class="mi-size" style="margin-bottom: .4rem"><input class="mi-control mi-dim-l" name="products[IDX][length]" type="number" step="0.01" min="0" inputmode="decimal" placeholder="L"><input class="mi-control mi-dim-w" name="products[IDX][width]" type="number" step="0.01" min="0" inputmode="decimal" placeholder="W"><input class="mi-control mi-dim-h" name="products[IDX][height]" type="number" step="0.01" min="0" inputmode="decimal" placeholder="H"></div>
+                        <select class="mi-control mi-unit" name="products[IDX][unit]"><option value="mm">mm</option><option value="cm" selected>cm</option><option value="inches">inches</option></select>
+                        <input type="hidden" name="products[IDX][finish_size]" class="mi-finish-size">
+                    </div>
+                    <div class="mi-cell" data-label="Finishing Options">
+                        <div class="mi-finish mi-finish-all" data-title="Finishing Options">
+                            <button class="mi-control mi-finish-trigger" type="button"><span class="mi-finish-label">Select Finishing Options</span><span class="mi-finish-count">0</span></button>
+                            <div class="mi-finish-panel">
+                                <div class="mi-finish-tools"><input class="mi-control mi-finish-search" placeholder="Search finishing options..."><button class="mi-finish-add" type="button" onclick="openFinishingDialog(this)"><i class="fas fa-plus"></i> Add Finishing</button></div>
+                                <div class="mi-finish-options">
+                                    <div class="mi-finish-section-heading"><i class="fas fa-star"></i> Popular Finishing</div>
+                                    @foreach($__popularFinishingGroups as $group => $options)
+                                        <div class="mi-finish-group">
+                                            <strong class="mi-finish-group-title">{{ $group }}</strong>
+                                            @foreach($options as $option)
+                                                @php $finishValue = $group.' — '.$option; @endphp
+                                                <label class="mi-finish-option" data-search="{{ strtolower($group.' '.$option) }}"><input type="checkbox" name="products[IDX][finishing_options][]" value="{{ $finishValue }}"><span>{{ $option }}</span></label>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                    <div class="mi-finish-section-heading mi-finish-more-heading">More Finishing Options</div>
+                                    @foreach($__moreFinishingGroups as $group => $options)
+                                        <div class="mi-finish-group">
+                                            <strong class="mi-finish-group-title">{{ $group }}</strong>
+                                            @foreach($options as $option)
+                                                @php $finishValue = $group.' — '.$option; @endphp
+                                                <label class="mi-finish-option" data-search="{{ strtolower($group.' '.$option) }}"><input type="checkbox" name="products[IDX][finishing_options][]" value="{{ $finishValue }}"><span>{{ $option }}</span></label>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div class="mi-finish-selected" aria-live="polite"></div>
+                        </div>
+                    </div>
+                    <div class="mi-cell" data-label="Open Size">
+                        <div class="mi-size open"><input class="mi-control mi-open-l" type="number" step="0.01" min="0" inputmode="decimal" placeholder="L"><input class="mi-control mi-open-w" type="number" step="0.01" min="0" inputmode="decimal" placeholder="W"></div>
+                        <input type="hidden" name="products[IDX][open_size]" class="mi-open-size">
+                    </div>
+                    <div class="mi-cell" data-label="Stock"><input class="mi-control mi-combo" name="products[IDX][stock]" list="stockOptions" autocomplete="off"></div>
+                    <div class="mi-cell" data-label="Quantity Options"><div class="mi-quantity-list"><div class="mi-quantity"><input class="mi-control" type="number" name="products[IDX][quantities][]" min="1" placeholder="e.g. 500" required><button class="mi-remove" type="button" onclick="removeQuantity(this)"><i class="fas fa-times"></i></button></div></div><button class="mi-add" type="button" onclick="addQuantity(this)"><i class="fas fa-plus"></i> Add Quantity</button></div>
+                    <div class="mi-cell" data-label="Price Offered"><input class="mi-control" type="number" step=".01" min="0" name="products[IDX][price_offered]"></div>
                 </div>
             </div>
         </template>
@@ -207,45 +187,89 @@
 @endsection
 
 @section('scripts')
-<style>.mi-mini-label{display:block;font-size:.66rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem}</style>
+<style>
+.mi-product-row{position:relative;border:1px solid #e5ebf2;border-radius:12px;padding:.4rem .6rem .2rem;margin-bottom:.7rem;background:#fff}
+.mi-product-row-head{display:flex;align-items:center;justify-content:space-between;margin:.1rem .1rem .35rem}
+.mi-product-row-title{color:var(--primary-purple);font-size:.78rem;font-weight:800}
+.mi-product-remove{}
+.mi-product-row:first-child .mi-product-remove{display:none}
+</style>
 <script>
-// ── Additional products (multi-product inquiry) ──
+// ── Multi-product rows ─────────────────────────────────────────────
 var __prodIndex = 0;
-function addProduct(){
-    var tpl=document.getElementById('additionalProductTemplate');
-    var html=tpl.innerHTML.replace(/IDX/g,__prodIndex);
-    var wrap=document.createElement('div');wrap.innerHTML=html.trim();
-    var row=wrap.firstChild;
-    document.getElementById('additionalProducts').appendChild(row);
-    // open-size L/W → hidden open_size "L x W"
-    var l=row.querySelector('.mi-addprod-openl'),w=row.querySelector('.mi-addprod-openw'),h=row.querySelector('.mi-addprod-opensize');
-    function sync(){var a=(l.value||'').trim(),b=(w.value||'').trim();h.value=(a&&b)?(a+' x '+b):(a||b||'')}
-    l.addEventListener('input',sync);w.addEventListener('input',sync);
-    __prodIndex++;renumberProducts();
-}
-function renumberProducts(){
-    document.querySelectorAll('#additionalProducts .mi-addprod-row').forEach(function(row,i){
-        row.querySelector('.mi-addprod-num').textContent='#'+(i+2); // #1 is the main row
-    });
-}
-function addQuantity(){var list=document.getElementById('quantityList'),row=document.createElement('div');row.className='mi-quantity';row.innerHTML='<input class="mi-control" type="number" name="quantities[]" min="1" placeholder="e.g. 1000" required><button class="mi-remove" type="button" onclick="removeQuantity(this)"><i class="fas fa-times"></i></button>';list.appendChild(row)}
-function removeQuantity(button){var rows=document.querySelectorAll('.mi-quantity');if(rows.length>1)button.parentNode.remove();else button.parentNode.querySelector('input').value=''}
-function openFinishingDialog(){document.getElementById('finishingDialog').classList.add('open');document.getElementById('finishingParent').focus()}
-function closeFinishingDialog(){document.getElementById('finishingDialog').classList.remove('open')}
-async function saveFinishingOption(){var parentField=document.getElementById('finishingParent'),child=document.getElementById('finishingChild'),parent=parentField.value.trim(),childValue=child.value.trim();if(!parent){parentField.focus();return}if(!childValue){child.focus();return}var saveButton=document.querySelector('#finishingDialog .mi-dialog-save'),originalHtml=saveButton.innerHTML;saveButton.disabled=true;saveButton.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving';try{var response=await fetch(@json(route('crm.emails.finishing_options.store')),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':@json(csrf_token())},body:JSON.stringify({parent_name:parent,child_name:childValue})});var result=await response.json();if(!response.ok)throw new Error(result.message||'Unable to save finishing option.');parent=result.parent_name;childValue=result.child_name;var value=result.value,picker=document.querySelector('.mi-finish-all'),options=picker.querySelector('.mi-finish-options'),group=Array.from(options.querySelectorAll('.mi-finish-group')).find(function(item){return item.querySelector('.mi-finish-group-title').textContent.trim().toLowerCase()===parent.toLowerCase()});if(!group){group=document.createElement('div');group.className='mi-finish-group';group.innerHTML='<strong class="mi-finish-group-title"></strong>';group.querySelector('strong').textContent=parent;options.appendChild(group)}var parentList=document.getElementById('finishingParentOptions');if(parentList&&!Array.from(parentList.options).some(function(option){return option.value.toLowerCase()===parent.toLowerCase()})){var parentOption=document.createElement('option');parentOption.value=parent;parentList.appendChild(parentOption)}var existing=Array.from(group.querySelectorAll('input')).find(function(input){return input.value.toLowerCase()===value.toLowerCase()});if(existing){existing.checked=true}else{var option=document.createElement('label');option.className='mi-finish-option';option.dataset.search=(parent+' '+childValue).toLowerCase();var input=document.createElement('input');input.type='checkbox';input.name='finishing_options[]';input.value=value;input.checked=true;var span=document.createElement('span');span.textContent=childValue;option.appendChild(input);option.appendChild(span);group.appendChild(option)}picker.dispatchEvent(new Event('change',{bubbles:true}));parentField.value='';child.value='';closeFinishingDialog()}catch(error){alert(error.message)}finally{saveButton.disabled=false;saveButton.innerHTML=originalHtml}}
-document.querySelectorAll('.mi-finish').forEach(function(picker){
+var __finishDialogPicker = null;
+
+function initFinishPicker(picker){
+    if(picker.__init) return; picker.__init = true;
     var trigger=picker.querySelector('.mi-finish-trigger'),search=picker.querySelector('.mi-finish-search'),label=picker.querySelector('.mi-finish-label'),counter=picker.querySelector('.mi-finish-count'),selectedList=picker.querySelector('.mi-finish-selected'),title=picker.dataset.title||'Finishing Options';
     function update(){var checked=picker.querySelectorAll('input[type="checkbox"]:checked'),count=checked.length;counter.textContent=count;label.textContent='Select '+title;if(selectedList){selectedList.innerHTML='';Array.from(checked).forEach(function(item){var chip=document.createElement('span');chip.className='mi-finish-chip';chip.textContent=item.value.split(' — ')[1]||item.value;selectedList.appendChild(chip)})}}
     trigger.addEventListener('click',function(){document.querySelectorAll('.mi-finish.open').forEach(function(other){if(other!==picker)other.classList.remove('open')});picker.classList.toggle('open');if(picker.classList.contains('open'))search.focus()});
     search.addEventListener('input',function(){var term=this.value.trim().toLowerCase();picker.querySelectorAll('.mi-finish-option').forEach(function(option){option.style.display=!term||option.dataset.search.indexOf(term)!==-1?'flex':'none'});picker.querySelectorAll('.mi-finish-group').forEach(function(group){group.style.display=Array.from(group.querySelectorAll('.mi-finish-option')).some(function(option){return option.style.display!=='none'})?'block':'none'})});
     picker.addEventListener('change',update);update();
-});
+}
+
+function addProductRow(){
+    var tpl=document.getElementById('productRowTemplate');
+    var html=tpl.innerHTML.replace(/IDX/g,__prodIndex);
+    var wrap=document.createElement('div');wrap.innerHTML=html.trim();
+    var row=wrap.firstElementChild;
+    document.getElementById('productRows').appendChild(row);
+    initFinishPicker(row.querySelector('.mi-finish'));
+    __prodIndex++; renumberProductRows();
+    return row;
+}
+function removeProductRow(btn){
+    var rows=document.querySelectorAll('#productRows .mi-product-row');
+    if(rows.length<=1) return; // keep at least one product
+    btn.closest('.mi-product-row').remove();
+    renumberProductRows();
+}
+function renumberProductRows(){
+    document.querySelectorAll('#productRows .mi-product-row').forEach(function(row,i){
+        var n=row.querySelector('.mi-product-num'); if(n) n.textContent='#'+(i+1);
+    });
+}
+
+// Quantity add/remove — scoped to the product row that contains the button.
+function addQuantity(btn){
+    var list=btn.parentNode.querySelector('.mi-quantity-list');
+    var idx=btn.closest('.mi-product-row').querySelector('input[name*="[quantities]"]').name.match(/products\[(\d+)\]/)[1];
+    var row=document.createElement('div');row.className='mi-quantity';
+    row.innerHTML='<input class="mi-control" type="number" name="products['+idx+'][quantities][]" min="1" placeholder="e.g. 1000" required><button class="mi-remove" type="button" onclick="removeQuantity(this)"><i class="fas fa-times"></i></button>';
+    list.appendChild(row);
+}
+function removeQuantity(button){var list=button.closest('.mi-quantity-list'),rows=list.querySelectorAll('.mi-quantity');if(rows.length>1)button.parentNode.remove();else button.parentNode.querySelector('input').value=''}
+
+// Finishing "Add Finishing" dialog — remember which picker opened it.
+function openFinishingDialog(btn){__finishDialogPicker=btn?btn.closest('.mi-finish'):document.querySelector('.mi-finish');document.getElementById('finishingDialog').classList.add('open');document.getElementById('finishingParent').focus()}
+function closeFinishingDialog(){document.getElementById('finishingDialog').classList.remove('open')}
+async function saveFinishingOption(){var parentField=document.getElementById('finishingParent'),child=document.getElementById('finishingChild'),parent=parentField.value.trim(),childValue=child.value.trim();if(!parent){parentField.focus();return}if(!childValue){child.focus();return}var saveButton=document.querySelector('#finishingDialog .mi-dialog-save'),originalHtml=saveButton.innerHTML;saveButton.disabled=true;saveButton.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving';try{var response=await fetch(@json(route('crm.emails.finishing_options.store')),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':@json(csrf_token())},body:JSON.stringify({parent_name:parent,child_name:childValue})});var result=await response.json();if(!response.ok)throw new Error(result.message||'Unable to save finishing option.');parent=result.parent_name;childValue=result.child_name;var value=result.value;
+    // Add the new option to EVERY product picker so all rows can use it; check it on the opener.
+    document.querySelectorAll('.mi-finish-all').forEach(function(picker){
+        var idxMatch=picker.querySelector('input[type="checkbox"]');var nm=idxMatch?idxMatch.name:'products[0][finishing_options][]';
+        var options=picker.querySelector('.mi-finish-options'),group=Array.from(options.querySelectorAll('.mi-finish-group')).find(function(item){return item.querySelector('.mi-finish-group-title').textContent.trim().toLowerCase()===parent.toLowerCase()});
+        if(!group){group=document.createElement('div');group.className='mi-finish-group';group.innerHTML='<strong class="mi-finish-group-title"></strong>';group.querySelector('strong').textContent=parent;options.appendChild(group)}
+        var existing=Array.from(group.querySelectorAll('input')).find(function(input){return input.value.toLowerCase()===value.toLowerCase()});
+        if(!existing){var option=document.createElement('label');option.className='mi-finish-option';option.dataset.search=(parent+' '+childValue).toLowerCase();var input=document.createElement('input');input.type='checkbox';input.name=nm;input.value=value;if(picker===__finishDialogPicker)input.checked=true;var span=document.createElement('span');span.textContent=childValue;option.appendChild(input);option.appendChild(span);group.appendChild(option)}
+        else if(picker===__finishDialogPicker){existing.checked=true}
+    });
+    var parentList=document.getElementById('finishingParentOptions');if(parentList&&!Array.from(parentList.options).some(function(option){return option.value.toLowerCase()===parent.toLowerCase()})){var parentOption=document.createElement('option');parentOption.value=parent;parentList.appendChild(parentOption)}
+    if(__finishDialogPicker)__finishDialogPicker.dispatchEvent(new Event('change',{bubbles:true}));parentField.value='';child.value='';closeFinishingDialog()}catch(error){alert(error.message)}finally{saveButton.disabled=false;saveButton.innerHTML=originalHtml}}
+
 document.addEventListener('click',function(event){document.querySelectorAll('.mi-finish.open').forEach(function(picker){if(!picker.contains(event.target))picker.classList.remove('open')})});
+
+// Before submit: fold each row's dimensions → finish_size and open L/W → open_size.
 document.querySelector('.mi-form').addEventListener('submit',function(){
-    var paper=[document.getElementById('finishL').value,document.getElementById('finishW').value,document.getElementById('finishH').value].filter(Boolean);
-    var open=[document.getElementById('openL').value,document.getElementById('openW').value].filter(Boolean);
-    document.getElementById('finishSize').value=paper.length>=2?paper.join(' x '):'';
-    document.getElementById('openSize').value=open.length?open.join(' x '):'';
+    document.querySelectorAll('#productRows .mi-product-row').forEach(function(row){
+        var dims=[row.querySelector('.mi-dim-l'),row.querySelector('.mi-dim-w'),row.querySelector('.mi-dim-h')].map(function(el){return el?el.value:''}).filter(Boolean);
+        var open=[row.querySelector('.mi-open-l'),row.querySelector('.mi-open-w')].map(function(el){return el?el.value:''}).filter(Boolean);
+        var fs=row.querySelector('.mi-finish-size'),os=row.querySelector('.mi-open-size');
+        if(fs)fs.value=dims.length>=2?dims.join(' x '):'';
+        if(os)os.value=open.length?open.join(' x '):'';
+    });
 });
+
+// Start with one product row.
+document.addEventListener('DOMContentLoaded',function(){ addProductRow(); });
 </script>
 @endsection

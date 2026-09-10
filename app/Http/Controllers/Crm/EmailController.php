@@ -1530,11 +1530,24 @@ class EmailController extends Controller
             abort(403);
         }
 
-        // Multi-product support: the rich first row posts the flat fields (product #1);
-        // any "+ Add Another Product" rows post as products[N][field] (additional products).
-        // Both are persisted to crm_inquiry_products; crm_emails keeps product #1 for
-        // backward compatibility with all existing single-product code.
-        $additionalProducts = $this->normaliseInquiryProducts($request);
+        // Multi-product support: every product row posts as products[N][field].
+        // Product #1 (products[0]) is mirrored into the flat request fields so all
+        // existing single-product validation + crm_emails save logic keeps working;
+        // every row is persisted to crm_inquiry_products.
+        $allProducts = $this->normaliseInquiryProducts($request);
+        if (!empty($allProducts)) {
+            $first = $allProducts[0];
+            $request->merge([
+                'product_name' => $first['product_name'],
+                'printing' => $first['printing'],
+                'length' => $first['length'], 'width' => $first['width'], 'height' => $first['height'],
+                'unit' => $first['unit'] ?? $request->unit,
+                'finish_size' => $first['finish_size'], 'open_size' => $first['open_size'],
+                'stock' => $first['stock'], 'price_offered' => $first['price_offered'],
+                'finishing_options' => $first['finishing_options'] ?: [],
+                'quantities' => $first['quantities'] ?: [],
+            ]);
+        }
 
         if (!$request->filled('quantities') && $request->filled('quantity')) {
             $request->merge(['quantities' => [$request->quantity]]);
@@ -1577,7 +1590,7 @@ class EmailController extends Controller
             ? $data['route_to'] === 'designer'
             : empty($data['open_size']);
 
-        $inquiry = DB::transaction(function () use ($request, $data, $currentUser, $inquiryDate, $quantities, $toDesign, $additionalProducts) {
+        $inquiry = DB::transaction(function () use ($request, $data, $currentUser, $inquiryDate, $quantities, $toDesign, $allProducts) {
             $attributes = [
                 'source' => $data['source'], 'client_name' => $data['client_name'],
                 'client_email' => $data['client_email'], 'client_phone' => $data['client_phone'] ?? null,
@@ -1605,15 +1618,16 @@ class EmailController extends Controller
             $inquiry->created_at = $inquiryDate;
             $inquiry->save();
 
-            // Product #1 = the rich first row (flat fields); then any additional rows.
-            $rows = array_merge([[
+            // Every product row (products[]) — or a single row built from flat fields
+            // when an older form without the products[] array is posted.
+            $rows = $allProducts ?: [[
                 'product_name' => $data['product_name'], 'printing' => $data['printing'] ?? null,
                 'length' => $data['length'] ?? null, 'width' => $data['width'] ?? null,
                 'height' => $data['height'] ?? null, 'unit' => $data['unit'] ?? null,
                 'finish_size' => $data['finish_size'] ?? null, 'open_size' => $data['open_size'] ?? null,
                 'stock' => $data['stock'] ?? null, 'price_offered' => $data['price_offered'] ?? null,
                 'finishing_options' => $data['finishing_options'] ?? [], 'quantities' => $quantities,
-            ]], $additionalProducts);
+            ]];
             foreach ($rows as $i => $p) {
                 $pq = array_values(array_unique(array_map('intval', array_filter((array) ($p['quantities'] ?? []), 'strlen'))));
                 \App\CrmInquiryProduct::create([
