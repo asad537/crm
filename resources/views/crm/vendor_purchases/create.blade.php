@@ -43,7 +43,7 @@
 @endsection
 @section('scripts')<script>
 var vpcIsEditing={{ $isEditingPurchase ? 'true' : 'false' }},vpcMode='production',vpcModeInitialized=false;
-function fillVendor(select){var option=select.options[select.selectedIndex],form=document.getElementById('vendorPurchaseCreateForm');form.elements.vendor_phone.value=option?option.dataset.phone||'':'';form.elements.vendor_email.value=option?option.dataset.email||'':'';applyExpenseMode(option&&option.dataset.category==='Personal Expense'?'personal':'production')}
+function fillVendor(select){var option=select.options[select.selectedIndex],form=document.getElementById('vendorPurchaseCreateForm');form.elements.vendor_phone.value=option?option.dataset.phone||'':'';form.elements.vendor_email.value=option?option.dataset.email||'':'';applyExpenseMode(option&&option.dataset.category==='Consumable Expense'?'personal':'production')}
 function applyExpenseMode(mode){
     var form=document.getElementById('vendorPurchaseCreateForm'),changed=vpcMode!==mode;vpcMode=mode;
     form.classList.toggle('vpc-personal',mode==='personal');
@@ -53,11 +53,11 @@ function applyExpenseMode(mode){
     document.getElementById('vpcAttachmentLabel').textContent=mode==='personal'?'Receipt Attachment':'Invoice / Purchase Attachment';
     document.getElementById('vpcAttachmentHelp').textContent=mode==='personal'?'Upload the full receipt as PDF or image — maximum 20 MB.':'PDF, image, Word, Excel or CSV — maximum 20 MB.';
     document.getElementById('vpcShippingLabel').textContent=mode==='personal'?'Additional Charges':'Shipping Cost';
-    document.getElementById('vpcHeroTitle').textContent=(vpcIsEditing?'Edit ':'Add ')+(mode==='personal'?'Personal Expense':'Vendor Purchase');
+    document.getElementById('vpcHeroTitle').textContent=(vpcIsEditing?'Edit ':'Add ')+(mode==='personal'?'Consumable Expense':'Vendor Purchase');
     document.getElementById('vpcHeroCopy').textContent=mode==='personal'?'Record a receipt with multiple items, VAT and payment details.':'Record supplier, material, invoice and payment details in one complete purchase entry.';
     document.getElementById('vpcHeroIcon').className='fas '+(mode==='personal'?'fa-receipt':(vpcIsEditing?'fa-pen':'fa-truck-loading'));
     document.querySelector('#vpcAddItemButton span').textContent=mode==='personal'?'Add Another Receipt Item':'Add Another Product';
-    document.getElementById('vpcSubmitLabel').textContent=vpcIsEditing?(mode==='personal'?'Save Expense Changes':'Save Changes'):(mode==='personal'?'Save Personal Expense':'Save Purchase');
+    document.getElementById('vpcSubmitLabel').textContent=vpcIsEditing?(mode==='personal'?'Save Expense Changes':'Save Changes'):(mode==='personal'?'Save Consumable Expense':'Save Purchase');
     document.querySelectorAll('.vpc-item-name-label').forEach(function(label){label.innerHTML=(mode==='personal'?'Receipt Item / Description':'Item Name')+' <span class="vpc-required">*</span>'});
     document.querySelectorAll('.vpc-combo-menu button[data-mode]').forEach(function(button){button.style.display=button.dataset.mode===mode?'block':'none'});
     document.querySelectorAll('#vpcItems .vpc-item').forEach(function(card){

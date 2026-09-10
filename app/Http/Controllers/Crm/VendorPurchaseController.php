@@ -605,7 +605,7 @@ class VendorPurchaseController extends Controller
             'date_from' => 'nullable|date', 'date_to' => 'nullable|date|after_or_equal:date_from',
             'vendor_id' => 'nullable|integer|exists:vendors,id',
             'category' => 'nullable|string|max:100',
-            'expense_type' => 'nullable|in:Production Expense,Personal Expense',
+            'expense_type' => 'nullable|in:Production Expense,Consumable Expense',
             'payment_status' => 'nullable|in:Paid,Partial,Unpaid',
             'search' => 'nullable|string|max:255',
         ]);
