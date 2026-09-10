@@ -14,6 +14,7 @@
 @endphp
 <style>
 .dt-page{color:#233047}.dt-hero{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.35rem;margin-bottom:1rem;background:linear-gradient(135deg,#fff,var(--primary-soft));border:1px solid #e4eaf1;border-radius:17px}.dt-hero h2{margin:0}.dt-muted{color:#8796aa;font-size:.76rem}.dt-count{padding:.55rem .75rem;border-radius:10px;background:var(--primary-soft);color:var(--primary-purple);font-weight:850}.dt-tabs{display:flex;gap:.55rem;margin-bottom:.85rem}.dt-tab{padding:.58rem .82rem;border-radius:9px;text-decoration:none;background:#eef2f7;color:#526176;font-weight:800;font-size:.76rem}.dt-tab.active{background:var(--primary-purple);color:#fff}.dt-wrap{overflow:auto;background:#fff;border:1px solid #e4eaf1;border-radius:15px;box-shadow:0 8px 26px rgba(15,23,42,.055)}.dt-table{width:100%;min-width:760px;border-collapse:collapse}.dt-table th{padding:.85rem 1rem;background:#f7f9fc;border-bottom:2px solid var(--primary-soft);text-align:left;color:#718096;font-size:.66rem;text-transform:uppercase;letter-spacing:.04em}.dt-table td{padding:.82rem 1rem;border-bottom:1px solid #edf1f5;vertical-align:middle;font-size:.78rem}.dt-table tbody tr:hover{background:var(--primary-soft)}.dt-client strong{display:block;color:#1f2b3d}.dt-chip{display:inline-flex;padding:.3rem .55rem;border-radius:999px;background:#eef2f7;color:#526176;font-size:.68rem;font-weight:800}.dt-chip.new{background:#fff3e8;color:#d65d14}.dt-chip.open{background:#eaf2ff;color:#285fbd}.dt-chip.forwarded{background:#eafbf2;color:#08784c}.dt-btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:34px;padding:.42rem .65rem;border:0;border-radius:8px;text-decoration:none;cursor:pointer;font-weight:800;font-size:.7rem}.dt-btn-main{background:var(--primary-purple);color:#fff}.dt-btn-soft{background:var(--primary-soft);color:var(--primary-purple)}.dt-btn-danger{background:#fff1f2;color:#be123c}.dt-files{display:flex;flex-wrap:wrap;gap:.3rem}.dt-file{padding:.28rem .45rem;border-radius:7px;background:#f1f5f9;color:#475569;text-decoration:none;font-size:.65rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dt-empty{text-align:center;padding:2.2rem!important;color:#94a3b8}.dt-modal-bg{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.58)}.dt-modal{width:100%;max-width:920px;max-height:92vh;overflow:auto;background:#fff;border-radius:17px;box-shadow:0 24px 60px rgba(15,23,42,.25)}.dt-modal-head{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.15rem;border-bottom:1px solid #edf1f5}.dt-modal-head h3{margin:0}.dt-close{width:34px;height:34px;border:0;border-radius:9px;background:#eef2f7;cursor:pointer}.dt-form{padding:1.1rem}.dt-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem;padding:.8rem;margin-bottom:.9rem;border-radius:11px;background:var(--primary-soft)}.dt-summary span{display:block;color:#7a899e;font-size:.65rem;text-transform:uppercase}.dt-summary strong{display:block;margin-top:.2rem}.dt-field{margin-bottom:.8rem}.dt-field label{display:block;margin-bottom:.35rem;color:#536277;font-size:.7rem;font-weight:800}.dt-control{width:100%;padding:.7rem .75rem;border:1.5px solid #dae3ed;border-radius:10px;box-sizing:border-box;outline:0}.dt-control:focus{border-color:var(--primary-purple);box-shadow:0 0 0 3px var(--primary-shadow)}.dt-actions{display:flex;justify-content:flex-end;gap:.55rem;padding-top:.8rem;border-top:1px solid #edf1f5}.dt-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem}.dt-detail{padding:.72rem;border:1px solid #e7ecf2;border-radius:10px;background:#fbfcfe}.dt-detail span{display:block;margin-bottom:.25rem;color:#8695a9;font-size:.63rem;font-weight:800;text-transform:uppercase}.dt-detail strong{color:#273449}.dt-detail-wide{grid-column:1/-1}.dt-finish-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem}.dt-finish-group{overflow:hidden;border:1px solid #e5eaf1;border-radius:9px;background:#fff}.dt-finish-parent{display:block!important;margin:0!important;padding:.38rem .45rem;background:var(--primary-soft);color:var(--primary-purple)!important;font-size:.61rem!important;font-weight:900!important}.dt-finish-children{display:flex;flex-wrap:wrap;gap:.22rem;padding:.4rem .45rem}.dt-finish-child{display:inline-flex!important;margin:0!important;padding:.23rem .38rem;border-radius:99px;background:#f1f5f9;color:#536277!important;font-size:.6rem!important;text-transform:none!important}@media(max-width:760px){.dt-finish-grid{grid-template-columns:1fr 1fr}}@media(max-width:480px){.dt-finish-grid{grid-template-columns:1fr}}
+.dtp-tab{padding:.5rem .9rem;border:0;border-radius:9px;background:#eef2f7;color:#526176;font-weight:800;font-size:.78rem;cursor:pointer}.dtp-tab.active{background:var(--primary-purple);color:#fff}
 </style>
 <style>.dt-finish-child{padding:0!important;border-radius:0;background:transparent}.dt-chip.returned_to_sales{background:var(--primary-soft);color:var(--primary-purple)}.dt-chip.returned_from_estimator{background:#fff1f2;color:#be123c}.dt-return-box{position:relative;overflow:hidden;margin:.9rem 1.1rem 1.1rem;padding:1rem;border:1px solid var(--primary-shadow);border-radius:13px;background:linear-gradient(135deg,#fff,var(--primary-soft));box-shadow:0 10px 25px rgba(15,23,42,.06)}.dt-return-box:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--primary-purple)}.dt-return-box label{display:block;margin-bottom:.5rem;color:var(--primary-purple);font-size:.72rem;font-weight:900}.dt-return-row{display:grid;grid-template-columns:1fr auto;align-items:stretch;gap:.6rem}.dt-return-row input{background:rgba(255,255,255,.92)}.dt-return-row .dt-btn-danger{min-width:145px;background:var(--primary-purple);color:#fff;box-shadow:0 7px 18px var(--primary-shadow)}@media(max-width:650px){.dt-return-row{grid-template-columns:1fr}.dt-return-box{margin:.75rem}}</style>
 <style>
@@ -118,39 +119,48 @@
     <div class="dt-summary"><div><span>Product Name</span><strong>{{ optional($ticket->inquiry)->product_name ?: 'Inquiry unavailable' }}</strong></div><div><span>Dimensions</span><strong>{{ optional($ticket->inquiry)->finish_size ?: '-' }} {{ optional($ticket->inquiry)->unit }}</strong></div><div><span>Quantities</span><strong>{{ implode(', ', $ticket->quantities ?: []) }}</strong></div><div><span>Stock</span><strong>{{ optional($ticket->inquiry)->stock ?: '-' }}</strong></div><div><span>Printing</span><strong>{{ optional($ticket->inquiry)->printing ?: '-' }}</strong></div></div>
     @php $__products = optional($ticket->inquiry)->products ?? collect(); @endphp
     @if($__products->count() > 1)
-    <div class="dt-field"><label>Products in this inquiry ({{ $__products->count() }})</label>
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
-            <thead><tr style="background:var(--primary-soft)">
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">#</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Product</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Printing</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Dimensions</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Stock</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Qty</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Finishing</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0;min-width:130px">Open Size (L×W) *</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0;min-width:130px">Flat Size (L×W)</th>
-            </tr></thead>
-            <tbody>@foreach($__products as $i => $p)
-                @php
-                    $__op = preg_split('/\s*(?:x|\*|×)\s*/i', (string) $p->open_size);
-                    $__ol = preg_replace('/[^0-9.]/','',$__op[0] ?? ''); $__ow = preg_replace('/[^0-9.]/','',$__op[1] ?? '');
-                    $__fp = preg_split('/\s*(?:x|\*|×)\s*/i', (string) $p->flat_size);
-                    $__fl = preg_replace('/[^0-9.]/','',$__fp[0] ?? ''); $__fw = preg_replace('/[^0-9.]/','',$__fp[1] ?? '');
-                @endphp
-                <tr>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $i+1 }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0"><strong>{{ $p->product_name }}</strong></td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->printing ?: '-' }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->dimension_label }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->stock ?: '-' }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ implode(', ', $p->quantities ?: []) }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '-' }}</td>
-                <td style="padding:.4rem .5rem;border:1px solid #e2e8f0"><div style="display:flex;gap:.25rem"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][open_l]" type="number" step="0.01" min="0.01" placeholder="L" value="{{ $__ol }}"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][open_w]" type="number" step="0.01" min="0.01" placeholder="W" value="{{ $__ow }}"></div></td>
-                <td style="padding:.4rem .5rem;border:1px solid #e2e8f0"><div style="display:flex;gap:.25rem"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][flat_l]" type="number" step="0.01" min="0.01" placeholder="L" value="{{ $__fl }}"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][flat_w]" type="number" step="0.01" min="0.01" placeholder="W" value="{{ $__fw }}"></div></td>
-            </tr>@endforeach</tbody>
-        </table></div>
-        <div class="dt-muted" style="margin-top:.35rem">Har product ka apna Open Size (aur optional Flat Size) yahin bhar dein — estimator ko har product ki alag size jayegi.</div>
+    <div class="dt-field">
+        <label>Products in this inquiry ({{ $__products->count() }})</label>
+        {{-- Tabs: one per product (Product 1, Product 2, …) --}}
+        <div class="dtp-tabs" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem">
+            @foreach($__products as $i => $p)
+                <button type="button" class="dtp-tab {{ $i===0 ? 'active' : '' }}" data-t="{{ $ticket->id }}" data-i="{{ $i }}" onclick="dtpShow({{ $ticket->id }},{{ $i }})">Product {{ $i+1 }}</button>
+            @endforeach
+        </div>
+        @foreach($__products as $i => $p)
+            @php
+                $__op = preg_split('/\s*(?:x|\*|×)\s*/i', (string) $p->open_size);
+                $__ol = preg_replace('/[^0-9.]/','',$__op[0] ?? ''); $__ow = preg_replace('/[^0-9.]/','',$__op[1] ?? '');
+                $__fp = preg_split('/\s*(?:x|\*|×)\s*/i', (string) $p->flat_size);
+                $__fl = preg_replace('/[^0-9.]/','',$__fp[0] ?? ''); $__fw = preg_replace('/[^0-9.]/','',$__fp[1] ?? '');
+            @endphp
+            <div class="dtp-pane" data-t="{{ $ticket->id }}" data-i="{{ $i }}" style="{{ $i===0 ? '' : 'display:none' }}">
+                <div style="border:1px solid #e5eaf1;border-radius:12px;padding:1rem;background:#fbfcfe">
+                    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--primary-soft);color:var(--primary-purple);font-weight:800">{{ $i+1 }}</span>
+                        <strong style="font-size:.95rem;color:#1f2b3d">{{ $p->product_name }}</strong>
+                    </div>
+                    <div class="dt-detail-grid" style="margin-bottom:.9rem">
+                        <div class="dt-detail"><span>Printing</span><strong>{{ $p->printing ?: '—' }}</strong></div>
+                        <div class="dt-detail"><span>Dimensions</span><strong>{{ $p->dimension_label }}</strong></div>
+                        <div class="dt-detail"><span>Stock</span><strong>{{ $p->stock ?: '—' }}</strong></div>
+                        <div class="dt-detail"><span>Quantities</span><strong>{{ implode(', ', $p->quantities ?: []) ?: '—' }}</strong></div>
+                        <div class="dt-detail dt-detail-wide"><span>Finishing</span><strong>{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '—' }}</strong></div>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:1rem">
+                        <div>
+                            <label style="display:block;margin-bottom:.35rem;color:#536277;font-size:.7rem;font-weight:800">Open Size (L × W) *</label>
+                            <div style="display:flex;gap:.4rem"><input class="dt-control" style="width:110px;text-align:center" name="product_sizes[{{ $p->id }}][open_l]" type="number" step="0.01" min="0.01" placeholder="L" value="{{ $__ol }}"><input class="dt-control" style="width:110px;text-align:center" name="product_sizes[{{ $p->id }}][open_w]" type="number" step="0.01" min="0.01" placeholder="W" value="{{ $__ow }}"></div>
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:.35rem;color:#536277;font-size:.7rem;font-weight:800">Flat Size (L × W) <small style="color:#94a3b8;font-weight:500">optional</small></label>
+                            <div style="display:flex;gap:.4rem"><input class="dt-control" style="width:110px;text-align:center" name="product_sizes[{{ $p->id }}][flat_l]" type="number" step="0.01" min="0.01" placeholder="L" value="{{ $__fl }}"><input class="dt-control" style="width:110px;text-align:center" name="product_sizes[{{ $p->id }}][flat_w]" type="number" step="0.01" min="0.01" placeholder="W" value="{{ $__fw }}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+        <div class="dt-muted" style="margin-top:.35rem">Har product tab me uski apni Open Size (aur optional Flat Size) bharein — estimator ko har product ki alag size jayegi.</div>
     </div>
     @endif
     @if($ticket->return_note)<div class="dt-return-box"><label>Estimator Return Note</label><div>{{ $ticket->return_note }}</div></div>@endif
@@ -195,6 +205,11 @@ function openTicketDetail(id){document.getElementById('ticketDetail'+id).style.d
 function closeTicketDetail(id){document.getElementById('ticketDetail'+id).style.display='none';document.body.style.overflow=''}
 function openDesignModal(id){document.getElementById('designModal'+id).style.display='flex';document.body.style.overflow='hidden'}
 function closeDesignModal(id){document.getElementById('designModal'+id).style.display='none';document.body.style.overflow=''}
+// Product tabs inside a design modal — show one product pane at a time.
+function dtpShow(ticketId, idx){
+    document.querySelectorAll('.dtp-tab[data-t="'+ticketId+'"]').forEach(function(b){ b.classList.toggle('active', parseInt(b.dataset.i,10)===idx); });
+    document.querySelectorAll('.dtp-pane[data-t="'+ticketId+'"]').forEach(function(p){ p.style.display = (parseInt(p.dataset.i,10)===idx) ? '' : 'none'; });
+}
 let designSearchTimer=null,designSearchController=null;
 function loadDesignTickets(url=null){
     const form=document.getElementById('designTicketSearchForm');
