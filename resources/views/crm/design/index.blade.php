@@ -125,22 +125,32 @@
                 <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Product</th>
                 <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Printing</th>
                 <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Dimensions</th>
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Open Size</th>
                 <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Stock</th>
                 <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Qty</th>
                 <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0">Finishing</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0;min-width:130px">Open Size (L×W) *</th>
+                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0;min-width:130px">Flat Size (L×W)</th>
             </tr></thead>
-            <tbody>@foreach($__products as $i => $p)<tr>
+            <tbody>@foreach($__products as $i => $p)
+                @php
+                    $__op = preg_split('/\s*(?:x|\*|×)\s*/i', (string) $p->open_size);
+                    $__ol = preg_replace('/[^0-9.]/','',$__op[0] ?? ''); $__ow = preg_replace('/[^0-9.]/','',$__op[1] ?? '');
+                    $__fp = preg_split('/\s*(?:x|\*|×)\s*/i', (string) $p->flat_size);
+                    $__fl = preg_replace('/[^0-9.]/','',$__fp[0] ?? ''); $__fw = preg_replace('/[^0-9.]/','',$__fp[1] ?? '');
+                @endphp
+                <tr>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $i+1 }}</td>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0"><strong>{{ $p->product_name }}</strong></td>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->printing ?: '-' }}</td>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->dimension_label }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->open_size ?: '-' }}</td>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->stock ?: '-' }}</td>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ implode(', ', $p->quantities ?: []) }}</td>
                 <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '-' }}</td>
+                <td style="padding:.4rem .5rem;border:1px solid #e2e8f0"><div style="display:flex;gap:.25rem"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][open_l]" type="number" step="0.01" min="0.01" placeholder="L" value="{{ $__ol }}"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][open_w]" type="number" step="0.01" min="0.01" placeholder="W" value="{{ $__ow }}"></div></td>
+                <td style="padding:.4rem .5rem;border:1px solid #e2e8f0"><div style="display:flex;gap:.25rem"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][flat_l]" type="number" step="0.01" min="0.01" placeholder="L" value="{{ $__fl }}"><input class="dt-control" style="padding:.4rem;text-align:center" name="product_sizes[{{ $p->id }}][flat_w]" type="number" step="0.01" min="0.01" placeholder="W" value="{{ $__fw }}"></div></td>
             </tr>@endforeach</tbody>
         </table></div>
+        <div class="dt-muted" style="margin-top:.35rem">Har product ka apna Open Size (aur optional Flat Size) yahin bhar dein — estimator ko har product ki alag size jayegi.</div>
     </div>
     @endif
     @if($ticket->return_note)<div class="dt-return-box"><label>Estimator Return Note</label><div>{{ $ticket->return_note }}</div></div>@endif
@@ -156,9 +166,14 @@
         $openLength = preg_replace('/[^0-9.]/', '', $openSizeParts[0] ?? '');
         $openWidth = preg_replace('/[^0-9.]/', '', $openSizeParts[1] ?? '');
     @endphp
-    @php $ticketUnit = $ticket->unit ?: optional($ticket->inquiry)->unit; @endphp
+    @php $ticketUnit = $ticket->unit ?: optional($ticket->inquiry)->unit; $__multi = $__products->count() > 1; @endphp
+    @if($__multi)
+        {{-- Multiple products: sizes are set per-product in the table above. Only the shared unit is needed here. --}}
+        <div class="dt-field"><label>Unit *</label><select class="dt-control" name="unit" required style="max-width:220px"><option value="mm" {{ $ticketUnit === 'mm' ? 'selected' : '' }}>mm</option><option value="cm" {{ $ticketUnit === 'cm' ? 'selected' : '' }}>cm</option><option value="inches" {{ $ticketUnit === 'inches' ? 'selected' : '' }}>inches</option></select></div>
+    @else
     <div class="dt-field"><label>Open Size *</label><div class="dt-open-size"><div class="dt-open-input"><input class="dt-control" name="open_length" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Length" value="{{ old('open_length',$openLength) }}" required><span>L</span></div><div class="dt-open-input"><input class="dt-control" name="open_width" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Width" value="{{ old('open_width',$openWidth) }}" required><span>W</span></div><select class="dt-control" name="unit" aria-label="Open size unit" required><option value="mm" {{ $ticketUnit === 'mm' ? 'selected' : '' }}>mm</option><option value="cm" {{ $ticketUnit === 'cm' ? 'selected' : '' }}>cm</option><option value="inches" {{ $ticketUnit === 'inches' ? 'selected' : '' }}>inches</option></select></div></div>
     <div class="dt-field"><label>Flat Size <small style="color:#94a3b8;font-weight:500;">(optional — khali chhoda to Open Size use hogi)</small></label><div class="dt-open-size"><div class="dt-open-input"><input class="dt-control" name="flat_length" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Length" value="{{ old('flat_length') }}"><span>L</span></div><div class="dt-open-input"><input class="dt-control" name="flat_width" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Width" value="{{ old('flat_width') }}"><span>W</span></div><span style="align-self:center;font-size:.75rem;color:#94a3b8;">same unit</span></div></div>
+    @endif
     @if(optional($ticket->inquiry)->message || optional($ticket->inquiry)->csr_comment)<div class="dt-field"><label>Sales Requirements</label><div class="dt-control" style="background:#f8fafc;height:auto">{{ optional($ticket->inquiry)->csr_comment }} @if(optional($ticket->inquiry)->csr_comment && optional($ticket->inquiry)->message)<br>@endif {{ optional($ticket->inquiry)->message }}</div></div>@endif
     <div class="dt-field"><label>Designer Notes</label><textarea class="dt-control" name="designer_notes" rows="3"></textarea></div>
     <div class="dt-field"><label>Design Picture / Files <small style="color:#94a3b8;font-weight:500;">(optional, multiple allowed)</small></label><input class="dt-control" type="file" name="designer_files[]" multiple></div>
