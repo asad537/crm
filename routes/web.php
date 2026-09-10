@@ -112,6 +112,15 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('design-jobs/{id}/status', 'DesignJobController@updateStatus')->name('crm.design_jobs.status');
         });
 
+        // Inventory (stock items + movements) — available in every CRM workspace
+        Route::get('inventory', 'InventoryController@index')->name('crm.inventory.index');
+        Route::post('inventory', 'InventoryController@store')->name('crm.inventory.store');
+        Route::post('inventory/{id}/stock-in', 'InventoryController@stockIn')->name('crm.inventory.stock_in');
+        Route::post('inventory/{id}/consume', 'InventoryController@consume')->name('crm.inventory.consume');
+        Route::post('inventory/{id}/adjust', 'InventoryController@adjust')->name('crm.inventory.adjust');
+        Route::get('inventory/{id}/movements', 'InventoryController@movements')->name('crm.inventory.movements')->where('id', '[0-9]+');
+        Route::delete('inventory/{id}', 'InventoryController@destroy')->name('crm.inventory.destroy');
+
         // Emails
         Route::get('inbox', 'EmailController@index')->name('crm.emails.index');
         Route::get('inquiries', 'EmailController@inquiriesIndex')->name('crm.inquiries.index');

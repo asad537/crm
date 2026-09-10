@@ -1134,6 +1134,16 @@
             </a>
             @endif
 
+            {{-- Inventory: admin / manager / accounts --}}
+            @if($__navUser->isAdmin() || $__navUser->isSuperAdmin() || $__navUser->isSalesManager() || $__navUser->isAccounts())
+                <a href="{{ route('crm.inventory.index') }}"
+                class="nav-item {{ request()->routeIs('crm.inventory.*') ? 'active' : '' }}">
+                <i class="fas fa-boxes-stacked" style="margin-top:2px;"></i>
+                <span class="nav-label">Inventory</span>
+                <span class="nav-right"><i class="fas fa-chevron-right arrow"></i></span>
+            </a>
+            @endif
+
             {{-- Prepress Tickets: Prepress only --}}
             @if($__navUser->isPrepress() || $__navUser->isAdmin())
             @php
