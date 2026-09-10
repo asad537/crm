@@ -277,25 +277,44 @@
     @php $__estProducts = optional($ticket->lead)->products ?? collect(); @endphp
     @if($__estProducts->count() > 1)
     <div style="margin-top:1rem">
-        <span class="es-label" style="display:block;margin-bottom:.5rem">Products in this inquiry ({{ $__estProducts->count() }})</span>
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
-            <thead><tr style="background:var(--primary-soft)">
-                @foreach(['#','Product','Printing','Dimensions','Open/Flat','Stock','Quantities','Finishing'] as $h)
-                <th style="text-align:left;padding:.5rem .6rem;border:1px solid #e2e8f0;font-weight:700">{{ $h }}</th>
-                @endforeach
-            </tr></thead>
-            <tbody>@foreach($__estProducts as $i => $p)<tr>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $i+1 }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0"><strong>{{ $p->product_name }}</strong></td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->printing ?: '—' }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->dimension_label }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->flat_size ?: ($p->open_size ?: '—') }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ $p->stock ?: '—' }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ implode(', ', $p->quantities ?: []) }}</td>
-                <td style="padding:.5rem .6rem;border:1px solid #e2e8f0">{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '—' }}</td>
-            </tr>@endforeach</tbody>
-        </table></div>
+        <span class="es-label" style="display:block;margin-bottom:.55rem">Products in this inquiry ({{ $__estProducts->count() }})</span>
+        <style>
+        .est-tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem}
+        .est-tab{padding:.5rem .9rem;border:0;border-radius:9px;background:#eef2f7;color:#526176;font-weight:800;font-size:.78rem;cursor:pointer}
+        .est-tab.active{background:var(--primary-purple);color:#fff}
+        .est-pane .es-detail{padding:.7rem;border:1px solid #e7ecf2;border-radius:10px;background:#fbfcfe}
+        .est-pane .es-detail span{display:block;margin-bottom:.24rem;color:#8695a9;font-size:.62rem;font-weight:800;text-transform:uppercase}
+        .est-pane .es-detail strong{color:#273449}
+        .est-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
+        .est-grid .wide{grid-column:1/-1}
+        @media(max-width:700px){.est-grid{grid-template-columns:1fr 1fr}}
+        </style>
+        <div class="est-tabs">
+            @foreach($__estProducts as $i => $p)
+                <button type="button" class="est-tab {{ $i===0 ? 'active' : '' }}" data-i="{{ $i }}" onclick="estShow({{ $i }})">Product {{ $i+1 }}</button>
+            @endforeach
+        </div>
+        @foreach($__estProducts as $i => $p)
+            <div class="est-pane" data-i="{{ $i }}" style="{{ $i===0 ? '' : 'display:none' }}">
+                <div style="border:1px solid #e5eaf1;border-radius:12px;padding:1rem;background:#fff">
+                    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--primary-soft);color:var(--primary-purple);font-weight:800">{{ $i+1 }}</span>
+                        <strong style="font-size:.95rem;color:#1f2b3d">{{ $p->product_name }}</strong>
+                    </div>
+                    <div class="est-grid">
+                        <div class="es-detail"><span>Printing</span><strong>{{ $p->printing ?: '—' }}</strong></div>
+                        <div class="es-detail"><span>Dimensions</span><strong>{{ $p->dimension_label }}</strong></div>
+                        <div class="es-detail"><span>Open / Flat</span><strong>{{ $p->flat_size ?: ($p->open_size ?: '—') }}</strong></div>
+                        <div class="es-detail"><span>Stock</span><strong>{{ $p->stock ?: '—' }}</strong></div>
+                        <div class="es-detail"><span>Quantities</span><strong>{{ implode(', ', $p->quantities ?: []) ?: '—' }}</strong></div>
+                        <div class="es-detail"><span>Open Size</span><strong>{{ $p->open_size ?: '—' }}</strong></div>
+                        <div class="es-detail wide"><span>Finishing</span><strong>{{ !empty($p->finishing_options) ? implode(', ', $p->finishing_options) : '—' }}</strong></div>
+                    </div>
+                </div>
+            </div>
+        @endforeach
     </div>
+    <script>function estShow(idx){document.querySelectorAll('.est-tab').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.i,10)===idx)});document.querySelectorAll('.est-pane').forEach(function(p){p.style.display=(parseInt(p.dataset.i,10)===idx)?'':'none'})}</script>
     @endif
 </div>
 
