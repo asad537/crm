@@ -83,8 +83,25 @@
         <tr>
             <td><strong>{{ $inquiry->workflow_number }}</strong><div class="iq-muted">{{ $inquiry->created_at->format('d M Y, h:i A') }}</div><div class="iq-muted"><i class="fas fa-bullhorn"></i> {{ ['website'=>'Website','call'=>'Call','walk_in'=>'Walk-in','social_media'=>'Social Media','whatsapp'=>'WhatsApp','live_chat'=>'Live Chat','email'=>'Email'][$inquiry->source] ?? ucwords(str_replace('_',' ',(string)$inquiry->source)) }}</div></td>
             <td><div class="iq-client"><span class="iq-avatar">{{ strtoupper(substr($inquiry->client_name,0,1)) }}</span><div><strong>{{ $inquiry->client_name }}</strong><div class="iq-muted">{{ $inquiry->client_email }}</div><div class="iq-muted">{{ $inquiry->client_phone ?: 'No phone' }}</div></div></div></td>
-            <td><strong>{{ $inquiry->product_name }}</strong></td>
-            <td><strong>{{ $inquiry->open_size ?: 'Pending' }}</strong><div class="iq-muted">{{ $inquiry->unit }}</div></td>
+            @php $__iqProducts = $inquiry->products ?? collect(); $__iqMulti = $__iqProducts->count() > 1; @endphp
+            <td>
+                @if($__iqMulti)
+                    <strong>{{ $__iqProducts->first()->product_name }}</strong>
+                    <div class="iq-muted"><span class="iq-qty" style="background:var(--primary-soft);color:var(--primary-purple)">+{{ $__iqProducts->count() - 1 }} more product{{ $__iqProducts->count() - 1 > 1 ? 's' : '' }}</span></div>
+                @else
+                    <strong>{{ $inquiry->product_name }}</strong>
+                @endif
+            </td>
+            <td>
+                @if($__iqMulti)
+                    @foreach($__iqProducts as $__ip)
+                        <div style="margin-bottom:.2rem"><span class="iq-muted" style="font-size:.62rem">{{ \Illuminate\Support\Str::limit($__ip->product_name, 12) }}:</span> <strong>{{ $__ip->open_size ?: 'Pending' }}</strong></div>
+                    @endforeach
+                    <div class="iq-muted">{{ $inquiry->unit }}</div>
+                @else
+                    <strong>{{ $inquiry->open_size ?: 'Pending' }}</strong><div class="iq-muted">{{ $inquiry->unit }}</div>
+                @endif
+            </td>
             <td>
                 @if(count($offerOptions))
                     <div class="iq-offers">
@@ -94,6 +111,8 @@
                     </div>
                 @elseif($inquiry->price_offered !== null)
                     <strong>{{ $offerCurrency }} {{ number_format($inquiry->price_offered,2) }}</strong>
+                @elseif($__iqMulti)
+                    <div class="iq-offers">@foreach($__iqProducts as $__ip)@foreach(($__ip->quantities ?: []) as $qty)<span class="iq-offer"><em>{{ \Illuminate\Support\Str::limit($__ip->product_name, 10) }} · {{ number_format($qty) }} pcs</em><span>Price pending</span></span>@endforeach @endforeach</div>
                 @else
                     <div class="iq-offers">@foreach(($inquiry->inquiry_quantities ?: [$inquiry->quantity]) as $qty)<span class="iq-offer"><em>{{ number_format($qty) }} pcs</em><span>Price pending</span></span>@endforeach</div>
                 @endif
