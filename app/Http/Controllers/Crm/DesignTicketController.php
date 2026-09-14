@@ -192,7 +192,9 @@ class DesignTicketController extends Controller
                 'gluing' => $inquiry->glue, 'shipping_region' => $inquiry->shipping_region,
                 'currency' => $inquiry->invoice_currency ?: 'USD',
                 'attachments' => $paths, 'estimator_id' => null,
-                'requested_by' => $ticket->requested_by, 'status' => 'team_lead_review',
+                // New estimate starts at 'pending' so the ESTIMATOR picks it up and prices it
+                // first; it moves to team_lead_review/owner_review only after the estimator submits.
+                'requested_by' => $ticket->requested_by, 'status' => 'pending',
                 'returned_to' => null, 'return_note' => null, 'returned_by' => null, 'returned_at' => null,
             ];
             $firstEstimateId = null;
