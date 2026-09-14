@@ -1593,6 +1593,7 @@
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'toast-container';
+                container.className = 'toast-container'; // CSS is class-based; without this the container sits in normal flow and shifts the page
                 document.body.appendChild(container);
             }
             const toast = document.createElement('div');
