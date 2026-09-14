@@ -113,6 +113,11 @@
             <button class="mi-add" type="button" onclick="addProductRow()" style="margin-top:.7rem;border:1px dashed var(--primary-purple);color:var(--primary-purple);background:var(--primary-soft);padding:.55rem 1rem;border-radius:9px;font-weight:700"><i class="fas fa-plus"></i> Add Another Product</button>
         </div>
 
+        {{-- Shared datalists for every product row (referenced by list="..." id) --}}
+        <datalist id="productOptions">@foreach(['Folding Carton Boxes','Rigid Boxes','Corrugated Boxes','Mailer Boxes','Product Boxes','Cosmetic Boxes','Perfume Boxes','Food Packaging Boxes','Medicine Boxes','Gift Boxes','Jewelry Boxes','Display Boxes','Sleeve Boxes','Pillow Boxes','Gable Boxes','Tuck End Boxes','Auto Lock Bottom Boxes','Window Boxes','Balloon Boxes','Paper Bags','Labels & Stickers','Brochures & Flyers','Business Cards','Booklets & Catalogs'] as $option)<option value="{{ $option }}">@endforeach</datalist>
+        <datalist id="printingOptions">@foreach(['Full-Color CMYK Offset Printing','Pantone (PMS) Printing','Digital Printing','Flexographic Printing','Screen Printing','UV Printing','Inside & Outside Printing','Outside Printing Only','Single-Color Printing','Two-Color Printing','No Printing / Plain','Metallic Ink Printing','White Ink Printing','Soy-Based Ink Printing'] as $option)<option value="{{ $option }}">@endforeach</datalist>
+        <datalist id="stockOptions">@foreach(['12pt Cardboard Stock','14pt Cardboard Stock','16pt Cardboard Stock','18pt Cardboard Stock','20pt Cardboard Stock','24pt Cardboard Stock','Kraft Paper Stock','Recycled Kraft Stock','SBS Paperboard','FBB Paperboard','CCNB Paperboard','Corrugated E-Flute','Corrugated B-Flute','Corrugated C-Flute','Double Wall Corrugated','Grey Chipboard','Rigid Board 1.5mm','Rigid Board 2mm','Rigid Board 3mm','Art Paper 128gsm','Art Paper 157gsm','Art Paper 200gsm','Art Paper 250gsm','Art Paper 300gsm','Art Paper 350gsm'] as $option)<option value="{{ $option }}">@endforeach</datalist>
+
         {{-- Full rich product row template — cloned for every product (products[IDX][...]). --}}
         <template id="productRowTemplate">
             <div class="mi-product-row">
