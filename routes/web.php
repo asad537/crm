@@ -130,6 +130,12 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('inbox/add-inquiry', 'EmailController@createInquiryForm')->name('crm.emails.create_form');
         Route::post('inbox/finishing-options', 'EmailController@storeFinishingOption')->name('crm.emails.finishing_options.store');
         Route::post('inbox/websites', 'EmailController@storeWebsite')->name('crm.emails.websites.store');
+        // Website / Project management (Admin / CEO)
+        Route::get('websites', 'WebsiteController@index')->name('crm.websites.index');
+        Route::post('websites', 'WebsiteController@store')->name('crm.websites.store');
+        Route::put('websites/{id}', 'WebsiteController@update')->name('crm.websites.update')->where('id', '[0-9]+');
+        Route::post('websites/{id}/toggle', 'WebsiteController@toggle')->name('crm.websites.toggle')->where('id', '[0-9]+');
+        Route::delete('websites/{id}', 'WebsiteController@destroy')->name('crm.websites.destroy')->where('id', '[0-9]+');
         Route::post('inbox/create', 'EmailController@createInquiry')->name('crm.emails.create_manual');
         Route::get('spam', 'EmailController@spam')->name('crm.emails.spam');
         Route::get('rejected-leads', 'EmailController@rejected')->name('crm.emails.rejected');

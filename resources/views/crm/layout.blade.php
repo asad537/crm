@@ -1144,6 +1144,16 @@
             </a>
             @endif
 
+            {{-- Websites / Projects: admin / CEO --}}
+            @if($__navUser->isAdmin() || $__navUser->isSuperAdmin())
+                <a href="{{ route('crm.websites.index') }}"
+                class="nav-item {{ request()->routeIs('crm.websites.*') ? 'active' : '' }}">
+                <i class="fas fa-globe" style="margin-top:2px;"></i>
+                <span class="nav-label">Websites</span>
+                <span class="nav-right"><i class="fas fa-chevron-right arrow"></i></span>
+            </a>
+            @endif
+
             {{-- Prepress Tickets: Prepress only --}}
             @if($__navUser->isPrepress() || $__navUser->isAdmin())
             @php
