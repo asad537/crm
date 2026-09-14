@@ -90,22 +90,17 @@
                 <div class="mi-cell" data-label="Client Email"><input class="mi-control" type="email" name="client_email" value="{{ old('client_email', optional($prefillEmail ?? null)->client_email) }}" required></div>
                 <div class="mi-cell" data-label="Client Mobile / Phone"><input class="mi-control" name="client_phone" value="{{ old('client_phone', optional($prefillEmail ?? null)->client_phone) }}"></div>
                 <div class="mi-cell" data-label="Currency"><select class="mi-control" name="inquiry_currency" required>@foreach(['USD'=>'USD — US Dollar','AED'=>'AED — UAE Dirham','GBP'=>'GBP — British Pound','EUR'=>'EUR — Euro','CAD'=>'CAD — Canadian Dollar','AUD'=>'AUD — Australian Dollar','PKR'=>'PKR — Pakistani Rupee','SAR'=>'SAR — Saudi Riyal','QAR'=>'QAR — Qatari Riyal'] as $code=>$label)<option value="{{ $code }}" {{ old('inquiry_currency', isset($activeCrmWorkspace) && $activeCrmWorkspace && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'AED' : 'USD')===$code?'selected':'' }}>{{ $label }}</option>@endforeach</select></div>
+                @php $__wsList = ($websites ?? collect()); $__wsSel = old('website', $__inquiryWebsite); @endphp
                 <div class="mi-cell" data-label="Website / Project">
-                    <div class="mi-wsdd" id="wsDropdown">
-                        <input type="hidden" name="website" id="websiteValue" value="{{ old('website', $__inquiryWebsite) }}">
-                        <button type="button" class="mi-control mi-wsdd-trigger" onclick="wsToggle(event)">
-                            <span id="websiteLabel">{{ old('website', $__inquiryWebsite) ?: 'Select website / project' }}</span>
-                            <i class="fas fa-chevron-down" style="opacity:.5;font-size:.7rem"></i>
-                        </button>
-                        <div class="mi-wsdd-panel" id="wsPanel">
-                            <input type="text" class="mi-control mi-wsdd-search" id="wsSearch" placeholder="Search..." autocomplete="off" oninput="wsFilter(this.value)">
-                            <div class="mi-wsdd-list" id="wsList">
-                                @foreach(($websites ?? collect()) as $w)
-                                    <button type="button" class="mi-wsdd-opt" data-name="{{ strtolower($w->name) }}" onclick="wsPick(@json($w->name))"><span class="mi-wsdd-dot" style="background:{{ $w->color ?: '#6c5ce7' }}"></span>{{ $w->name }}</button>
-                                @endforeach
-                            </div>
-                        </div>
-                    </div>
+                    <select class="mi-control" name="website" required>
+                        <option value="" disabled {{ $__wsSel ? '' : 'selected' }}>Select website / project</option>
+                        @foreach($__wsList as $w)
+                            <option value="{{ $w->name }}" {{ $__wsSel === $w->name ? 'selected' : '' }}>{{ $w->name }}</option>
+                        @endforeach
+                        @if($__wsSel && !$__wsList->contains('name', $__wsSel))
+                            <option value="{{ $__wsSel }}" selected>{{ $__wsSel }}</option>
+                        @endif
+                    </select>
                 </div>
             </div>
         </div>
@@ -204,15 +199,6 @@
 
 @section('scripts')
 <style>
-.mi-wsdd{position:relative}
-.mi-wsdd-trigger{display:flex;align-items:center;justify-content:space-between;gap:.5rem;width:100%;cursor:pointer;text-align:left;background:#fff}
-.mi-wsdd-panel{display:none;position:absolute;z-index:120;top:calc(100% + 5px);left:0;right:0;min-width:230px;padding:.4rem;border:1px solid #dbe3ed;border-radius:11px;background:#fff;box-shadow:0 16px 36px rgba(15,23,42,.18)}
-.mi-wsdd.open .mi-wsdd-panel{display:block}
-.mi-wsdd-search{margin-bottom:.35rem}
-.mi-wsdd-list{max-height:240px;overflow-y:auto}
-.mi-wsdd-opt{display:flex;align-items:center;gap:.5rem;width:100%;padding:.5rem .55rem;border:0;border-radius:8px;background:#fff;color:#334155;font:inherit;font-size:.82rem;text-align:left;cursor:pointer}
-.mi-wsdd-opt:hover{background:var(--primary-soft);color:var(--primary-purple)}
-.mi-wsdd-dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px}
 .mi-product-row{position:relative;border:1px solid #e5ebf2;border-radius:12px;padding:.4rem .6rem .2rem;margin-bottom:.7rem;background:#fff}
 .mi-product-row-head{display:flex;align-items:center;justify-content:space-between;margin:.1rem .1rem .35rem}
 .mi-product-row-title{color:var(--primary-purple);font-size:.78rem;font-weight:800}
@@ -293,12 +279,6 @@ document.querySelector('.mi-form').addEventListener('submit',function(){
         if(os)os.value=open.length?open.join(' x '):'';
     });
 });
-
-// Website/Project searchable dropdown — always shows the full list, filters as you type.
-function wsToggle(e){e.stopPropagation();var dd=document.getElementById('wsDropdown');dd.classList.toggle('open');if(dd.classList.contains('open')){var s=document.getElementById('wsSearch');s.value='';wsFilter('');setTimeout(function(){s.focus()},30)}}
-function wsFilter(q){q=(q||'').trim().toLowerCase();document.querySelectorAll('#wsList .mi-wsdd-opt').forEach(function(o){o.style.display=(!q||o.dataset.name.indexOf(q)!==-1)?'flex':'none'})}
-function wsPick(name){document.getElementById('websiteValue').value=name;document.getElementById('websiteLabel').textContent=name;document.getElementById('wsDropdown').classList.remove('open')}
-document.addEventListener('click',function(e){var dd=document.getElementById('wsDropdown');if(dd&&!dd.contains(e.target))dd.classList.remove('open')});
 
 // Start with one product row.
 document.addEventListener('DOMContentLoaded',function(){ addProductRow(); });

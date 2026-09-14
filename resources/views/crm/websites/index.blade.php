@@ -25,7 +25,6 @@
 </style>
 <div class="ws-page">
     <div class="ws-hero"><div><h2>Websites / Projects</h2><p>Brands that appear in the inquiry “Website / Project” dropdown</p></div></div>
-    @if(session('success'))<div style="background:#e1f8ef;border:1px solid #a7f3d0;color:#065f46;padding:.7rem 1rem;border-radius:10px;margin-bottom:.8rem">{{ session('success') }}</div>@endif
     @if($errors->any())<div style="background:#fff1f2;border:1px solid #fecaca;color:#9f1239;padding:.7rem 1rem;border-radius:10px;margin-bottom:.8rem">{{ $errors->first() }}</div>@endif
 
     <div class="ws-grid">
