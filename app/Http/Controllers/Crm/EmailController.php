@@ -102,7 +102,8 @@ class EmailController extends Controller
         }
 
         $savedFinishingGroups = $this->savedFinishingGroups();
-        return view('crm.emails.create_inquiry', compact('savedFinishingGroups', 'prefillEmail'));
+        $websites = \App\CrmWebsite::where('is_active', true)->orderBy('name')->get(['name', 'color']);
+        return view('crm.emails.create_inquiry', compact('savedFinishingGroups', 'prefillEmail', 'websites'));
     }
 
     private function savedFinishingGroups()
@@ -124,6 +125,25 @@ class EmailController extends Controller
         }
 
         return $groups;
+    }
+
+    /** Add a website/project to the master list — Admin / CEO (super_admin) only. */
+    public function storeWebsite(Request $request)
+    {
+        $user = Auth::guard('crm')->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            return response()->json(['message' => 'Only admin or CEO can add a website.'], 403);
+        }
+        $data = $request->validate([
+            'name' => 'required|string|max:120',
+            'color' => 'nullable|string|max:16',
+        ]);
+        $name = trim($data['name']);
+        $website = \App\CrmWebsite::firstOrCreate(
+            ['name' => $name],
+            ['color' => $data['color'] ?? '#6c5ce7', 'is_active' => true, 'created_by' => $user->id]
+        );
+        return response()->json(['name' => $website->name, 'color' => $website->color]);
     }
 
     public function storeFinishingOption(Request $request)

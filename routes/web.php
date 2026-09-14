@@ -129,6 +129,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('inbox/inquiry/{id}/offer-price', 'EmailController@updateOfferPrice')->name('crm.emails.update_offer_price');
         Route::get('inbox/add-inquiry', 'EmailController@createInquiryForm')->name('crm.emails.create_form');
         Route::post('inbox/finishing-options', 'EmailController@storeFinishingOption')->name('crm.emails.finishing_options.store');
+        Route::post('inbox/websites', 'EmailController@storeWebsite')->name('crm.emails.websites.store');
         Route::post('inbox/create', 'EmailController@createInquiry')->name('crm.emails.create_manual');
         Route::get('spam', 'EmailController@spam')->name('crm.emails.spam');
         Route::get('rejected-leads', 'EmailController@rejected')->name('crm.emails.rejected');
