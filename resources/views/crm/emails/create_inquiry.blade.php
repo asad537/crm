@@ -90,15 +90,11 @@
                 <div class="mi-cell" data-label="Client Email"><input class="mi-control" type="email" name="client_email" value="{{ old('client_email', optional($prefillEmail ?? null)->client_email) }}" required></div>
                 <div class="mi-cell" data-label="Client Mobile / Phone"><input class="mi-control" name="client_phone" value="{{ old('client_phone', optional($prefillEmail ?? null)->client_phone) }}"></div>
                 <div class="mi-cell" data-label="Currency"><select class="mi-control" name="inquiry_currency" required>@foreach(['USD'=>'USD — US Dollar','AED'=>'AED — UAE Dirham','GBP'=>'GBP — British Pound','EUR'=>'EUR — Euro','CAD'=>'CAD — Canadian Dollar','AUD'=>'AUD — Australian Dollar','PKR'=>'PKR — Pakistani Rupee','SAR'=>'SAR — Saudi Riyal','QAR'=>'QAR — Qatari Riyal'] as $code=>$label)<option value="{{ $code }}" {{ old('inquiry_currency', isset($activeCrmWorkspace) && $activeCrmWorkspace && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'AED' : 'USD')===$code?'selected':'' }}>{{ $label }}</option>@endforeach</select></div>
-                @php $__wsUser = Auth::guard('crm')->user(); $__canAddWebsite = $__wsUser && ($__wsUser->isAdmin() || $__wsUser->isSuperAdmin()); @endphp
                 <div class="mi-cell" data-label="Website / Project">
                     <input class="mi-control" name="website" list="websiteOptions" id="websiteInput" autocomplete="off" value="{{ old('website', $__inquiryWebsite) }}" placeholder="Search website / project..." required>
                     <datalist id="websiteOptions">
                         @foreach(($websites ?? collect()) as $w)<option value="{{ $w->name }}"></option>@endforeach
                     </datalist>
-                    @if($__canAddWebsite)
-                    <button type="button" onclick="addWebsitePrompt()" style="margin-top:.3rem;font-size:.68rem;font-weight:800;color:var(--primary-purple);background:none;border:0;cursor:pointer;padding:0"><i class="fas fa-plus"></i> Add new website</button>
-                    @endif
                 </div>
             </div>
         </div>
@@ -277,22 +273,6 @@ document.querySelector('.mi-form').addEventListener('submit',function(){
         if(os)os.value=open.length?open.join(' x '):'';
     });
 });
-
-// Add a new website/project (admin/CEO) → saved to master list + selected here.
-async function addWebsitePrompt(){
-    var name=(prompt('New website / project name:')||'').trim();
-    if(!name) return;
-    try{
-        var res=await fetch(@json(route('crm.emails.websites.store')),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':@json(csrf_token())},body:JSON.stringify({name:name})});
-        var data=await res.json();
-        if(!res.ok) throw new Error(data.message||'Could not add website.');
-        var dl=document.getElementById('websiteOptions');
-        if(!Array.from(dl.options).some(function(o){return o.value.toLowerCase()===data.name.toLowerCase()})){
-            var opt=document.createElement('option');opt.value=data.name;dl.appendChild(opt);
-        }
-        document.getElementById('websiteInput').value=data.name;
-    }catch(e){ alert(e.message); }
-}
 
 // Start with one product row.
 document.addEventListener('DOMContentLoaded',function(){ addProductRow(); });
