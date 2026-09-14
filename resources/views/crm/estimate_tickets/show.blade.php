@@ -233,7 +233,8 @@
 @endphp
 <div class="es-page">
 <div class="es-head">
-    <div class="es-head-main"><a class="es-back" href="{{ route('crm.estimate_tickets.index', ['tab' => in_array($ticket->status,['estimated','completed']) ? 'history' : 'mine']) }}"><i class="fas fa-arrow-left"></i> Back to estimate tickets</a><h2>{{ $ticket->ticket_number }}</h2><div class="es-sub">Requested by {{ $ticket->requester->name ?? 'Unknown' }} · {{ $ticket->created_at->format('d M Y, h:i A') }}</div></div>
+    <div class="es-head-main"><a class="es-back" href="{{ route('crm.estimate_tickets.index', ['tab' => in_array($ticket->status,['estimated','completed']) ? 'history' : 'mine']) }}"><i class="fas fa-arrow-left"></i> Back to estimate tickets</a><h2>{{ $ticket->ticket_number }}</h2><div class="es-sub">Requested by {{ $ticket->requester->name ?? 'Unknown' }} · {{ $ticket->created_at->format('d M Y, h:i A') }}</div>
+    @if(optional($ticket->lead)->website)<div style="margin-top:.5rem"><span style="display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .7rem;border-radius:999px;background:var(--primary-purple);color:#fff;font-size:.72rem;font-weight:800"><i class="fas fa-globe"></i> {{ $ticket->lead->website }}</span></div>@endif</div>
     <div class="es-status-wrap"><span class="es-status">{{ ucwords(str_replace('_',' ',$ticket->status)) }}</span></div>
 </div>
 

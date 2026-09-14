@@ -48,7 +48,7 @@
             $inquiry = $ticket->inquiry;
         @endphp
         <tr>
-            <td><strong>{{ $ticket->ticket_number }}</strong><div class="dt-muted">{{ $ticket->created_at->format('d M Y, h:i A') }}</div></td>
+            <td><strong>{{ $ticket->ticket_number }}</strong><div class="dt-muted">{{ $ticket->created_at->format('d M Y, h:i A') }}</div>@if(optional($inquiry)->website)<div style="margin-top:.25rem"><span style="display:inline-flex;align-items:center;gap:.25rem;padding:.1rem .45rem;border-radius:999px;background:var(--primary-soft);color:var(--primary-purple);font-size:.6rem;font-weight:800"><i class="fas fa-globe"></i> {{ $inquiry->website }}</span></div>@endif</td>
             @php $__rowProducts = optional($inquiry)->products ?? collect(); $__rowMulti = $__rowProducts->count() > 1; @endphp
             <td><div class="dt-client"><strong>{{ optional($inquiry)->product_name ?: 'Inquiry unavailable' }}</strong>
                 @if($__rowMulti)<div class="dt-muted"><span class="dt-chip" style="background:var(--primary-soft);color:var(--primary-purple)">+{{ $__rowProducts->count() - 1 }} more product{{ $__rowProducts->count() - 1 > 1 ? 's' : '' }}</span></div>@else<div class="dt-muted">{{ optional($inquiry)->stock ?: 'No stock detail' }}</div>@endif
@@ -127,7 +127,7 @@
 <div class="dt-modal-bg" id="designModal{{ $ticket->id }}" onclick="if(event.target===this)closeDesignModal({{ $ticket->id }})"><div class="dt-modal"><div class="dt-modal-head"><div><h3>{{ $ticket->ticket_number }} · Design Requirements</h3></div><button class="dt-close" onclick="closeDesignModal({{ $ticket->id }})"><i class="fas fa-times"></i></button></div>
 @php $isOrderArtworkTicket = strpos($ticket->ticket_number, 'ART-') === 0; @endphp
 <form class="dt-form" method="POST" enctype="multipart/form-data" action="{{ route('crm.design_requirements.complete',$ticket->id) }}">{{ csrf_field() }}
-    <div class="dt-summary"><div><span>Product Name</span><strong>{{ optional($ticket->inquiry)->product_name ?: 'Inquiry unavailable' }}</strong></div><div><span>Dimensions</span><strong>{{ optional($ticket->inquiry)->finish_size ?: '-' }} {{ optional($ticket->inquiry)->unit }}</strong></div><div><span>Quantities</span><strong>{{ implode(', ', $ticket->quantities ?: []) }}</strong></div><div><span>Stock</span><strong>{{ optional($ticket->inquiry)->stock ?: '-' }}</strong></div><div><span>Printing</span><strong>{{ optional($ticket->inquiry)->printing ?: '-' }}</strong></div></div>
+    <div class="dt-summary"><div><span>Product Name</span><strong>{{ optional($ticket->inquiry)->product_name ?: 'Inquiry unavailable' }}</strong></div><div><span>Dimensions</span><strong>{{ optional($ticket->inquiry)->finish_size ?: '-' }} {{ optional($ticket->inquiry)->unit }}</strong></div><div><span>Quantities</span><strong>{{ implode(', ', $ticket->quantities ?: []) }}</strong></div><div><span>Stock</span><strong>{{ optional($ticket->inquiry)->stock ?: '-' }}</strong></div><div><span>Printing</span><strong>{{ optional($ticket->inquiry)->printing ?: '-' }}</strong></div>@if(optional($ticket->inquiry)->website)<div><span>Website / Project</span><strong style="color:var(--primary-purple)"><i class="fas fa-globe"></i> {{ $ticket->inquiry->website }}</strong></div>@endif</div>
     @php $__products = optional($ticket->inquiry)->products ?? collect(); @endphp
     @if($__products->count() > 1)
     <div class="dt-field">

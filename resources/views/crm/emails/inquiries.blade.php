@@ -82,7 +82,7 @@
         @endphp
         <tr>
             <td><strong>{{ $inquiry->workflow_number }}</strong><div class="iq-muted">{{ $inquiry->created_at->format('d M Y, h:i A') }}</div><div class="iq-muted"><i class="fas fa-bullhorn"></i> {{ ['website'=>'Website','call'=>'Call','walk_in'=>'Walk-in','social_media'=>'Social Media','whatsapp'=>'WhatsApp','live_chat'=>'Live Chat','email'=>'Email'][$inquiry->source] ?? ucwords(str_replace('_',' ',(string)$inquiry->source)) }}</div></td>
-            <td><div class="iq-client"><span class="iq-avatar">{{ strtoupper(substr($inquiry->client_name,0,1)) }}</span><div><strong>{{ $inquiry->client_name }}</strong><div class="iq-muted">{{ $inquiry->client_email }}</div><div class="iq-muted">{{ $inquiry->client_phone ?: 'No phone' }}</div></div></div></td>
+            <td><div class="iq-client"><span class="iq-avatar">{{ strtoupper(substr($inquiry->client_name,0,1)) }}</span><div><strong>{{ $inquiry->client_name }}</strong><div class="iq-muted">{{ $inquiry->client_email }}</div><div class="iq-muted">{{ $inquiry->client_phone ?: 'No phone' }}</div>@if($inquiry->website)<div style="margin-top:.2rem"><span style="display:inline-flex;align-items:center;gap:.25rem;padding:.1rem .45rem;border-radius:999px;background:var(--primary-soft);color:var(--primary-purple);font-size:.6rem;font-weight:800"><i class="fas fa-globe"></i> {{ $inquiry->website }}</span></div>@endif</div></div></td>
             @php $__iqProducts = $inquiry->products ?? collect(); $__iqMulti = $__iqProducts->count() > 1; @endphp
             <td>
                 @if($__iqMulti)
