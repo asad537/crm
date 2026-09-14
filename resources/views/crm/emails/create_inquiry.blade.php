@@ -238,6 +238,8 @@ function removeProductRow(btn){
 function renumberProductRows(){
     document.querySelectorAll('#productRows .mi-product-row').forEach(function(row,i){
         var n=row.querySelector('.mi-product-num'); if(n) n.textContent='#'+(i+1);
+        // First product is not removable — hide its ✕ (the single/first row must always stay).
+        var rm=row.querySelector('.mi-product-remove'); if(rm) rm.style.display = (i===0 ? 'none' : '');
     });
 }
 
