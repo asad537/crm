@@ -13,10 +13,7 @@
 .vpc-price-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.85rem}.vpc-price-grid .vpc-field{grid-column:auto}@media(max-width:720px){.vpc-price-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:480px){.vpc-price-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Compact item cards — tighter spacing/height so each product takes less vertical room */
 .vpc-items{gap:.7rem}
-.vpc-item{position:relative;padding:.75rem .85rem}
-.vpc-price-divider-layer{position:absolute;inset:0;z-index:0;pointer-events:none}
-.vpc-price-divider-layer span{position:absolute;display:none;top:0;bottom:.65rem;width:2px;background:#8b5cf6}
-.vpc-item-head,.vpc-item-rows{position:relative;z-index:1}
+.vpc-item{padding:.75rem .85rem}
 .vpc-item .vpc-item-head{margin-bottom:.5rem}
 .vpc-item .vpc-grid{gap:.5rem .6rem;margin-bottom:0}
 .vpc-item .vpc-field label{margin-bottom:.22rem;font-size:.72rem}
@@ -44,14 +41,14 @@
 .vpc-row-2 .vpc-field{flex:0 1 110px;max-width:100%}
 .vpc-row-2 .vpc-field:first-child{flex-basis:160px}
 .vpc-price-split,.vpc-price-group{display:contents}
-.vpc-row-1 .vpc-price-split{display:flex;align-items:flex-start;gap:.6rem;flex:2 1 430px;min-width:0}
-.vpc-row-1 .vpc-price-group{display:grid;align-content:start;gap:.5rem .55rem;min-width:0;padding-left:.65rem}
+.vpc-row-1 .vpc-price-split{display:flex;align-items:stretch;gap:.6rem;flex:2 1 430px;min-width:0;padding:.45rem;border:1px solid #cbd5e1;border-radius:11px;background:#fff}
+.vpc-row-1 .vpc-price-group{display:grid;align-content:start;gap:.5rem .55rem;min-width:0;border-left:2px solid #8b5cf6;padding-left:.65rem}
 .vpc-row-1 .vpc-price-group:first-child{grid-template-columns:repeat(2,minmax(0,1fr));flex:1 1 160px}
 .vpc-row-1 .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));flex:1.4 1 230px}
 .vpc-personal .vpc-price-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%;flex:1 0 100%;border:1px solid #dbe3ed;border-radius:11px;background:#fff}
 .vpc-personal .vpc-price-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:.55rem .7rem;padding:.7rem}
-.vpc-personal .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));padding-left:.85rem}
-.vpc-personal .vpc-price-group:first-child{padding-left:.7rem}
+.vpc-personal .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));border-left:2px solid #8b5cf6;padding-left:.85rem}
+.vpc-personal .vpc-price-group:first-child{border-left:2px solid #8b5cf6;padding-left:.7rem}
 .vpc-personal .vpc-price-group .vpc-field{min-width:0}
 .vpc-item .vpc-extra{display:contents}
 .vpc-item .vpc-help{display:none}
@@ -79,7 +76,7 @@
 @php($purchaseItems = old('items', $purchaseItems ?? [['category'=>'Paper & Board Stock','quantity'=>1,'unit'=>'Sheets','line_total'=>'']]))
 <div class="vpc-items" id="vpcItems">
 @foreach($purchaseItems as $index => $item)
-<div class="vpc-item" data-index="{{ $index }}"><div class="vpc-item-head"><div class="vpc-item-title"><span class="vpc-item-number">{{ $index + 1 }}</span><span>Product {{ $index + 1 }}</span></div><div class="vpc-head-job vpc-jobid"><label>Job ID <span class="vpc-opt">(optional)</span></label><input class="vpc-control" name="items[{{ $index }}][extra][job_id]" value="{{ $item['extra']['job_id'] ?? '' }}" placeholder="e.g. JOB-1024 / INQ-0312"></div><button class="vpc-remove" type="button" onclick="removePurchaseItem(this)" title="Remove product"><i class="fas fa-trash"></i></button></div><div class="vpc-price-divider-layer" aria-hidden="true"><span></span><span></span></div><div class="vpc-item-rows">
+<div class="vpc-item" data-index="{{ $index }}"><div class="vpc-item-head"><div class="vpc-item-title"><span class="vpc-item-number">{{ $index + 1 }}</span><span>Product {{ $index + 1 }}</span></div><div class="vpc-head-job vpc-jobid"><label>Job ID <span class="vpc-opt">(optional)</span></label><input class="vpc-control" name="items[{{ $index }}][extra][job_id]" value="{{ $item['extra']['job_id'] ?? '' }}" placeholder="e.g. JOB-1024 / INQ-0312"></div><button class="vpc-remove" type="button" onclick="removePurchaseItem(this)" title="Remove product"><i class="fas fa-trash"></i></button></div><div class="vpc-item-rows">
 <div class="vpc-row vpc-row-1">
 <div class="vpc-field vpc-f-etype"><label>Expense Type <span class="vpc-required">*</span></label><select class="vpc-control vpc-item-etype" name="items[{{ $index }}][expense_type]" onchange="vpcItemTypeChanged(this)">@foreach(['Production Expense'=>'Production','Consumable Expense'=>'Consumable','Admin/General Expense'=>'Admin/General'] as $etv=>$etl)<option value="{{ $etv }}" {{ ($item['expense_type'] ?? 'Production Expense')===$etv?'selected':'' }}>{{ $etl }}</option>@endforeach</select></div>
 <div class="vpc-field vpc-f-cat"><label>Category <span class="vpc-required">*</span></label><div class="vpc-combo"><input class="vpc-control" name="items[{{ $index }}][category]" value="{{ $item['category'] ?? 'Paper & Board Stock' }}" autocomplete="off" onfocus="openItemCategories(this,true)" oninput="openItemCategories(this,false)" required><button class="vpc-combo-toggle" type="button" onclick="toggleItemCategories(this,event)" aria-label="Show all categories"><i class="fas fa-chevron-down"></i></button><div class="vpc-combo-menu">@foreach($__vpCats as $__cm => $__catList)@foreach($__catList as $category)<button type="button" data-mode="{{ $__cm }}" data-value="{{ $category }}" onclick="chooseItemCategory(this)">{{ $category }}</button>@endforeach @endforeach</div></div></div>
@@ -143,7 +140,7 @@ function applyExpenseMode(mode){
         if(changed&&!vpcModeInitialized&&vpcIsEditing){return}
         if(changed&&mode==='personal'&&unit.value==='Sheets')unit.value='Items';
     });
-    vpcModeInitialized=true;renumberPurchaseItems();calculatePurchase();requestAnimationFrame(vpcSyncPriceDividers);
+    vpcModeInitialized=true;renumberPurchaseItems();calculatePurchase();
 }
 function closeItemCategories(except){document.querySelectorAll('.vpc-combo-menu.show').forEach(function(menu){if(menu!==except)menu.classList.remove('show')})}
 // Expense type is per item now (one invoice can mix Production + Consumable). Each item's
@@ -160,8 +157,6 @@ function vpcItemTypeChanged(sel){
 }
 function vpcSyncHeaderType(){var c={};document.querySelectorAll('.vpc-item-etype').forEach(function(s){c[s.value]=(c[s.value]||0)+1;});var top='Production Expense',m=0;for(var k in c){if(c[k]>m){m=c[k];top=k;}}var h=document.getElementById('vpcExpenseType');if(h)h.value=top;}
 function vpcInitItems(){document.querySelectorAll('#vpcItems .vpc-item').forEach(function(card){var jb=card.querySelector('.vpc-jobid'),am=vpcItemAllowedModes(card);if(jb)jb.style.display=(am.indexOf('admin')!==-1)?'none':'';});vpcSyncHeaderType();}
-function vpcSyncPriceDividers(){document.querySelectorAll('#vpcItems .vpc-item').forEach(function(card){var layer=card.querySelector('.vpc-price-divider-layer'),groups=card.querySelectorAll('.vpc-price-group'),rows=card.querySelector('.vpc-item-rows');if(!layer||groups.length<2||!rows)return;var lines=layer.querySelectorAll('span'),cardRect=card.getBoundingClientRect(),top=rows.getBoundingClientRect().top-cardRect.top,previous=null;groups.forEach(function(group,index){var line=lines[index],left=group.getBoundingClientRect().left-cardRect.left;if(!line)return;line.style.left=left+'px';line.style.top=top+'px';line.style.display=(previous===null||Math.abs(left-previous)>2)?'block':'none';previous=left;});});}
-window.addEventListener('resize',vpcSyncPriceDividers);
 function openItemCategories(input,showAll){var combo=input.closest('.vpc-combo'),menu=combo.querySelector('.vpc-combo-menu');closeItemCategories(menu);filterItemCategories(combo,showAll?'':input.value);menu.classList.add('show')}
 function toggleItemCategories(button,event){event.stopPropagation();var combo=button.closest('.vpc-combo'),menu=combo.querySelector('.vpc-combo-menu'),willOpen=!menu.classList.contains('show');closeItemCategories(menu);if(willOpen){filterItemCategories(combo,'');menu.classList.add('show');combo.querySelector('input').focus()}}
 function chooseItemCategory(button){var combo=button.closest('.vpc-combo');combo.querySelector('input').value=button.dataset.value;combo.querySelector('.vpc-combo-menu').classList.remove('show');vpcRenderExtra(combo.closest('.vpc-item'));}
@@ -187,7 +182,6 @@ function vpcRenderExtra(card){
     if(f.t==='select'){return '<div class="vpc-field vpc-3"><label>'+f.l+'</label><select class="vpc-control" name="'+nm+'"><option value=""></option>'+f.o.map(function(o){return '<option '+(o===String(val)?'selected':'')+'>'+o+'</option>';}).join('')+'</select></div>';}
     return '<div class="vpc-field vpc-3"><label>'+f.l+'</label><input class="vpc-control" type="'+(f.t==='number'?'number':'text')+'" name="'+nm+'" value="'+String(val).replace(/"/g,'&quot;')+'"></div>';
   }).join('');
-  requestAnimationFrame(vpcSyncPriceDividers);
 }
 function vpcRenderAllExtra(){document.querySelectorAll('#vpcItems .vpc-item').forEach(vpcRenderExtra);}
 document.addEventListener('click',function(event){if(!event.target.closest('.vpc-combo'))closeItemCategories()});
@@ -273,7 +267,7 @@ function extractInvoice(){
 }
 document.querySelectorAll('#vpcItems .vpc-item').forEach(bindPurchaseItem);
 document.querySelectorAll('.vpc-calc').forEach(function(field){field.addEventListener('input',calculatePurchase);field.addEventListener('change',calculatePurchase)});
-fillVendor(document.querySelector('[name="vendor_id"]'));applyExpenseMode('production');renumberPurchaseItems();vpcRenderAllExtra();vpcInitItems();calculatePurchase();requestAnimationFrame(vpcSyncPriceDividers);
+fillVendor(document.querySelector('[name="vendor_id"]'));applyExpenseMode('production');renumberPurchaseItems();vpcRenderAllExtra();vpcInitItems();calculatePurchase();
 
 </script>
 @include('crm.partials.unsaved_guard', ['formSelector' => '#vendorPurchaseCreateForm'])
