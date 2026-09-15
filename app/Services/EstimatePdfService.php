@@ -18,8 +18,14 @@ class EstimatePdfService
     public function generate(EstimateTicket $ticket)
     {
         $this->commands = [];
-        $ticket->loadMissing(['workspace', 'lead', 'estimator', 'options']);
+        $ticket->loadMissing(['workspace', 'lead', 'estimator', 'requester', 'options']);
         $workspace = $ticket->workspace ?: \App\CrmWorkspace::find($ticket->workspace_id);
+
+        // TCB workspace uses the dedicated "The Custom Boxes" USD quote layout (HTML -> Dompdf).
+        if ($workspace && $workspace->slug === 'my-box-printing') {
+            return $this->generateTcbQuote($ticket);
+        }
+
         $this->isAlMassa = $workspace && $workspace->slug === 'mybox-packaging-app';
         $this->primary = $this->isAlMassa ? 'E9B21B' : '87C112';
         $this->primaryDark = $this->isAlMassa ? '06265E' : '23410A';
@@ -149,6 +155,79 @@ class EstimatePdfService
         $this->line(509, 40, 553, 40, $navy, 3);
 
         return $this->buildPdf(implode("\n", $this->commands));
+    }
+
+    /**
+     * "The Custom Boxes" USD price-quote layout for the TCB workspace.
+     * Rendered from a Blade view via Dompdf and returned as raw PDF bytes
+     * so the existing callers (chat draft / draft_pdf) keep working unchanged.
+     */
+    protected function generateTcbQuote(EstimateTicket $ticket)
+    {
+        $lead = $ticket->lead;
+        $unit = optional($lead)->unit ?: $ticket->unit;
+
+        // Product spec rows (left side of the items table).
+        $dimensions = trim(($ticket->finish_size ?: ($ticket->flat_size ?: '')).' '.($unit ?: ''));
+        $specRows = [
+            ['Product 1:', ''],
+            ['BOX STYLE:', $ticket->product_style ?: '—'],
+            ['DIMENSIONS:', $dimensions !== '' ? $dimensions : '—'],
+            ['PRINTING:', $ticket->printing ?: '—'],
+            ['MATERIAL:', $ticket->stock ?: '—'],
+            ['LEAD TIME:', trim((string) optional($lead)->lead_time) ?: '—'],
+        ];
+
+        // Price rows (right side) — one per quantity option, USD.
+        $salesOffers = collect((array) optional($lead)->estimate_quantity_options)
+            ->keyBy(function ($offer) { return (int) ($offer['quantity'] ?? 0); });
+        $priceRows = [];
+        foreach ($ticket->options as $option) {
+            $savedSalesOffer = $salesOffers->get((int) $option->quantity);
+            $total = is_array($savedSalesOffer) && array_key_exists('price', $savedSalesOffer)
+                ? (float) $savedSalesOffer['price']
+                : ($option->offer_price !== null
+                    ? (float) $option->offer_price
+                    : ($option->discounted_price !== null ? (float) $option->discounted_price : (float) $option->total_price));
+            $priceRows[] = [
+                'quantity' => (int) $option->quantity,
+                'unit' => $option->quantity > 0 ? $total / $option->quantity : 0,
+                'total' => $total,
+            ];
+        }
+
+        $csr = $ticket->requester ?: $ticket->estimator;
+        $inquiryNumber = optional($lead)->workflow_number ?: $ticket->ticket_number;
+
+        $logoPath = public_path('thecustomboxes-logo.png');
+        $logoData = is_file($logoPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
+            : null;
+
+        $data = [
+            'logoData' => $logoData,
+            'brandName' => 'The Custom Boxes',
+            'addressLine' => '9933 Franklin Ave, Franklin Park, IL 60131',
+            'website' => 'www.thecustomboxes.com',
+            'contactPhone' => '800-396-1840',
+            'preparedBy' => optional($csr)->name ?: 'CSR',
+            'csrEmail' => optional($csr)->email ?: 'sales@thecustomboxes.com',
+            'quoteNo' => $ticket->ticket_number,
+            'inquiryId' => 'EM-'.$inquiryNumber,
+            'date' => now()->format('m/d/Y'),
+            'validUntil' => now()->addDays(15)->format('m/d/Y'),
+            'customerName' => $ticket->client_name ?: '-',
+            'customerEmail' => $ticket->client_email ?: '-',
+            'customerPhone' => optional($lead)->client_phone ?: '-',
+            'currency' => 'USD',
+            'symbol' => '$',
+            'specRows' => $specRows,
+            'priceRows' => $priceRows,
+        ];
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.estimate_tickets.quote_tcb', $data)
+            ->setPaper('a4', 'portrait')
+            ->output();
     }
 
     protected function finishingSummary(EstimateTicket $ticket)

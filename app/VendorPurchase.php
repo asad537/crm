@@ -8,7 +8,7 @@ class VendorPurchase extends Model
 {
     protected $fillable = [
         'workspace_id', 'created_by', 'vendor_id', 'vendor_name', 'vendor_phone', 'vendor_email',
-        'purchase_date', 'due_date', 'invoice_number', 'job_id', 'category', 'item_name',
+        'purchase_date', 'due_date', 'invoice_number', 'job_id', 'category', 'expense_type', 'item_name',
         'material', 'specification', 'size', 'gsm', 'color', 'quantity', 'unit',
         'unit_price', 'subtotal', 'vat_percentage', 'tax_amount', 'shipping_cost', 'total_amount',
         'paid_amount', 'balance_amount', 'payment_status', 'payment_method',

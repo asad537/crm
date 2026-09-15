@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\DB;
 
 class VendorPurchaseController extends Controller
 {
+    /** Chart of Expense Heads, grouped by expense type — used by the filter/category dropdowns. */
+    private const EXPENSE_CATEGORY_GROUPS = [
+        'Production' => ['Paper & Board Stock','Corrugation Rolls / Kraft','Rigid Box Board & Greyboard','PVC / PET Sheets','Prepress & Artwork','Die Making & Cutting Dies','Block Making','Foiling Job Charges','Embossing & Debossing','UV / Spot Varnish','Digital Printing','Outsource Printing','Outsource Pasting & Finishing','Outsource Labour Charges','Job Expense','Sampling & Mockups','Machine Repair & Maintenance','Production Wastage & Rejections','Freight & Delivery'],
+        'Consumable' => ['Offset Inks (CMYK & Pantone)','Flexo & Digital Inks / Toner','Ink Additives & Drier','Varnish & Coatings','CTP Plates','Plate Chemicals & Developer','Fountain Solution & IPA','Blanket Wash & Solvents','Press Blankets & Rollers','Spray Powder','Lamination Film','Foil Rolls','Glue & Adhesives','Corrugation Starch & Adhesive','Double Sided & Gum Tape','Die Rules & Rubber','Stitching Wire & Staples','Ribbons, Handles & Magnets','Window Patching Film','Cutting Blades & Knives','Machine Oil, Lubricants & Grease','Spare Parts (Small)','Tools & Small Equipment','Packing Materials','Labels & Barcode Stickers','Cleaning Supplies & Rags','Safety Gear & Uniforms','Miscellaneous Consumables'],
+        'Admin / General' => ['Salaries & Wages','Staff Visa, Labour Card & Medical','Staff Accommodation & Transport','Rent (Ejari)','DEWA (Electricity & Water)','Telecom & Internet','Trade License & Government Fees','Vehicle Fuel, Salik & Repair','Generator Diesel & Repair','Meals & Late Night Meals','Kitchen / Pantry Stock','Stationery & Printing','IT Expense','Marketing & Advertising','Bank Charges & VAT Adjustments','Professional Fees','Insurance','Travel & Fare Charges','Electric Work & Office Repairs','Admin Other Expenses'],
+    ];
+
     public function extractInvoice(Request $request, LocalInvoiceOcrService $ocr)
     {
         $this->authorizeAccess();
@@ -45,6 +52,7 @@ class VendorPurchaseController extends Controller
             $size = preg_split('/\s*(?:x|×|\*)\s*/i', (string) $item->size);
             return [
                 'category' => $item->category,
+                'expense_type' => $item->expense_type,
                 'item_name' => $item->item_name,
                 'material' => $item->material,
                 'specification' => $item->specification,
@@ -57,6 +65,8 @@ class VendorPurchaseController extends Controller
                 'unit' => $item->unit,
                 'unit_price' => $item->unit_price,
                 'line_total' => $item->line_total,
+                'vat_percentage' => $item->vat_percentage,
+                'extra' => $item->extra,
             ];
         })->all();
 
@@ -78,20 +88,15 @@ class VendorPurchaseController extends Controller
             if ($request->filled('payment_status')) $query->where('payment_status', $request->payment_status);
             if ($request->filled('date_from')) $query->whereDate('purchase_date', '>=', $request->date_from);
             if ($request->filled('date_to')) $query->whereDate('purchase_date', '<=', $request->date_to);
+            // Match the header OR any line item so a mixed invoice shows under each of its types.
+            if ($request->filled('expense_type')) {
+                $this->applyExpenseTypeFilter($query, $request->expense_type);
+            }
         };
         $vendorsQuery = Vendor::withCount(['purchases' => $applyPurchaseFilters])->with(['purchases' => function ($query) use ($applyPurchaseFilters) {
-            $query->select('id', 'vendor_id', 'purchase_date', 'total_amount', 'paid_amount', 'balance_amount', 'payment_status');
+            $query->select('id', 'vendor_id', 'purchase_date', 'total_amount', 'paid_amount', 'balance_amount', 'payment_status', 'expense_type');
             $applyPurchaseFilters($query);
         }]);
-        if ($request->filled('expense_type')) {
-            if ($request->expense_type === 'Production Expense') {
-                $vendorsQuery->where(function ($query) {
-                    $query->where('category', 'Production Expense')->orWhereNull('category')->orWhere('category', '');
-                });
-            } else {
-                $vendorsQuery->where('category', $request->expense_type);
-            }
-        }
         if ($request->filled('search')) {
             $search = $request->search;
             $vendorsQuery->where(function ($query) use ($search) {
@@ -110,7 +115,7 @@ class VendorPurchaseController extends Controller
                     });
             });
         }
-        if ($request->filled('category') || $request->filled('payment_status') || $request->filled('date_from') || $request->filled('date_to')) {
+        if ($request->filled('category') || $request->filled('payment_status') || $request->filled('date_from') || $request->filled('date_to') || $request->filled('expense_type')) {
             $vendorsQuery->whereHas('purchases', $applyPurchaseFilters);
         }
         $vendorsQuery->orderBy('name');
@@ -161,6 +166,9 @@ class VendorPurchaseController extends Controller
         }
         if ($request->filled('date_from')) $query->whereDate('purchase_date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('purchase_date', '<=', $request->date_to);
+        if ($request->filled('expense_type')) {
+            $this->applyExpenseTypeFilter($query, $request->expense_type);
+        }
 
         $purchases = $query->paginate(20)->appends($request->all());
         $summaryQuery = VendorPurchase::query(); if ($selectedVendor) $summaryQuery->where('vendor_id',$selectedVendor->id);
@@ -183,7 +191,8 @@ class VendorPurchaseController extends Controller
             }
         }
 
-        return view('crm.vendor_purchases.index', compact('purchases', 'summary', 'vendors', 'selectedVendor', 'directorySummary', 'jobSummary'));
+        $expenseCatGroups = self::EXPENSE_CATEGORY_GROUPS;
+        return view('crm.vendor_purchases.index', compact('purchases', 'summary', 'vendors', 'selectedVendor', 'directorySummary', 'jobSummary', 'expenseCatGroups'));
     }
 
     /**
@@ -195,20 +204,45 @@ class VendorPurchaseController extends Controller
         $search = trim((string) $request->input('search', ''));
         $selectedJob = trim((string) $request->input('job_id', ''));
 
-        // A single job selected → show ONLY that job's purchases (across every vendor).
+        // Attribute expense to jobs at the LINE-ITEM level: each item counts under its own
+        // Job ID (extra.job_id) or, if it has none, the invoice header job_id. Amounts are the
+        // item's share of the invoice total/paid/balance (by gross) so job totals tie to invoices.
+        $jobItemRows = collect();
+        VendorPurchase::with('items')->get()->each(function ($p) use ($jobItemRows) {
+            if ($p->items->isEmpty()) {
+                $jobId = trim((string) $p->job_id);
+                if ($jobId !== '') {
+                    $jobItemRows->push((object) ['job_id' => $jobId, 'purchase_id' => $p->id, 'vendor_name' => $p->vendor_name, 'total' => (float) $p->total_amount, 'paid' => (float) $p->paid_amount, 'balance' => (float) $p->balance_amount, 'purchase_date' => $p->purchase_date, 'currency' => $p->currency]);
+                }
+                return;
+            }
+            $grosses = $p->items->map(function ($it) { return (float) $it->line_total * (1 + (float) $it->vat_percentage / 100); });
+            $sumGross = $grosses->sum();
+            $count = $grosses->count();
+            foreach ($p->items->values() as $i => $it) {
+                $jobId = trim((string) (data_get($it->extra, 'job_id') ?: $p->job_id));
+                if ($jobId === '') continue;
+                $ratio = $sumGross > 0 ? (float) $grosses[$i] / $sumGross : ($count ? 1 / $count : 0);
+                $jobItemRows->push((object) ['job_id' => $jobId, 'purchase_id' => $p->id, 'vendor_name' => $p->vendor_name, 'total' => round((float) $p->total_amount * $ratio, 2), 'paid' => round((float) $p->paid_amount * $ratio, 2), 'balance' => round((float) $p->balance_amount * $ratio, 2), 'purchase_date' => $p->purchase_date, 'currency' => $p->currency]);
+            }
+        });
+
+        // A single job selected → show ONLY that job's purchases (matched on header OR any item).
         if ($selectedJob !== '') {
-            $rows = VendorPurchase::where('job_id', $selectedJob)->get();
+            $rows = $jobItemRows->where('job_id', $selectedJob);
             $jobSummary = [
                 'job_id' => $selectedJob,
-                'count' => $rows->count(),
+                'count' => $rows->pluck('purchase_id')->unique()->count(),
                 'vendors' => $rows->pluck('vendor_name')->filter()->unique()->count(),
-                'total' => (float) $rows->sum('total_amount'),
-                'paid' => (float) $rows->sum('paid_amount'),
-                'balance' => (float) $rows->sum('balance_amount'),
+                'total' => round($rows->sum('total'), 2),
+                'paid' => round($rows->sum('paid'), 2),
+                'balance' => round($rows->sum('balance'), 2),
                 'currency' => optional($rows->first())->currency ?: 'AED',
             ];
             $purchases = VendorPurchase::with(['vendor', 'items'])
-                ->where('job_id', $selectedJob)
+                ->where(function ($q) use ($selectedJob) {
+                    $q->where('job_id', $selectedJob)->orWhereHas('items', function ($i) use ($selectedJob) { $i->where('extra->job_id', $selectedJob); });
+                })
                 ->orderBy('purchase_date', 'desc')->orderBy('id', 'desc')
                 ->paginate(20)->appends($request->all());
             return view('crm.vendor_purchases.jobs', [
@@ -221,20 +255,20 @@ class VendorPurchaseController extends Controller
         }
 
         // Otherwise → every job grouped, with its running totals.
-        $query = VendorPurchase::whereNotNull('job_id')->where('job_id', '!=', '');
-        if ($search !== '') $query->where('job_id', 'like', "%{$search}%");
-        $jobGroups = $query->get()->groupBy('job_id')->map(function ($rows, $jobId) {
-            return (object) [
-                'job_id' => $jobId,
-                'count' => $rows->count(),
-                'vendors' => $rows->pluck('vendor_name')->filter()->unique()->count(),
-                'total' => (float) $rows->sum('total_amount'),
-                'paid' => (float) $rows->sum('paid_amount'),
-                'balance' => (float) $rows->sum('balance_amount'),
-                'currency' => optional($rows->first())->currency ?: 'AED',
-                'last_date' => $rows->max('purchase_date'),
-            ];
-        })->sortByDesc('last_date')->values();
+        $jobGroups = $jobItemRows
+            ->when($search !== '', function ($c) use ($search) { return $c->filter(function ($r) use ($search) { return stripos($r->job_id, $search) !== false; }); })
+            ->groupBy('job_id')->map(function ($rows, $jobId) {
+                return (object) [
+                    'job_id' => $jobId,
+                    'count' => $rows->pluck('purchase_id')->unique()->count(),
+                    'vendors' => $rows->pluck('vendor_name')->filter()->unique()->count(),
+                    'total' => round($rows->sum('total'), 2),
+                    'paid' => round($rows->sum('paid'), 2),
+                    'balance' => round($rows->sum('balance'), 2),
+                    'currency' => optional($rows->first())->currency ?: 'AED',
+                    'last_date' => $rows->max('purchase_date'),
+                ];
+            })->sortByDesc('last_date')->values();
 
         $overall = [
             'jobs' => $jobGroups->count(),
@@ -266,8 +300,10 @@ class VendorPurchaseController extends Controller
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
             'invoice_number' => 'nullable|string|max:100',
             'job_id' => 'nullable|string|max:100',
+            'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items' => 'required|array|min:1',
             'items.*.category' => 'required|string|max:100',
+            'items.*.expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items.*.item_name' => 'required|string|max:255',
             'items.*.material' => 'nullable|string|max:255',
             'items.*.specification' => 'nullable|string|max:255',
@@ -277,9 +313,11 @@ class VendorPurchaseController extends Controller
             'items.*.gsm' => 'nullable|string|max:50',
             'items.*.color' => 'nullable|string|max:100',
             'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit' => 'required|in:Sheets,Kg,Rolls,Pieces,Boxes,Liters,Meters,Pallets,Items,Services,Meals,Trips',
+            'items.*.unit' => 'nullable|string|max:40',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.line_total' => 'required|numeric|min:0',
+            'items.*.line_total' => 'nullable|numeric|min:0',
+            'items.*.vat_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.extra' => 'nullable|array',
             'vat_percentage' => 'nullable|numeric|min:0|max:100',
             'shipping_cost' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
@@ -291,6 +329,8 @@ class VendorPurchaseController extends Controller
 
         $items = $this->normalizePurchaseItems($validated['items']);
         unset($validated['items']);
+        // Expense type is per item now; the header keeps the dominant type (for the list/filter).
+        $validated['expense_type'] = collect($items)->countBy('expense_type')->sortDesc()->keys()->first() ?: 'Production Expense';
         $vendor = Vendor::findOrFail($validated['vendor_id']);
         $validated['vendor_name'] = $vendor->name;
         $validated['vendor_phone'] = trim((string) ($validated['vendor_phone'] ?? '')) ?: $vendor->phone;
@@ -381,8 +421,10 @@ class VendorPurchaseController extends Controller
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
             'invoice_number' => 'nullable|string|max:100',
             'job_id' => 'nullable|string|max:100',
+            'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items' => 'required|array|min:1',
             'items.*.category' => 'required|string|max:100',
+            'items.*.expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items.*.item_name' => 'required|string|max:255',
             'items.*.material' => 'nullable|string|max:255',
             'items.*.specification' => 'nullable|string|max:255',
@@ -392,9 +434,11 @@ class VendorPurchaseController extends Controller
             'items.*.gsm' => 'nullable|string|max:50',
             'items.*.color' => 'nullable|string|max:100',
             'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit' => 'required|in:Sheets,Kg,Rolls,Pieces,Boxes,Liters,Meters,Pallets,Items,Services,Meals,Trips',
+            'items.*.unit' => 'nullable|string|max:40',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.line_total' => 'required|numeric|min:0',
+            'items.*.line_total' => 'nullable|numeric|min:0',
+            'items.*.vat_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.extra' => 'nullable|array',
             'vat_percentage' => 'nullable|numeric|min:0|max:100',
             'shipping_cost' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
@@ -405,6 +449,8 @@ class VendorPurchaseController extends Controller
         ]);
         $items = $this->normalizePurchaseItems($validated['items']);
         unset($validated['items']);
+        // Expense type is per item now; the header keeps the dominant type (for the list/filter).
+        $validated['expense_type'] = collect($items)->countBy('expense_type')->sortDesc()->keys()->first() ?: 'Production Expense';
         $vendor = Vendor::findOrFail($validated['vendor_id']);
         $validated['vendor_name'] = $vendor->name;
         $validated['vendor_phone'] = trim((string) ($validated['vendor_phone'] ?? '')) ?: $vendor->phone;
@@ -526,33 +572,29 @@ class VendorPurchaseController extends Controller
     private function normalizePurchaseItems(array $items)
     {
         return collect($items)->values()->map(function ($item, $index) {
+            // Total is now driven by Qty × Price/Unit (Price/Unit is entered directly),
+            // and VAT % is captured per item; Gross (Total + VAT) is derived on display.
             $quantity = round((float) $item['quantity'], 2);
-            $lineTotal = round((float) $item['line_total'], 2);
-            $unitPrice = $quantity > 0 ? round($lineTotal / $quantity, 4) : 0;
-            $parts = [
-                $item['size_length'] ?? null,
-                $item['size_width'] ?? null,
-                $item['size_height'] ?? null,
-            ];
-            $hasSize = collect($parts)->contains(function ($value) {
-                return $value !== null && $value !== '';
-            });
+            $unitPrice = round((float) ($item['unit_price'] ?? 0), 4);
+            $lineTotal = round($quantity * $unitPrice, 2);
+            $vat = round((float) ($item['vat_percentage'] ?? 0), 2);
 
             return [
                 'position' => $index + 1,
                 'category' => trim($item['category']),
+                'expense_type' => $item['expense_type'] ?? 'Production Expense',
                 'item_name' => trim($item['item_name']),
                 'material' => $item['material'] ?? null,
                 'specification' => $item['specification'] ?? null,
-                'size' => $hasSize ? implode(' × ', array_map(function ($value) {
-                    return $value === null || $value === '' ? '0' : rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
-                }, $parts)) : null,
+                'size' => null,
                 'gsm' => $item['gsm'] ?? null,
                 'color' => $item['color'] ?? null,
                 'quantity' => $quantity,
-                'unit' => $item['unit'],
+                'unit' => $item['unit'] ?? 'Items',
                 'unit_price' => $unitPrice,
                 'line_total' => $lineTotal,
+                'vat_percentage' => $vat,
+                'extra' => array_filter((array) ($item['extra'] ?? []), function ($v) { return $v !== null && $v !== ''; }) ?: null,
             ];
         })->all();
     }
@@ -578,13 +620,38 @@ class VendorPurchaseController extends Controller
         return ['paid' => $paid, 'balance' => round($total - $paid, 2), 'status' => $status];
     }
 
+    /**
+     * Filter purchases by expense type, matching the header OR any line item, so a mixed
+     * invoice surfaces under every expense type it contains. A missing type counts as Production.
+     */
+    private function applyExpenseTypeFilter($query, $type)
+    {
+        $query->where(function ($q) use ($type) {
+            if ($type === 'Production Expense') {
+                $q->where(function ($h) {
+                    $h->where('expense_type', 'Production Expense')->orWhereNull('expense_type')->orWhere('expense_type', '');
+                })->orWhereHas('items', function ($i) {
+                    $i->where('expense_type', 'Production Expense')->orWhereNull('expense_type')->orWhere('expense_type', '');
+                });
+            } else {
+                $q->where('expense_type', $type)->orWhereHas('items', function ($i) use ($type) {
+                    $i->where('expense_type', $type);
+                });
+            }
+        });
+    }
+
     private function calculatePurchaseTotals(array $items, array $validated)
     {
         $subtotal = round(collect($items)->sum('line_total'), 2);
-        $vatPercentage = (float) ($validated['vat_percentage'] ?? 0);
+        // VAT is per item now: sum of each line's (Total × its VAT%).
+        $tax = round(collect($items)->sum(function ($it) {
+            return (float) $it['line_total'] * (float) ($it['vat_percentage'] ?? 0) / 100;
+        }), 2);
         $shipping = round((float) ($validated['shipping_cost'] ?? 0), 2);
-        $tax = round($subtotal * $vatPercentage / 100, 2);
         $total = round($subtotal + $tax + $shipping, 2);
+        // Store an effective header VAT% for display/back-compat.
+        $vatPercentage = $subtotal > 0 ? round($tax / $subtotal * 100, 2) : 0;
 
         return [
             'subtotal' => $subtotal,
@@ -605,7 +672,7 @@ class VendorPurchaseController extends Controller
             'date_from' => 'nullable|date', 'date_to' => 'nullable|date|after_or_equal:date_from',
             'vendor_id' => 'nullable|integer|exists:vendors,id',
             'category' => 'nullable|string|max:100',
-            'expense_type' => 'nullable|in:Production Expense,Consumable Expense',
+            'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'payment_status' => 'nullable|in:Paid,Partial,Unpaid',
             'search' => 'nullable|string|max:255',
         ]);
@@ -614,17 +681,7 @@ class VendorPurchaseController extends Controller
         if ($request->filled('vendor_ids')) $query->whereIn('vendor_id', $request->input('vendor_ids'));
         if ($request->filled('vendor_id')) $query->where('vendor_id', $request->vendor_id);
         if ($request->filled('expense_type')) {
-            $query->whereHas('vendor', function ($vendorQuery) use ($request) {
-                if ($request->expense_type === 'Production Expense') {
-                    $vendorQuery->where(function ($categoryQuery) {
-                        $categoryQuery->where('category', 'Production Expense')
-                            ->orWhereNull('category')
-                            ->orWhere('category', '');
-                    });
-                } else {
-                    $vendorQuery->where('category', $request->expense_type);
-                }
-            });
+            $this->applyExpenseTypeFilter($query, $request->expense_type);
         }
         if ($request->filled('category')) {
             $query->where(function ($purchaseQuery) use ($request) {

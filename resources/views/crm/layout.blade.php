@@ -900,8 +900,8 @@
                     <img src="{{ asset('al-massa-packaging-logo.png') }}" alt="Al Massa Packaging — go to dashboard"
                         style="width:125px;height:125px;object-fit:contain;margin:0 0 3px 20px;">
                 @else
-                    <img src="{{ asset('my-box-printing-logo.svg') }}" alt="My Box Printing — go to dashboard"
-                        style="height:57px;width:auto;margin:0 0 10px -35px;">
+                    <img src="{{ asset('tcb-crm-logo.png') }}" alt="TCB CRM — go to dashboard"
+                        style="height:104px;width:auto;object-fit:contain;margin:0 0 4px 2px;">
                 @endif
             </a>
             <i class="fas fa-times" style="display:none;" onclick="toggleSidebar()"></i>
@@ -1011,6 +1011,7 @@
             </a>
             @endif
 
+
             {{-- Get Estimate tickets: Sales and Estimators --}}
             @if($__isSalesRole || $__navUser->isEstimator() || $__navUser->isTeamLead())
             @php
@@ -1040,7 +1041,7 @@
             @endphp
             <a href="{{ route('crm.estimate_tickets.index') }}"
                 class="nav-item {{ request()->routeIs('crm.estimate_tickets.*') ? 'active' : '' }}">
-                <i class="fas fa-calculator"></i> Get Estimate
+                <i class="fas fa-calculator"></i> Estimate
                 <span class="nav-right">
                     @if($__estimateTicketCount > 0)<span class="nav-count">{{ $__estimateTicketCount }}</span>@endif
                     <i class="fas fa-chevron-right arrow"></i>
@@ -1107,6 +1108,16 @@
                     <i class="fas fa-chevron-right arrow"></i>
                 </span>
             </a>
+            @endif
+
+            {{-- Proposals: Admin, plus only designers an admin has granted access to. --}}
+            @if($__navUser->canAccessProposals())
+                <a href="{{ route('crm.proposals.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.proposals.*') ? 'active' : '' }}">
+                    <i class="fas fa-file-signature" style="margin-top:2px;"></i>
+                    <span class="nav-label">Proposal</span>
+                    <span class="nav-right"><i class="fas fa-chevron-right arrow"></i></span>
+                </a>
             @endif
 
             {{-- Design Jobs: Al Massa workspace only. Designer + Admin manage; Sales (CSR) can view. --}}
@@ -1366,12 +1377,12 @@
             </a>
             @endif
 
-            {{-- Invoice: Everyone EXCEPT production-only roles and Estimator (Accounts included) --}}
+            {{-- Orders & Invoices: everyone EXCEPT production-only roles and Estimator (Accounts included) --}}
             @if(!$__navUser->isDesigner() && !$__navUser->isPrepress() && !$__navUser->isEstimator() && !$__navUser->isProductionManager() && !$__navUser->isPressOperator() && !$__navUser->isFinishingOperator() && !$__navUser->isQC() && !$__navUser->isWarehouse() && !$__navUser->isShipping())
             <a href="{{ route('crm.orders.index') }}"
                 class="nav-item {{ request()->routeIs('crm.orders.*') ? 'active' : '' }}">
-                <i class="fas fa-file-invoice"></i>
-                <span class="nav-label">Invoice</span>
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span class="nav-label">Orders</span>
                 <span class="nav-right">
                     <i class="fas fa-chevron-right arrow"></i>
                 </span>
@@ -1467,6 +1478,38 @@
     <!-- MAIN CONTENT AREA -->
     <div class="main-area">
         <!-- TOP NAV -->
+        <style>
+        .crm-bell-wrap{position:relative}
+        .crm-bell-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid #e5ebf2;border-radius:12px;background:#fff;color:#5b6b82;font-size:1rem;cursor:pointer;transition:.15s}
+        .crm-bell-btn:hover{color:var(--primary-purple);border-color:var(--primary-purple);box-shadow:0 6px 14px var(--primary-shadow)}
+        .crm-bell-btn.has-overdue{color:#e11d48;border-color:#fecdd3}
+        .crm-bell-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:var(--primary-purple);color:#fff;font-size:.62rem;font-weight:800;border:2px solid #fff}
+        .crm-bell-badge.is-overdue{background:#e11d48}
+        .crm-bell-menu{display:none;position:absolute;z-index:1200;top:calc(100% + 10px);right:0;width:340px;max-width:86vw;background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 20px 48px rgba(15,23,42,.18);overflow:hidden}
+        .crm-bell-menu.show{display:block}
+        .crm-bell-head{display:flex;align-items:center;justify-content:space-between;padding:.8rem .95rem;border-bottom:1px solid #eef2f7}
+        .crm-bell-head strong{color:#1f2a3b;font-size:.85rem}
+        .crm-bell-head span{color:#8a99ae;font-size:.68rem;font-weight:700}
+        .crm-bell-body{max-height:340px;overflow-y:auto}
+        .crm-bell-item{display:flex;align-items:center;gap:.6rem;padding:.7rem .95rem;border-bottom:1px solid #f2f5f9;text-decoration:none}
+        .crm-bell-item:hover{background:#f8fafc}
+        .crm-bell-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:#94a3b8}
+        .crm-bell-dot.od{background:#e11d48}.crm-bell-dot.today{background:#f59e0b}.crm-bell-dot.soon{background:#6366f1}
+        .crm-bell-copy{flex:1;min-width:0}
+        .crm-bell-copy strong{display:block;color:#27364b;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .crm-bell-copy small{display:block;color:#8290a3;font-size:.68rem;margin-top:1px}
+        .crm-bell-tag{flex:0 0 auto;font-size:.62rem;font-weight:800;padding:3px 8px;border-radius:20px;background:#eef2ff;color:#4f46e5}
+        .crm-bell-tag.od{background:#fff1f2;color:#e11d48}.crm-bell-tag.today{background:#fff7ed;color:#c2620c}.crm-bell-tag.soon{background:#eef2ff;color:#4f46e5}
+        .crm-bell-empty{padding:1.4rem .95rem;text-align:center;color:#8a99ae;font-size:.76rem}
+        .crm-bell-empty i{color:#22c55e;margin-right:.35rem}
+        .crm-bell-foot{display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.7rem;background:#f8fafc;color:var(--primary-purple);font-size:.74rem;font-weight:800;text-decoration:none}
+        .crm-bell-foot:hover{background:var(--primary-soft)}
+        @media(max-width:600px){.crm-bell-menu{position:fixed;top:64px;right:8px;left:8px;width:auto}}
+        </style>
+        <script>
+        function crmToggleBell(e){e.stopPropagation();var m=document.getElementById('crmBellMenu');if(m)m.classList.toggle('show');}
+        document.addEventListener('click',function(e){var m=document.getElementById('crmBellMenu');if(m&&m.classList.contains('show')&&!e.target.closest('.crm-bell-wrap'))m.classList.remove('show');});
+        </script>
         <div class="top-bar">
             <div class="top-title" style="display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()"></i>
@@ -1505,7 +1548,57 @@
                     </div>
                 </div>
             </div>
-            <div style="margin-left: auto;">
+            <div style="margin-left: auto; display:flex; align-items:center; gap:.9rem;">
+                @php
+                    try {
+                        $__remDays = 3;
+                        $__remToday = \Illuminate\Support\Carbon::today();
+                        $__dueReminders = \App\VendorPurchase::query()
+                            ->whereNotNull('due_date')
+                            ->whereIn('payment_status', ['Unpaid', 'Partial'])
+                            ->where('balance_amount', '>', 0)
+                            ->whereDate('due_date', '<=', $__remToday->copy()->addDays($__remDays))
+                            ->orderBy('due_date')
+                            ->limit(15)
+                            ->get(['id', 'vendor_id', 'vendor_name', 'due_date', 'balance_amount', 'invoice_number', 'currency', 'payment_status']);
+                    } catch (\Throwable $e) {
+                        $__dueReminders = collect();
+                    }
+                    $__remCount = $__dueReminders->count();
+                    $__remOverdue = $__dueReminders->filter(function ($r) use ($__remToday) { return $r->due_date && $r->due_date->lt($__remToday); })->count();
+                @endphp
+                <div class="crm-bell-wrap">
+                    <button type="button" class="crm-bell-btn {{ $__remOverdue > 0 ? 'has-overdue' : '' }}" onclick="crmToggleBell(event)" aria-label="Payment reminders" title="Payment reminders">
+                        <i class="fas fa-bell"></i>
+                        @if($__remCount > 0)<span class="crm-bell-badge {{ $__remOverdue > 0 ? 'is-overdue' : '' }}">{{ $__remCount > 9 ? '9+' : $__remCount }}</span>@endif
+                    </button>
+                    <div class="crm-bell-menu" id="crmBellMenu">
+                        <div class="crm-bell-head"><strong>Payment Reminders</strong><span>{{ $__remOverdue > 0 ? $__remOverdue.' overdue · ' : '' }}{{ $__remCount }} due soon</span></div>
+                        <div class="crm-bell-body">
+                            @forelse($__dueReminders as $__r)
+                                @php
+                                    $__d = $__r->due_date;
+                                    $__diff = $__d ? (int) $__remToday->diffInDays($__d, false) : null;
+                                    if ($__diff === null) { $__lbl = 'No date'; $__cls = 'soon'; }
+                                    elseif ($__diff < 0) { $__lbl = 'Overdue '.abs($__diff).'d'; $__cls = 'od'; }
+                                    elseif ($__diff === 0) { $__lbl = 'Due today'; $__cls = 'today'; }
+                                    else { $__lbl = 'In '.$__diff.'d'; $__cls = 'soon'; }
+                                @endphp
+                                <a class="crm-bell-item" href="{{ route('crm.vendor_purchases.edit', $__r->id) }}">
+                                    <span class="crm-bell-dot {{ $__cls }}"></span>
+                                    <span class="crm-bell-copy">
+                                        <strong>{{ $__r->vendor_name ?: 'Vendor' }}</strong>
+                                        <small>{{ $__r->invoice_number ? 'Inv '.$__r->invoice_number.' · ' : '' }}{{ $__r->currency }} {{ number_format((float) $__r->balance_amount, 2) }} due · {{ optional($__d)->format('d M') }}</small>
+                                    </span>
+                                    <span class="crm-bell-tag {{ $__cls }}">{{ $__lbl }}</span>
+                                </a>
+                            @empty
+                                <div class="crm-bell-empty"><i class="fas fa-check-circle"></i> No payments due in the next {{ $__remDays }} days.</div>
+                            @endforelse
+                        </div>
+                        <a class="crm-bell-foot" href="{{ route('crm.vendor_purchases.index') }}">Open vendor purchases <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
                 @yield('header_actions')
             </div>
         </div>

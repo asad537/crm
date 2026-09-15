@@ -435,6 +435,7 @@
         let pendingChatForm = null;
         let chatListLoading = false;
         let chatListController = null;
+        let chatListRetries = 0;
         let inboxSyncRunning = false;
 
         function syncInbox() {
@@ -482,16 +483,24 @@
                 })
                 .then(data => {
                     chatsData = Array.isArray(data) ? data : [];
+                    chatListRetries = 0;
                     renderChatList();
                 })
                 .catch(error => {
                     if (error.name === 'AbortError') return;
                     console.error('Chat list error:', error);
+                    // Transient blips (busy server, dropped connection) should self-heal instead of
+                    // showing an error. Auto-retry a few times with a short backoff before giving up.
+                    if (chatListRetries < 3) {
+                        chatListRetries++;
+                        setTimeout(loadChatList, 800 * chatListRetries);
+                        return;
+                    }
                     if (!chatsData.length) {
                         document.getElementById('chatListContainer').innerHTML = `
                             <div style="padding:2rem;text-align:center;color:#64748b">
                                 <div style="margin-bottom:.75rem">Chats could not be loaded.</div>
-                                <button type="button" onclick="loadChatList()" style="border:1px solid #cbd5e1;background:#fff;color:var(--primary-purple);border-radius:8px;padding:.5rem .9rem;font-weight:700;cursor:pointer">Retry</button>
+                                <button type="button" onclick="chatListRetries=0;loadChatList()" style="border:1px solid #cbd5e1;background:#fff;color:var(--primary-purple);border-radius:8px;padding:.5rem .9rem;font-weight:700;cursor:pointer">Retry</button>
                             </div>`;
                     }
                 })

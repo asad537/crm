@@ -20,7 +20,7 @@ class AddCrmWorkspaces extends Migration
 
         $now = now();
         $defaultId = DB::table('crm_workspaces')->insertGetId([
-            'name' => 'My Box Printing',
+            'name' => 'TCB CRM',
             'slug' => 'my-box-printing',
             'is_active' => true,
             'created_at' => $now,

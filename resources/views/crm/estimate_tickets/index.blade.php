@@ -7,7 +7,6 @@
 </style>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;gap:1rem;flex-wrap:wrap">
  <div><h2 style="margin:0;color:#0f172a">Estimate Tickets</h2><p style="margin:.3rem 0 0;color:#64748b">Multiple quantities and delivery dates in one request.</p></div>
- @if(!$u->isEstimator())<a class="et-btn et-primary" href="{{ route('crm.estimate_tickets.create') }}"><i class="fas fa-plus"></i> New Estimate Request</a>@endif
 </div>
 <div class="et-tabs">
     <a class="et-tab {{ $tab==='active'?'active':'' }}" href="{{ route('crm.estimate_tickets.index',['tab'=>'active']) }}"><i class="fas fa-layer-group"></i> Active Tickets <span class="et-tab-count">{{ $activeCount }}</span></a>

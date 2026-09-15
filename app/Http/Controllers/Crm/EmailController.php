@@ -85,7 +85,8 @@ class EmailController extends Controller
     public function createInquiryForm(Request $request)
     {
         $user = Auth::guard('crm')->user();
-        if (!$user->isAdmin() && !$user->isSalesManager() && !$user->isSales()) abort(403);
+        // Team Lead can also raise their own inquiry; it flows Designer -> Estimator and returns to the Team Lead pool.
+        if (!$user->isAdmin() && !$user->isSalesManager() && !$user->isSales() && !$user->isTeamLead()) abort(403);
 
         $prefillEmail = null;
         if ($request->filled('source_email')) {
@@ -894,6 +895,12 @@ class EmailController extends Controller
             'is_read' => true,
         ]);
 
+        // Follow Up: the composer was opened from the inquiry list with ?followup=1,
+        // so bump the inquiry's follow-up counter (shown as "Follow Up N" in the list).
+        if ($request->boolean('is_follow_up') && \Schema::hasColumn('crm_emails', 'follow_up_count')) {
+            $inquiry->increment('follow_up_count');
+        }
+
         // 2. Send email to client
         try {
             // IMPORTANT: config is cached in production, so env() returns NULL at runtime.
@@ -916,36 +923,44 @@ class EmailController extends Controller
             }
 
             $mailable = new ClientMessage($inquiry, $request->message_body, $absolutePaths, $user, $ccList, $bccList, $request->email_subject);
-            Mail::to($recipientEmail)->send($mailable);
-            \Log::info('CRM outgoing email accepted by SMTP transport.', [
-                'crm_email_id' => $inquiry->id,
-                'recipient' => $recipientEmail,
-                'message_id' => $mailable->generatedMessageId ?? null,
-                'attachment_count' => count($absolutePaths),
-            ]);
 
-            // SMTP delivery does not automatically create an IMAP Sent copy.
-            // Append the exact MIME message so it also appears in Outlook/IMAP Sent.
-            $sentMime = $this->buildSentMimeCopy(
-                $inquiry,
-                $request->message_body,
-                $absolutePaths,
-                $user,
-                $recipientEmail,
-                $ccList,
-                $bccList,
-                $request->email_subject,
-                $mailable->generatedMessageId,
-                $mailable->signatureHtml,
-                config('mail.from.address') ?: config('mail.mailers.smtp.username')
-            );
-            $this->appendToImapSent($user, $sentMime);
+            // Deliver AFTER the HTTP response is flushed to the browser. Both the SMTP send and the
+            // IMAP "Sent" append are slow network round-trips (often several seconds) and were what
+            // made "Send Reply" feel slow. Terminating callbacks run in the same php-fpm worker right
+            // after fastcgi_finish_request, so the reply returns to the user instantly while the mail
+            // still goes out on this same request. The message row + status are saved synchronously
+            // above, so the chat shows the message immediately.
+            $fromAddr = config('mail.from.address') ?: config('mail.mailers.smtp.username');
+            $deferMessageBody = $request->message_body;
+            $deferSubject = $request->email_subject;
+            app()->terminating(function () use ($mailable, $recipientEmail, $inquiry, $user, $message, $absolutePaths, $ccList, $bccList, $fromAddr, $deferMessageBody, $deferSubject) {
+                try {
+                    Mail::to($recipientEmail)->send($mailable);
+                    if (isset($mailable->generatedMessageId)) {
+                        $message->update(['message_id' => $mailable->generatedMessageId]);
+                    }
+                    \Log::info('CRM outgoing email accepted by SMTP transport.', [
+                        'crm_email_id' => $inquiry->id,
+                        'recipient' => $recipientEmail,
+                        'message_id' => $mailable->generatedMessageId ?? null,
+                        'attachment_count' => count($absolutePaths),
+                    ]);
 
-            // Save the outgoing Message-ID so that client replies can be
-            // correctly matched back to this lead (In-Reply-To / References).
-            if (isset($mailable->generatedMessageId)) {
-                $message->update(['message_id' => $mailable->generatedMessageId]);
-            }
+                    // SMTP delivery does not automatically create an IMAP Sent copy — append the
+                    // exact MIME so it also appears in Outlook/IMAP Sent.
+                    $sentMime = $this->buildSentMimeCopy(
+                        $inquiry, $deferMessageBody, $absolutePaths, $user, $recipientEmail,
+                        $ccList, $bccList, $deferSubject,
+                        $mailable->generatedMessageId, $mailable->signatureHtml, $fromAddr
+                    );
+                    $this->appendToImapSent($user, $sentMime);
+                } catch (\Throwable $e) {
+                    \Log::error('Deferred client email delivery failed: ' . $e->getMessage(), [
+                        'crm_email_id' => $inquiry->id,
+                        'recipient' => $recipientEmail,
+                    ]);
+                }
+            });
 
             // 3. Status Update & Logging
             if (true) {
@@ -1546,7 +1561,8 @@ class EmailController extends Controller
     public function createInquiry(Request $request)
     {
         $currentUser = \Auth::guard('crm')->user();
-        if (!$currentUser || (!$currentUser->isAdmin() && !$currentUser->isSalesManager() && !$currentUser->isSales())) {
+        // Team Lead can also raise their own inquiry (same as Sales); pipeline returns it to the Team Lead pool.
+        if (!$currentUser || (!$currentUser->isAdmin() && !$currentUser->isSalesManager() && !$currentUser->isSales() && !$currentUser->isTeamLead())) {
             abort(403);
         }
 
@@ -2026,8 +2042,17 @@ class EmailController extends Controller
         if (!$username || !$password) return;
 
         $root = '{' . $host . ':' . $port . '/imap/' . $encryption . '/novalidate-cert}';
+        // Cap how long a stuck/unreachable IMAP server can block this worker. Without these,
+        // a hung connection can pin a php-fpm worker for a long time, and enough of those
+        // starve the pool so unrelated pages (e.g. Live Chat) intermittently fail to load.
+        if (function_exists('imap_timeout')) {
+            imap_timeout(IMAP_OPENTIMEOUT, 8);
+            imap_timeout(IMAP_READTIMEOUT, 8);
+            imap_timeout(IMAP_WRITETIMEOUT, 8);
+            imap_timeout(IMAP_CLOSETIMEOUT, 4);
+        }
         imap_errors();
-        $connection = @imap_open($root . 'INBOX', $username, $password);
+        $connection = @imap_open($root . 'INBOX', $username, $password, 0, 1);
         if (!$connection) {
             \Log::warning('Unable to open IMAP while saving outgoing email to Sent.', ['user_id' => $user->id]);
             return;

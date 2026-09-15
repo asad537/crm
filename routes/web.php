@@ -234,6 +234,15 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         // Sales Orders (Sales Workflow)
         Route::get('sales-orders', 'SalesOrderController@index')->name('crm.sales_orders.index');
         Route::post('sales-orders', 'SalesOrderController@store')->name('crm.sales_orders.store');
+
+        // Manual Orders / Invoices (dedicated Order module)
+        Route::get('orders', 'OrderController@index')->name('crm.orders.index');
+        Route::get('orders/create', 'OrderController@create')->name('crm.orders.create');
+        Route::post('orders', 'OrderController@store')->name('crm.orders.store');
+        Route::get('orders/{id}/edit', 'OrderController@edit')->name('crm.orders.edit');
+        Route::post('orders/{id}', 'OrderController@update')->name('crm.orders.update');
+        Route::get('orders/{id}/pdf', 'OrderController@pdf')->name('crm.orders.pdf');
+        Route::delete('orders/{id}', 'OrderController@destroy')->name('crm.orders.destroy');
         Route::patch('sales-orders/{id}/payment-status', 'SalesOrderController@updatePaymentStatus')->name('crm.sales_orders.update_payment_status');
         Route::post('sales-orders/{id}/upload-artwork', 'SalesOrderController@uploadArtwork')->name('crm.sales_orders.upload_artwork');
         Route::post('sales-orders/{id}/approve-proof', 'SalesOrderController@approveProof')->name('crm.sales_orders.approve_proof');
@@ -246,6 +255,19 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('design-requirements/{id}/release', 'DesignTicketController@releaseRequirement')->name('crm.design_requirements.release');
         Route::post('design-requirements/{id}/return-to-sales', 'DesignTicketController@returnToSales')->name('crm.design_requirements.return_to_sales');
         Route::post('design-tickets/{id}/upload-proof', 'DesignTicketController@uploadProof')->name('crm.design_tickets.upload_proof');
+
+        // Proposals (Design): admin + designers. Admin assigns which designer a proposal is shown to.
+        Route::get('proposals', 'ProposalController@index')->name('crm.proposals.index');
+        Route::get('proposals/create', 'ProposalController@create')->name('crm.proposals.create');
+        Route::post('proposals', 'ProposalController@store')->name('crm.proposals.store');
+        Route::get('proposals/{id}', 'ProposalController@show')->name('crm.proposals.show');
+        Route::post('proposals/{id}', 'ProposalController@update')->name('crm.proposals.update');
+        Route::post('proposals/{id}/change-request', 'ProposalController@changeRequest')->name('crm.proposals.change_request');
+        Route::post('proposals/{id}/claim', 'ProposalController@claim')->name('crm.proposals.claim');
+        Route::post('proposal-access', 'ProposalController@grantAccess')->name('crm.proposals.grant_access');
+        Route::post('proposal-access/{designerId}', 'ProposalController@toggleAccess')->name('crm.proposals.toggle_access');
+        Route::delete('proposals/{id}', 'ProposalController@destroy')->name('crm.proposals.destroy');
+        Route::post('inquiries/{id}/request-proposal', 'ProposalController@requestFromInquiry')->name('crm.proposals.request_from_inquiry');
 
         // Prepress Department
         Route::get('prepress-tickets', 'PrepressTicketController@index')->name('crm.prepress_tickets.index');

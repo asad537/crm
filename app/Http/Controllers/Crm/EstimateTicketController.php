@@ -876,7 +876,9 @@ class EstimateTicketController extends Controller
                     . '<p>Best regards,<br>' . e($brandName) . '</p>',
                 'attachment_url' => route('crm.estimate_tickets.draft_pdf', $ticket->id, false),
                 'attachment_name' => $filename,
-                'attachment_base64' => base64_encode($pdf),
+                // NB: the PDF is loaded lazily via attachment_url (draft_pdf route) instead of
+                // being inlined as base64 — a large quote PDF (e.g. TCB) inlined into the page
+                // caused a blank first render until reload. The JS falls back to the URL fetch.
             ])
             ->with('success', 'Estimate PDF added to the reply draft. Review the message before sending.');
     }

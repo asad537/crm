@@ -468,7 +468,8 @@
 </div>
 @endunless
 
-@if($u->isTeamLead())
+{{-- Estimator Cost Breakdown hidden from Team Lead: they should not see the estimator's internal costing. --}}
+@if(false)
 <div class="es-card">
     <h3><i class="fas fa-file-invoice-dollar"></i> Estimator Cost Breakdown</h3>
     <div class="es-sub" style="margin:-.7rem 0 1rem">Read-only costing submitted by the estimator for Team Lead review.</div>
@@ -523,6 +524,7 @@
 </div>
 @endif
 
+@unless($u->isTeamLead())
 <div class="es-card">
     <h3><i class="fas fa-layer-group" style="color:var(--primary-purple);margin-right:.4rem"></i> Quantity Price Options</h3>
     <div class="es-table-wrap"><table class="es-table es-quantity-table"><thead><tr><th style="text-align:center">Quantity</th><th style="text-align:center">Total Selling Price</th><th style="text-align:center">Price Per Unit</th><th style="text-align:center">Discount %</th><th style="text-align:center">Discounted Price</th>@if($canEditEstimate)<th aria-label="Actions" style="text-align:center"></th>@endif</tr></thead><tbody id="quantityOptionRows">
@@ -559,6 +561,7 @@
     <div style="margin-top:1rem"><span class="es-label">Estimator Internal Notes</span>@if($canEditEstimate)<textarea class="es-input es-note" name="estimator_notes" placeholder="Notes for the sales team...">{{ old('estimator_notes',$ticket->estimator_notes) }}</textarea>@else<div class="es-info">{{ $ticket->estimator_notes ?: 'No notes.' }}</div>@endif</div>
     @if($canEditEstimate)<div class="es-actions"><button class="es-btn" type="submit" formaction="{{ route('crm.estimate_tickets.export',$ticket->id) }}" formmethod="POST" formtarget="_blank"><i class="fas fa-file-export"></i> Export Estimate</button><button class="es-btn" type="submit" name="save_mode" value="draft" formnovalidate><i class="fas fa-save"></i> Save &amp; Exit</button><button class="es-btn es-primary" type="submit"><i class="fas fa-paper-plane"></i> Submit Costing to Team Lead</button></div>@endif
 </div>
+@endunless
 </form>
 
 @if($canEditEstimate)

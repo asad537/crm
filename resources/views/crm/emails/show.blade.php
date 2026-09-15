@@ -159,39 +159,90 @@
 
         /* Header Section */
         .email-header {
-            background: white;
-            padding: 2rem;
-            border-radius: 16px;
+            position: relative;
+            background: linear-gradient(135deg, #ffffff 0%, var(--primary-soft) 130%);
+            padding: 1.4rem 1.6rem 1.4rem 1.9rem;
+            border-radius: 18px;
             border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
             margin-bottom: 2rem;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            overflow: hidden;
+        }
+
+        .email-header::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            background: linear-gradient(180deg, var(--primary-purple), #7c5cff);
+        }
+
+        .eh-main {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 0;
+            flex: 1 1 320px;
+        }
+
+        .eh-icon {
+            width: 46px;
+            height: 46px;
+            flex: 0 0 46px;
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-purple), #7c5cff);
+            color: #fff;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 20px var(--primary-shadow);
+        }
+
+        .eh-titlewrap { min-width: 0; }
+
+        .eh-eyebrow {
+            display: inline-block;
+            font-size: 0.6rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--primary-purple);
+            margin-bottom: 2px;
         }
 
         .email-subject {
-            font-size: 1.5rem;
+            font-size: 1.15rem;
             font-weight: 800;
             color: #0f172a;
             margin: 0;
             line-height: 1.2;
+            overflow-wrap: anywhere;
         }
 
         .email-meta {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            margin-top: 0.5rem;
+            gap: 0.85rem;
+            margin-top: 0.4rem;
             color: #64748b;
-            font-size: 0.9rem;
+            font-size: 0.78rem;
+            flex-wrap: wrap;
         }
 
+        .email-meta > span { white-space: nowrap; }
+
         .status-badge {
-            padding: 0.35rem 0.85rem;
+            padding: 0.28rem 0.7rem;
             border-radius: 99px;
-            font-size: 0.75rem;
+            font-size: 0.66rem;
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
         }
 
@@ -1056,20 +1107,23 @@
     <!-- Header Card -->
     @if(!Auth::guard('crm')->user()->isEstimator())
     <div class="email-header">
-        <div>
-            <h1 class="email-subject">{{ $email->subject ?: 'General Inquiry' }}</h1>
-        </div>
-        <div class="email-header-bottom">
-            <div class="email-meta" style="margin-top:0;">
-                <span><i class="far fa-calendar-alt"></i> {{ $email->created_at->format('F d, Y') }}</span>
-                <span><i class="far fa-clock"></i> {{ $email->created_at->format('h:i A') }}</span>
-                @if($email->is_spam)
-                    <span class="status-badge badge-spam">Possibly Spam ({{ $email->spam_reason }})</span>
-                @else
-                    <span class="status-badge badge-verified"><i class="fas fa-shield-check"></i> Verified Inquiry</span>
-                @endif
+        <div class="eh-main">
+            <div class="eh-icon"><i class="fas fa-box-open"></i></div>
+            <div class="eh-titlewrap">
+                <span class="eh-eyebrow">Inquiry Details</span>
+                <h1 class="email-subject">{{ $email->subject ?: 'General Inquiry' }}</h1>
+                <div class="email-meta">
+                    <span><i class="far fa-calendar-alt"></i> {{ $email->created_at->format('F d, Y') }}</span>
+                    <span><i class="far fa-clock"></i> {{ $email->created_at->format('h:i A') }}</span>
+                    @if($email->is_spam)
+                        <span class="status-badge badge-spam">Possibly Spam ({{ $email->spam_reason }})</span>
+                    @else
+                        <span class="status-badge badge-verified"><i class="fas fa-shield-check"></i> Verified Inquiry</span>
+                    @endif
+                </div>
             </div>
-            <div class="actions-group">
+        </div>
+        <div class="actions-group">
                 @if($email->is_spam)
                     <form action="{{ route('crm.emails.markValid', $email->id) }}" method="POST">
                         {{ csrf_field() }}
@@ -1114,7 +1168,6 @@
                     </form>
                 @endif
             </div>
-        </div>
     </div>
     @else
     <div class="email-header" style="padding: 1.5rem 2rem;">
@@ -2178,17 +2231,24 @@
                     @endif
                 </div>
 
-                <div class="chat-composer"
+                <div class="chat-composer" id="chat-composer"
                     style="padding: 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 16px 16px;">
-                    @if(Auth::guard('crm')->user()->isAdmin() && optional($activeCrmWorkspace)->slug !== 'mybox-packaging-app')
-                        {{-- Al Massa admins may reply to clients; other workspaces stay view-only for admins. --}}
-                        <div style="text-align: center; color: #94a3b8; padding: 1rem;">
-                            Admin can view chat only
-                        </div>
+                    @php
+                        // Follow Up: opened from the inquiry list Action menu with ?followup=1.
+                        // Pre-fills the composer with a standard follow-up template and flags the
+                        // send so EmailController@sendMessage increments the inquiry follow_up_count.
+                        $__isFollowUp = request()->boolean('followup');
+                        // No leading "Hi" here — the outgoing email already prepends an auto
+                        // greeting ("Hi <client>,"), so starting the body with "Hi" would duplicate it.
+                        $__followUpTemplate = "Hope all is well. Did you review the price quote I sent you below? Please let me know if you have any concerns or questions or if you want to discuss anything. I am open to any ideas/thoughts or ways to make this project happen.\n\nLooking forward to your response.";
+                    @endphp
+                    @if(false)
+                        {{-- Customer reply is now enabled for Admin/CEO in every workspace (parity with Al Massa); previously non-Al-Massa admins were view-only here. --}}
                     @else
                         <form id="chat-form" action="{{ route('crm.messages.send', $email->id) }}" method="POST"
                             enctype="multipart/form-data">
                             {{ csrf_field() }}
+                            <input type="hidden" name="is_follow_up" id="is_follow_up_field" value="{{ $__isFollowUp ? 1 : 0 }}">
                             <input type="hidden" name="email_subject" id="email_subject_field">
                             <input type="hidden" name="cc" id="cc_field">
                             <input type="hidden" name="bcc" id="bcc_field">
@@ -2202,7 +2262,17 @@
                                     <span>Drop files to attach</span>
                                     <small style="font-weight:600; color:var(--primary-purple);">They will appear in the attachment list</small>
                                 </div>
-                                <textarea name="message_body" id="message_body" rows="6" placeholder="Type your message..." style="width: 100%; border: none; outline: none; padding: 0.5rem; font-family: inherit; font-size: 1rem; color: #1e293b; box-sizing: border-box;"></textarea>
+                                <textarea name="message_body" id="message_body" rows="6" placeholder="Type your message..." style="width: 100%; border: none; outline: none; padding: 0.5rem; font-family: inherit; font-size: 1rem; color: #1e293b; box-sizing: border-box;">{{ $__isFollowUp ? $__followUpTemplate : '' }}</textarea>
+                                @if($__isFollowUp)
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function () {
+                                        var c = document.getElementById('chat-composer');
+                                        var t = document.getElementById('message_body');
+                                        if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+                                    });
+                                </script>
+                                @endif
                                 
                                 <div class="chat-composer-actions">
                                     <label for="fileInput" class="chat-attach-button"
@@ -3144,9 +3214,8 @@
                             open.target = '_blank';
                             open.rel = 'noopener';
                             open.title = 'Open ' + file.name;
-                            // The `download` attribute tells the browser the intended filename
-                            // (Save As uses it) AND many browsers show it in the preview tab title.
-                            open.download = file.name;
+                            // No `download` attribute: clicking the chip should PREVIEW the file in a
+                            // new tab (PDFs/images open inline) rather than force a download.
                             let preview;
                             if ((file.type && file.type.startsWith('image/')) || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name)) {
                                 preview = document.createElement('img');
@@ -3682,7 +3751,14 @@
     <script src="{{URL::asset('ckeditor/ckeditor.js')}}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            if (document.getElementById('message_body')) {
+            (function bootReplyEditor() {
+                if (!document.getElementById('message_body')) return;
+                // The first (uncached) page load can run this before ckeditor.js has finished
+                // parsing, so CKEDITOR is undefined and the rich editor silently fails to appear
+                // (plain textarea shows, then "fixes itself" on reload). Retry until it's ready,
+                // and clear any stale instance so re-initialisation is always safe.
+                if (typeof CKEDITOR === 'undefined' || !CKEDITOR.replace) { return setTimeout(bootReplyEditor, 60); }
+                if (CKEDITOR.instances.message_body) { try { CKEDITOR.instances.message_body.destroy(true); } catch (e) {} }
                 const replyEditor = CKEDITOR.replace('message_body', {
                     filebrowserUploadUrl: "{{URL::asset('ckeditor/ck_upload.php')}}",
                     filebrowserUploadMethod: 'form',
@@ -3745,7 +3821,7 @@
                             });
                     });
                 @endif
-            }
+            })();
         });
     </script>
     

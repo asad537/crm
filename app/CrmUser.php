@@ -47,6 +47,13 @@ class CrmUser extends Authenticatable
         return $this->activeWorkspaceRole() === 'designer';
     }
 
+    /** Admins always have Proposal access; designers only if an admin granted it. */
+    public function canAccessProposals()
+    {
+        if ($this->isAdmin()) return true;
+        return $this->isDesigner() && (bool) ($this->proposal_access ?? false);
+    }
+
     public function isPrepress()
     {
         return $this->activeWorkspaceRole() === 'prepress';

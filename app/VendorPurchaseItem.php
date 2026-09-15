@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class VendorPurchaseItem extends Model
 {
     protected $fillable = [
-        'position', 'category', 'item_name', 'material', 'specification', 'size',
-        'gsm', 'color', 'quantity', 'unit', 'unit_price', 'line_total',
+        'position', 'category', 'expense_type', 'item_name', 'material', 'specification', 'size',
+        'gsm', 'color', 'quantity', 'unit', 'unit_price', 'line_total', 'vat_percentage', 'extra',
     ];
 
     protected $casts = [
+        'extra' => 'array',
         'quantity' => 'decimal:2',
         'unit_price' => 'decimal:4',
         'line_total' => 'decimal:2',
