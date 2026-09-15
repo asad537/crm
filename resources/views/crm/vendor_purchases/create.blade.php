@@ -37,7 +37,8 @@
 .vpc-row-1 .vpc-f-cat{flex:1.3 1 150px}
 .vpc-row-1 .vpc-f-price{flex:1 1 90px}
 .vpc-row-1 .vpc-f-desc{flex:2 1 150px}
-.vpc-row-2 .vpc-field{flex:0 1 160px;max-width:100%}
+.vpc-row-2 .vpc-field{flex:0 1 110px;max-width:100%}
+.vpc-row-2 .vpc-field:first-child{flex-basis:160px}
 .vpc-item .vpc-extra{display:contents}
 .vpc-item .vpc-help{display:none}
 @media(max-width:600px){.vpc-row .vpc-field{flex:1 1 100%}}
