@@ -33,6 +33,7 @@
 .vpc-item-rows{display:flex;flex-direction:column;gap:.5rem}
 /* Rows pack tightly so even a 9-field row (identity + up to 7 category fields) stays on ONE line on desktop; wraps only on small screens */
 .vpc-row{display:flex;flex-wrap:wrap;gap:.5rem .55rem;align-items:flex-start}
+.vpc-row-1{padding:.45rem;border:1px solid #cbd5e1;border-radius:11px;background:#fff}
 .vpc-row .vpc-field{grid-column:auto;min-width:0}
 .vpc-row-1 .vpc-f-etype{flex:1 1 120px}
 .vpc-row-1 .vpc-f-cat{flex:1.3 1 150px}
@@ -41,7 +42,7 @@
 .vpc-row-2 .vpc-field{flex:0 1 110px;max-width:100%}
 .vpc-row-2 .vpc-field:first-child{flex-basis:160px}
 .vpc-price-split,.vpc-price-group{display:contents}
-.vpc-row-1 .vpc-price-split{display:flex;align-items:stretch;gap:.6rem;flex:2 1 430px;min-width:0;padding:.45rem;border:1px solid #cbd5e1;border-radius:11px;background:#fff}
+.vpc-row-1 .vpc-price-split{display:flex;align-items:stretch;gap:.6rem;flex:2 1 430px;min-width:0}
 .vpc-row-1 .vpc-price-group{display:grid;align-content:start;gap:.5rem .55rem;min-width:0;border-left:2px solid #8b5cf6;padding-left:.65rem}
 .vpc-row-1 .vpc-price-group:first-child{grid-template-columns:repeat(2,minmax(0,1fr));flex:1 1 160px}
 .vpc-row-1 .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));flex:1.4 1 230px}
