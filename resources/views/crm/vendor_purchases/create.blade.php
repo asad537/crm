@@ -42,13 +42,13 @@
 .vpc-row-2 .vpc-field:first-child{flex-basis:160px}
 .vpc-price-split,.vpc-price-group{display:contents}
 .vpc-row-1 .vpc-price-split{display:flex;align-items:flex-start;gap:.6rem;flex:2 1 430px;min-width:0}
-.vpc-row-1 .vpc-price-group{display:grid;align-content:start;gap:.5rem .55rem;min-width:0;border-left:1px solid #dbe3ed;padding-left:.65rem}
+.vpc-row-1 .vpc-price-group{display:grid;align-content:start;gap:.5rem .55rem;min-width:0;border-left:2px solid #8b5cf6;padding-left:.65rem}
 .vpc-row-1 .vpc-price-group:first-child{grid-template-columns:repeat(2,minmax(0,1fr));flex:1 1 160px}
 .vpc-row-1 .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));flex:1.4 1 230px}
 .vpc-personal .vpc-price-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%;flex:1 0 100%;border:1px solid #dbe3ed;border-radius:11px;background:#fff}
 .vpc-personal .vpc-price-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:.55rem .7rem;padding:.7rem}
-.vpc-personal .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));border-left:1px solid #dbe3ed;padding-left:.85rem}
-.vpc-personal .vpc-price-group:first-child{border-left:0;padding-left:.7rem}
+.vpc-personal .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));border-left:2px solid #8b5cf6;padding-left:.85rem}
+.vpc-personal .vpc-price-group:first-child{border-left:2px solid #8b5cf6;padding-left:.7rem}
 .vpc-personal .vpc-price-group .vpc-field{min-width:0}
 .vpc-item .vpc-extra{display:contents}
 .vpc-item .vpc-help{display:none}
