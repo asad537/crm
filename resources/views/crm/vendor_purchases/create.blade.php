@@ -23,7 +23,8 @@
 .vpc-item .vpc-extra{gap:.5rem .6rem!important}
 .vpc-item .vpc-combo-toggle{height:34px}
 .vpc-item .vpc-item-head{flex-wrap:wrap;gap:.5rem .7rem;justify-content:flex-start}
-.vpc-head-job{display:flex;align-items:center;gap:.5rem;margin-left:auto;max-width:100%}
+.vpc-head-job{display:flex;align-items:center;gap:.5rem;margin-left:.75rem;max-width:100%}
+.vpc-item-head .vpc-remove{margin-left:auto}
 .vpc-head-job label{margin:0;white-space:nowrap;color:#425168;font-size:.72rem;font-weight:780}
 .vpc-head-job .vpc-opt{font-weight:600;color:#94a3b8;font-size:.68rem}
 .vpc-head-job input{width:230px;max-width:100%;min-height:34px}
@@ -39,9 +40,15 @@
 .vpc-row-1 .vpc-f-desc{flex:2 1 150px}
 .vpc-row-2 .vpc-field{flex:0 1 110px;max-width:100%}
 .vpc-row-2 .vpc-field:first-child{flex-basis:160px}
+.vpc-price-split,.vpc-price-group{display:contents}
+.vpc-personal .vpc-price-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:100%;flex:1 0 100%;border:1px solid #dbe3ed;border-radius:11px;background:#fff}
+.vpc-personal .vpc-price-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:.55rem .7rem;padding:.7rem}
+.vpc-personal .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));border-left:1px solid #dbe3ed;padding-left:.85rem}
+.vpc-personal .vpc-price-group .vpc-field{min-width:0}
 .vpc-item .vpc-extra{display:contents}
 .vpc-item .vpc-help{display:none}
 @media(max-width:600px){.vpc-row .vpc-field{flex:1 1 100%}}
+@media(max-width:600px){.vpc-personal .vpc-price-split{grid-template-columns:1fr}.vpc-personal .vpc-price-group+.vpc-price-group{grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #dbe3ed;border-left:0;padding:.7rem}.vpc-personal .vpc-price-group{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Computed Total & Gross stand out in the primary colour */
 .vpc-item .vpc-control[data-role="line-total"],.vpc-item .vpc-control[data-role="gross"]{color:var(--primary-purple);background:var(--primary-soft);border-color:var(--primary-shadow);font-weight:800}
 </style>
@@ -68,7 +75,14 @@
 <div class="vpc-field vpc-f-etype"><label>Expense Type <span class="vpc-required">*</span></label><select class="vpc-control vpc-item-etype" name="items[{{ $index }}][expense_type]" onchange="vpcItemTypeChanged(this)">@foreach(['Production Expense'=>'Production','Consumable Expense'=>'Consumable','Admin/General Expense'=>'Admin/General'] as $etv=>$etl)<option value="{{ $etv }}" {{ ($item['expense_type'] ?? 'Production Expense')===$etv?'selected':'' }}>{{ $etl }}</option>@endforeach</select></div>
 <div class="vpc-field vpc-f-cat"><label>Category <span class="vpc-required">*</span></label><div class="vpc-combo"><input class="vpc-control" name="items[{{ $index }}][category]" value="{{ $item['category'] ?? 'Paper & Board Stock' }}" autocomplete="off" onfocus="openItemCategories(this,true)" oninput="openItemCategories(this,false)" required><button class="vpc-combo-toggle" type="button" onclick="toggleItemCategories(this,event)" aria-label="Show all categories"><i class="fas fa-chevron-down"></i></button><div class="vpc-combo-menu">@foreach($__vpCats as $__cm => $__catList)@foreach($__catList as $category)<button type="button" data-mode="{{ $__cm }}" data-value="{{ $category }}" onclick="chooseItemCategory(this)">{{ $category }}</button>@endforeach @endforeach</div></div></div>
 <div class="vpc-field vpc-f-desc"><label class="vpc-item-name-label">Description <span class="vpc-required">*</span></label><input class="vpc-control" name="items[{{ $index }}][item_name]" value="{{ $item['item_name'] ?? '' }}" required></div>
-<div class="vpc-field vpc-f-price"><label>Qty <span class="vpc-required">*</span></label><input class="vpc-control vpc-item-calc" data-role="quantity" type="number" step=".01" min=".01" name="items[{{ $index }}][quantity]" value="{{ $item['quantity'] ?? 1 }}" required></div><div class="vpc-field vpc-f-price"><label>P/Unit <span class="vpc-required">*</span></label><input class="vpc-control vpc-item-calc" data-role="unit-price" type="number" step=".0001" min="0" name="items[{{ $index }}][unit_price]" value="{{ $item['unit_price'] ?? '' }}" required></div><div class="vpc-field vpc-f-price"><label>Total</label><input class="vpc-control" data-role="line-total" type="number" step=".01" min="0" name="items[{{ $index }}][line_total]" value="{{ $item['line_total'] ?? '' }}" readonly></div><div class="vpc-field vpc-f-price"><label>VAT %</label><input class="vpc-control vpc-item-calc" data-role="vat" type="number" step=".01" min="0" max="100" name="items[{{ $index }}][vat_percentage]" value="{{ $item['vat_percentage'] ?? 0 }}" placeholder="e.g. 5"></div><div class="vpc-field vpc-f-price"><label>Gross</label><input class="vpc-control" data-role="gross" type="number" step=".01" min="0" readonly value="{{ isset($item['line_total']) ? number_format((float)$item['line_total'] * (1 + ((float)($item['vat_percentage'] ?? 0))/100), 2, '.', '') : '' }}"></div>
+<div class="vpc-price-split">
+<div class="vpc-price-group" role="group" aria-label="Quantity and unit price">
+<div class="vpc-field vpc-f-price"><label>Qty <span class="vpc-required">*</span></label><input class="vpc-control vpc-item-calc" data-role="quantity" type="number" step=".01" min=".01" name="items[{{ $index }}][quantity]" value="{{ $item['quantity'] ?? 1 }}" required></div><div class="vpc-field vpc-f-price"><label>P/Unit <span class="vpc-required">*</span></label><input class="vpc-control vpc-item-calc" data-role="unit-price" type="number" step=".0001" min="0" name="items[{{ $index }}][unit_price]" value="{{ $item['unit_price'] ?? '' }}" required></div>
+</div>
+<div class="vpc-price-group" role="group" aria-label="Total, VAT and gross">
+<div class="vpc-field vpc-f-price"><label>Total</label><input class="vpc-control" data-role="line-total" type="number" step=".01" min="0" name="items[{{ $index }}][line_total]" value="{{ $item['line_total'] ?? '' }}" readonly></div><div class="vpc-field vpc-f-price"><label>VAT %</label><input class="vpc-control vpc-item-calc" data-role="vat" type="number" step=".01" min="0" max="100" name="items[{{ $index }}][vat_percentage]" value="{{ $item['vat_percentage'] ?? 0 }}" placeholder="e.g. 5"></div><div class="vpc-field vpc-f-price"><label>Gross</label><input class="vpc-control" data-role="gross" type="number" step=".01" min="0" readonly value="{{ isset($item['line_total']) ? number_format((float)$item['line_total'] * (1 + ((float)($item['vat_percentage'] ?? 0))/100), 2, '.', '') : '' }}"></div>
+</div>
+</div>
 </div>
 <div class="vpc-row vpc-row-2">
 <div class="vpc-extra" data-index="{{ $index }}" data-extra="{{ isset($item['extra']) ? (is_array($item['extra']) ? json_encode($item['extra']) : $item['extra']) : '{}' }}" style="display:contents"></div>
