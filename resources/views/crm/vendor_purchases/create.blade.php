@@ -30,10 +30,10 @@
 .vpc-head-job input{width:230px;max-width:100%;min-height:34px}
 @media(max-width:600px){.vpc-head-job{width:100%;margin-left:0}.vpc-head-job input{flex:1;width:auto}}
 /* Max-2-row item layout: row 1 = identity + description, row 2 = category fields + pricing */
-.vpc-item-rows{display:flex;flex-direction:column;gap:.5rem;padding:.45rem;border:1px solid #cbd5e1;border-radius:11px;background:#fff}
+.vpc-item-rows{display:flex;flex-direction:column;gap:.5rem}
 /* Rows pack tightly so even a 9-field row (identity + up to 7 category fields) stays on ONE line on desktop; wraps only on small screens */
 .vpc-row{display:flex;flex-wrap:wrap;gap:.5rem .55rem;align-items:flex-start}
-.vpc-row-1{padding:0;border:0;background:transparent}
+.vpc-row-1{padding:.45rem;border:1px solid #cbd5e1;border-radius:11px;background:#fff}
 .vpc-row .vpc-field{grid-column:auto;min-width:0}
 .vpc-row-1 .vpc-f-etype{flex:1 1 120px}
 .vpc-row-1 .vpc-f-cat{flex:1.3 1 150px}
@@ -41,6 +41,7 @@
 .vpc-row-1 .vpc-f-desc{flex:2 1 150px}
 .vpc-row-2 .vpc-field{flex:0 1 110px;max-width:100%}
 .vpc-row-2 .vpc-field:first-child{flex-basis:160px}
+.vpc-row-1 .vpc-row-2{flex:1 0 100%;width:100%}
 .vpc-price-split,.vpc-price-group{display:contents}
 .vpc-row-1 .vpc-price-split{display:flex;align-items:stretch;gap:.6rem;flex:2 1 430px;min-width:0}
 .vpc-row-1 .vpc-price-group{display:grid;align-content:start;gap:.5rem .55rem;min-width:0;border-left:2px solid #8b5cf6;padding-left:.65rem}
@@ -90,10 +91,10 @@
 <div class="vpc-field vpc-f-price"><label>Total</label><input class="vpc-control" data-role="line-total" type="number" step=".01" min="0" name="items[{{ $index }}][line_total]" value="{{ $item['line_total'] ?? '' }}" readonly></div><div class="vpc-field vpc-f-price"><label>VAT %</label><input class="vpc-control vpc-item-calc" data-role="vat" type="number" step=".01" min="0" max="100" name="items[{{ $index }}][vat_percentage]" value="{{ $item['vat_percentage'] ?? 0 }}" placeholder="e.g. 5"></div><div class="vpc-field vpc-f-price"><label>Gross</label><input class="vpc-control" data-role="gross" type="number" step=".01" min="0" readonly value="{{ isset($item['line_total']) ? number_format((float)$item['line_total'] * (1 + ((float)($item['vat_percentage'] ?? 0))/100), 2, '.', '') : '' }}"></div>
 </div>
 </div>
-</div>
 <div class="vpc-row vpc-row-2">
 <div class="vpc-extra" data-index="{{ $index }}" data-extra="{{ isset($item['extra']) ? (is_array($item['extra']) ? json_encode($item['extra']) : $item['extra']) : '{}' }}" style="display:contents"></div>
 <input type="hidden" name="items[{{ $index }}][unit]" value="{{ $item['unit'] ?? 'Items' }}">
+</div>
 </div>
 </div></div>
 @endforeach
