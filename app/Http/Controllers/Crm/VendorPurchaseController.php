@@ -13,9 +13,9 @@ class VendorPurchaseController extends Controller
 {
     /** Chart of Expense Heads, grouped by expense type — used by the filter/category dropdowns. */
     private const EXPENSE_CATEGORY_GROUPS = [
-        'Production' => ['Paper & Board Stock','Corrugation Rolls / Kraft','Rigid Box Board & Greyboard','PVC / PET Sheets','Prepress & Artwork','Die Making & Cutting Dies','Block Making','Foiling Job Charges','Embossing & Debossing','UV / Spot Varnish','Digital Printing','Outsource Printing','Outsource Pasting & Finishing','Outsource Labour Charges','Job Expense','Sampling & Mockups','Machine Repair & Maintenance','Production Wastage & Rejections','Freight & Delivery'],
-        'Consumable' => ['Offset Inks (CMYK & Pantone)','Flexo & Digital Inks / Toner','Ink Additives & Drier','Varnish & Coatings','CTP Plates','Plate Chemicals & Developer','Fountain Solution & IPA','Blanket Wash & Solvents','Press Blankets & Rollers','Spray Powder','Lamination Film','Foil Rolls','Glue & Adhesives','Corrugation Starch & Adhesive','Double Sided & Gum Tape','Die Rules & Rubber','Stitching Wire & Staples','Ribbons, Handles & Magnets','Window Patching Film','Cutting Blades & Knives','Machine Oil, Lubricants & Grease','Spare Parts (Small)','Tools & Small Equipment','Packing Materials','Labels & Barcode Stickers','Cleaning Supplies & Rags','Safety Gear & Uniforms','Miscellaneous Consumables'],
-        'Admin / General' => ['Salaries & Wages','Staff Visa, Labour Card & Medical','Staff Accommodation & Transport','Rent (Ejari)','DEWA (Electricity & Water)','Telecom & Internet','Trade License & Government Fees','Vehicle Fuel, Salik & Repair','Generator Diesel & Repair','Meals & Late Night Meals','Kitchen / Pantry Stock','Stationery & Printing','IT Expense','Marketing & Advertising','Bank Charges & VAT Adjustments','Professional Fees','Insurance','Travel & Fare Charges','Electric Work & Office Repairs','Admin Other Expenses'],
+        'Production' => ['Paper Board & Stock','Label & stickers','Special Paper','CTP Plates','Die Making','Foil Block Making','Embossing/Debossing Block','Digital Print','Outsource Printing','Outsource Labor','Sampling Charge','Magnets','PVC Sheets','Ribbons','Foam','Velvet','Leather','Production Misc'],
+        'Consumable' => ['Inks, Varnish & Coatings','Chemicals, IPA, Liquids','Press Blankets & Rollers','Foil Rolls','Lamination Films','Glue','Adhesive Tapes','Machine Oil, Lubricants & Grease','Powder & Sprays','Consumable Misc'],
+        'Admin / General' => ['Salaries & Wages','Staff Visa, Labour Card & Medical','Staff Accommodation & Transport','Rent (Ejari)','DEWA (Electricity & Water)','Telecom & Internet','Trade License & Government Fees','Vehicle Fuel, Salik & Repair','Generator Diesel & Repair','Meals & Late Night Meals','Kitchen / Pantry Stock','Stationery & Printing','IT Expense','Marketing & Advertising','Bank Charges & VAT Adjustments','Professional Fees','Insurance','Travel & Fare Charges','Electric Work & Office Repairs','Admin Other Expenses','Machine Repair & Maintenance','Production Wastage & Rejections','Freight & Delivery','Admin/General Misc'],
     ];
 
     public function extractInvoice(Request $request, LocalInvoiceOcrService $ocr)
@@ -298,6 +298,7 @@ class VendorPurchaseController extends Controller
     public function store(Request $request)
     {
         $this->authorizeAccess();
+        $request->merge(['invoice_number' => trim((string) $request->input('invoice_number')) ?: null]);
 
         $validated = $request->validate([
             'vendor_id' => 'required|integer|exists:vendors,id',
@@ -306,7 +307,7 @@ class VendorPurchaseController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
             'purchase_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
-            'invoice_number' => 'nullable|string|max:100',
+            'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
             'job_id' => 'nullable|string|max:100',
             'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items' => 'required|array|min:1',
@@ -419,6 +420,7 @@ class VendorPurchaseController extends Controller
     public function update(Request $request, $id)
     {
         $this->authorizeAccess();
+        $request->merge(['invoice_number' => trim((string) $request->input('invoice_number')) ?: null]);
         $purchase = VendorPurchase::findOrFail($id);
         $validated = $request->validate([
             'vendor_id' => 'required|integer|exists:vendors,id',
@@ -427,7 +429,7 @@ class VendorPurchaseController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
             'purchase_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
-            'invoice_number' => 'nullable|string|max:100',
+            'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->ignore($id)->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
             'job_id' => 'nullable|string|max:100',
             'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items' => 'required|array|min:1',

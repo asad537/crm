@@ -74,14 +74,14 @@
 <div class="vpc-mode-note"><i class="fas fa-receipt"></i><div><strong>Personal receipt entry</strong><br>Add every receipt line separately. Choose whether VAT is already included in the printed total; the system will extract the VAT correctly without charging it twice.</div></div>
 {{-- Invoice OCR extract button is temporarily disabled while hosting OCR options are reviewed. --}}
 <div class="vpc-section"><i class="fas fa-boxes"></i> <span id="vpcItemsSection">Purchase Products</span></div>
-@php($__vpCats = ['production' => ['Paper & Board Stock','Corrugation Rolls / Kraft','Rigid Box Board & Greyboard','PVC / PET Sheets','Prepress & Artwork','Die Making & Cutting Dies','Block Making','Foiling Job Charges','Embossing & Debossing','UV / Spot Varnish','Digital Printing','Outsource Printing','Outsource Pasting & Finishing','Outsource Labour Charges','Job Expense','Sampling & Mockups','Machine Repair & Maintenance','Production Wastage & Rejections','Freight & Delivery'], 'consumable' => ['Offset Inks (CMYK & Pantone)','Flexo & Digital Inks / Toner','Ink Additives & Drier','Varnish & Coatings','CTP Plates','Plate Chemicals & Developer','Fountain Solution & IPA','Blanket Wash & Solvents','Press Blankets & Rollers','Spray Powder','Lamination Film','Foil Rolls','Glue & Adhesives','Corrugation Starch & Adhesive','Double Sided & Gum Tape','Die Rules & Rubber','Stitching Wire & Staples','Ribbons, Handles & Magnets','Window Patching Film','Cutting Blades & Knives','Machine Oil, Lubricants & Grease','Spare Parts (Small)','Tools & Small Equipment','Packing Materials','Labels & Barcode Stickers','Cleaning Supplies & Rags','Safety Gear & Uniforms','Miscellaneous Consumables'], 'admin' => ['Salaries & Wages','Staff Visa, Labour Card & Medical','Staff Accommodation & Transport','Rent (Ejari)','DEWA (Electricity & Water)','Telecom & Internet','Trade License & Government Fees','Vehicle Fuel, Salik & Repair','Generator Diesel & Repair','Meals & Late Night Meals','Kitchen / Pantry Stock','Stationery & Printing','IT Expense','Marketing & Advertising','Bank Charges & VAT Adjustments','Professional Fees','Insurance','Travel & Fare Charges','Electric Work & Office Repairs','Admin Other Expenses']])
-@php($purchaseItems = old('items', $purchaseItems ?? [['category'=>'Paper & Board Stock','quantity'=>1,'unit'=>'Sheets','line_total'=>'']]))
+@php($__vpCats = ['production' => ['Paper Board & Stock','Label & stickers','Special Paper','CTP Plates','Die Making','Foil Block Making','Embossing/Debossing Block','Digital Print','Outsource Printing','Outsource Labor','Sampling Charge','Magnets','PVC Sheets','Ribbons','Foam','Velvet','Leather','Production Misc'], 'consumable' => ['Inks, Varnish & Coatings','Chemicals, IPA, Liquids','Press Blankets & Rollers','Foil Rolls','Lamination Films','Glue','Adhesive Tapes','Machine Oil, Lubricants & Grease','Powder & Sprays','Consumable Misc'], 'admin' => ['Salaries & Wages','Staff Visa, Labour Card & Medical','Staff Accommodation & Transport','Rent (Ejari)','DEWA (Electricity & Water)','Telecom & Internet','Trade License & Government Fees','Vehicle Fuel, Salik & Repair','Generator Diesel & Repair','Meals & Late Night Meals','Kitchen / Pantry Stock','Stationery & Printing','IT Expense','Marketing & Advertising','Bank Charges & VAT Adjustments','Professional Fees','Insurance','Travel & Fare Charges','Electric Work & Office Repairs','Admin Other Expenses','Machine Repair & Maintenance','Production Wastage & Rejections','Freight & Delivery','Admin/General Misc']])
+@php($purchaseItems = old('items', $purchaseItems ?? [['category'=>'Paper Board & Stock','quantity'=>1,'unit'=>'Sheets','line_total'=>'']]))
 <div class="vpc-items" id="vpcItems">
 @foreach($purchaseItems as $index => $item)
 <div class="vpc-item" data-index="{{ $index }}"><div class="vpc-item-head"><div class="vpc-item-title"><span class="vpc-item-number">{{ $index + 1 }}</span><span>Product {{ $index + 1 }}</span></div><div class="vpc-head-job vpc-jobid"><label>Job ID <span class="vpc-opt">(optional)</span></label><input class="vpc-control" name="items[{{ $index }}][extra][job_id]" value="{{ $item['extra']['job_id'] ?? '' }}" placeholder="e.g. JOB-1024 / INQ-0312"></div><button class="vpc-remove" type="button" onclick="removePurchaseItem(this)" title="Remove product"><i class="fas fa-trash"></i></button></div><div class="vpc-item-rows">
 <div class="vpc-row vpc-row-1">
 <div class="vpc-field vpc-f-etype"><label>Expense Type <span class="vpc-required">*</span></label><select class="vpc-control vpc-item-etype" name="items[{{ $index }}][expense_type]" onchange="vpcItemTypeChanged(this)">@foreach(['Production Expense'=>'Production','Consumable Expense'=>'Consumable','Admin/General Expense'=>'Admin/General'] as $etv=>$etl)<option value="{{ $etv }}" {{ ($item['expense_type'] ?? 'Production Expense')===$etv?'selected':'' }}>{{ $etl }}</option>@endforeach</select></div>
-<div class="vpc-field vpc-f-cat"><label>Category <span class="vpc-required">*</span></label><div class="vpc-combo"><input class="vpc-control" name="items[{{ $index }}][category]" value="{{ $item['category'] ?? 'Paper & Board Stock' }}" autocomplete="off" onfocus="openItemCategories(this,true)" oninput="openItemCategories(this,false)" required><button class="vpc-combo-toggle" type="button" onclick="toggleItemCategories(this,event)" aria-label="Show all categories"><i class="fas fa-chevron-down"></i></button><div class="vpc-combo-menu">@foreach($__vpCats as $__cm => $__catList)@foreach($__catList as $category)<button type="button" data-mode="{{ $__cm }}" data-value="{{ $category }}" onclick="chooseItemCategory(this)">{{ $category }}</button>@endforeach @endforeach</div></div></div>
+<div class="vpc-field vpc-f-cat"><label>Category <span class="vpc-required">*</span></label><div class="vpc-combo"><input class="vpc-control" name="items[{{ $index }}][category]" value="{{ $item['category'] ?? 'Paper Board & Stock' }}" autocomplete="off" onfocus="openItemCategories(this,true)" oninput="openItemCategories(this,false)" required><button class="vpc-combo-toggle" type="button" onclick="toggleItemCategories(this,event)" aria-label="Show all categories"><i class="fas fa-chevron-down"></i></button><div class="vpc-combo-menu">@foreach($__vpCats as $__cm => $__catList)@foreach($__catList as $category)<button type="button" data-mode="{{ $__cm }}" data-value="{{ $category }}" onclick="chooseItemCategory(this)">{{ $category }}</button>@endforeach @endforeach</div></div></div>
 <div class="vpc-field vpc-f-desc"><label class="vpc-item-name-label">Description <span class="vpc-required">*</span></label><input class="vpc-control" name="items[{{ $index }}][item_name]" value="{{ $item['item_name'] ?? '' }}" required></div>
 <div class="vpc-price-split">
 <div class="vpc-price-group" role="group" aria-label="Quantity and unit price">
@@ -147,31 +147,29 @@ function applyExpenseMode(mode){
 function closeItemCategories(except){document.querySelectorAll('.vpc-combo-menu.show').forEach(function(menu){if(menu!==except)menu.classList.remove('show')})}
 // Expense type is per item now (one invoice can mix Production + Consumable). Each item's
 // Expense Type dropdown drives its own category list + Job ID visibility.
-function vpcItemAllowedModes(card){var s=card&&card.querySelector('.vpc-item-etype');var v=s?s.value:'Production Expense';return v==='Admin/General Expense'?['admin']:['production','consumable'];}
+function vpcItemAllowedModes(card){var s=card&&card.querySelector('.vpc-item-etype');var v=s?s.value:'Production Expense';return v==='Admin/General Expense'?['admin']:(v==='Consumable Expense'?['consumable']:['production']);}
 function filterItemCategories(combo,query){query=(query||'').toLowerCase();var card=combo.closest('.vpc-item'),am=vpcItemAllowedModes(card);combo.querySelectorAll('.vpc-combo-menu button').forEach(function(option){option.style.display=(am.indexOf(option.dataset.mode)!==-1&&(!query||option.dataset.value.toLowerCase().indexOf(query)!==-1))?'block':'none'})}
+function vpcApplyJobId(card){var jb=card.querySelector('.vpc-jobid');if(!jb)return;var s=card.querySelector('.vpc-item-etype'),v=s?s.value:'Production Expense',inp=jb.querySelector('input'),lab=jb.querySelector('label');if(v==='Admin/General Expense'){jb.style.display='none';if(inp){inp.required=false;}return;}jb.style.display='';var req=(v==='Production Expense');if(inp)inp.required=req;if(lab)lab.innerHTML='Job ID '+(req?'<span class="vpc-required">*</span>':'<span class="vpc-opt">(optional)</span>');}
 function vpcItemTypeChanged(sel){
   var card=sel.closest('.vpc-item'),am=vpcItemAllowedModes(card);
-  var list=(am.indexOf('admin')!==-1)?vpcCats.admin:vpcCats.production.concat(vpcCats.consumable);
+  var list=vpcCats[am[0]]||vpcCats.production;
   var catInp=card.querySelector('[name$="[category]"]');
   if(list.indexOf(catInp.value)===-1)catInp.value=list[0];
-  var jb=card.querySelector('.vpc-jobid');if(jb)jb.style.display=(am.indexOf('admin')!==-1)?'none':'';
+  vpcApplyJobId(card);
   vpcRenderExtra(card);vpcSyncHeaderType();
 }
 function vpcSyncHeaderType(){var c={};document.querySelectorAll('.vpc-item-etype').forEach(function(s){c[s.value]=(c[s.value]||0)+1;});var top='Production Expense',m=0;for(var k in c){if(c[k]>m){m=c[k];top=k;}}var h=document.getElementById('vpcExpenseType');if(h)h.value=top;}
-function vpcInitItems(){document.querySelectorAll('#vpcItems .vpc-item').forEach(function(card){var jb=card.querySelector('.vpc-jobid'),am=vpcItemAllowedModes(card);if(jb)jb.style.display=(am.indexOf('admin')!==-1)?'none':'';});vpcSyncHeaderType();}
+function vpcInitItems(){document.querySelectorAll('#vpcItems .vpc-item').forEach(function(card){vpcApplyJobId(card);});vpcSyncHeaderType();}
 function openItemCategories(input,showAll){var combo=input.closest('.vpc-combo'),menu=combo.querySelector('.vpc-combo-menu');closeItemCategories(menu);filterItemCategories(combo,showAll?'':input.value);menu.classList.add('show')}
 function toggleItemCategories(button,event){event.stopPropagation();var combo=button.closest('.vpc-combo'),menu=combo.querySelector('.vpc-combo-menu'),willOpen=!menu.classList.contains('show');closeItemCategories(menu);if(willOpen){filterItemCategories(combo,'');menu.classList.add('show');combo.querySelector('input').focus()}}
 function chooseItemCategory(button){var combo=button.closest('.vpc-combo');combo.querySelector('input').value=button.dataset.value;combo.querySelector('.vpc-combo-menu').classList.remove('show');vpcRenderExtra(combo.closest('.vpc-item'));}
 // Category-specific extra fields: selecting a category renders its own fields (stored in items[N][extra][key]).
 var VPC_CAT_FIELDS={
-'Paper & Board Stock':[{k:'paper_type',l:'Paper Type',t:'select',o:['Bleach Card / Food Board','Art Paper Gloss','Art Paper Matte','Grey Board','Corrugation','Kraft','BUX Board','Other']},{k:'size',l:'Size (L × W)'},{k:'gsm',l:'GSM'},{k:'sheets',l:'Sheets',t:'number'}],
-'Lamination Film':[{k:'lamination_type',l:'Lamination Type',t:'select',o:['Gloss','Matte','Soft Touch','Other']},{k:'lam_desc',l:'Desc'},{k:'size',l:'Size'},{k:'length',l:'Length'}],
-'Offset Inks (CMYK & Pantone)':[{k:'specs',l:'Specs'}],
-'Glue & Adhesives':[{k:'specs',l:'Specs'}],
-'Foiling Job Charges':[{k:'size',l:'Size (L × W)'}],
-'Block Making':[{k:'size',l:'Size (L × W)'}],
+'Paper Board & Stock':[{k:'paper_type',l:'Paper Type',t:'select',o:['Bleach Card / Food Board','Art Paper Gloss','Art Paper Matte','Grey Board','Corrugation','Kraft','BUX Board','Other']},{k:'size',l:'Size (L × W)'},{k:'gsm',l:'GSM'},{k:'sheets',l:'Sheets',t:'number'}],
+'Lamination Films':[{k:'lamination_type',l:'Lamination Type',t:'select',o:['Gloss','Matte','Soft Touch','Other']},{k:'lam_desc',l:'Desc'},{k:'size',l:'Size'},{k:'length',l:'Length'}],
 'CTP Plates':[{k:'size',l:'Size (L × W)'},{k:'color',l:'Color'}],
-'Die Making & Cutting Dies':[{k:'size',l:'Size (L × W)'}]
+'Die Making':[{k:'size',l:'Size (L × W)'}],
+'Foil Block Making':[{k:'size',l:'Size (L × W)'}]
 };
 function vpcRenderExtra(card){
   if(!card)return;var catInp=card.querySelector('[name$="[category]"]');if(!catInp)return;
@@ -220,12 +218,12 @@ function addPurchaseItem(){
         else field.value='';
     });
     card.querySelectorAll('select').forEach(function(field){field.selectedIndex=0});
-    var etype=card.querySelector('.vpc-item-etype'),am=(etype&&etype.value==='Admin/General Expense')?['admin']:['production','consumable'];
-    var list=(am.indexOf('admin')!==-1)?vpcCats.admin:vpcCats.production.concat(vpcCats.consumable);
+    var etype=card.querySelector('.vpc-item-etype'),ev=etype?etype.value:'Production Expense',am=ev==='Admin/General Expense'?['admin']:(ev==='Consumable Expense'?['consumable']:['production']);
+    var list=vpcCats[am[0]]||vpcCats.production;
     card.querySelector('[name$="[category]"]').value=list[0];
     card.querySelector('[name$="[unit]"]').value='Items';
     var ex=card.querySelector('.vpc-extra');if(ex)ex.dataset.extra='{}';
-    var jb=card.querySelector('.vpc-jobid');if(jb)jb.style.display=(am.indexOf('admin')!==-1)?'none':'';
+    vpcApplyJobId(card);
     document.getElementById('vpcItems').appendChild(card);
     renumberPurchaseItems();vpcRenderExtra(card);bindPurchaseItem(card);vpcSyncHeaderType();card.scrollIntoView({behavior:'smooth',block:'center'});
 }
