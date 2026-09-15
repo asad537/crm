@@ -213,6 +213,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('general-ledger/export', 'GeneralLedgerController@export')->name('crm.general_ledger.export');
         Route::get('vendor-purchases', 'VendorPurchaseController@index')->name('crm.vendor_purchases.index');
         Route::get('vendor-purchases/jobs', 'VendorPurchaseController@jobs')->name('crm.vendor_purchases.jobs');
+        Route::get('vendor-purchases/due-reminders', 'VendorPurchaseController@dueReminders')->name('crm.vendor_purchases.due_reminders');
         Route::get('vendor-purchases/create', 'VendorPurchaseController@create')->name('crm.vendor_purchases.create');
         Route::post('vendor-purchases/extract-invoice', 'VendorPurchaseController@extractInvoice')->name('crm.vendor_purchases.extract_invoice');
         Route::post('vendor-purchases/export', 'VendorPurchaseController@export')->name('crm.vendor_purchases.export');

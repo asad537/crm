@@ -1485,6 +1485,7 @@
         .crm-bell-btn.has-overdue{color:#e11d48;border-color:#fecdd3}
         .crm-bell-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:var(--primary-purple);color:#fff;font-size:.62rem;font-weight:800;border:2px solid #fff}
         .crm-bell-badge.is-overdue{background:#e11d48}
+        .crm-bell-badge[hidden]{display:none}
         .crm-bell-menu{display:none;position:absolute;z-index:1200;top:calc(100% + 10px);right:0;width:340px;max-width:86vw;background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 20px 48px rgba(15,23,42,.18);overflow:hidden}
         .crm-bell-menu.show{display:block}
         .crm-bell-head{display:flex;align-items:center;justify-content:space-between;padding:.8rem .95rem;border-bottom:1px solid #eef2f7}
@@ -1507,8 +1508,17 @@
         @media(max-width:600px){.crm-bell-menu{position:fixed;top:64px;right:8px;left:8px;width:auto}}
         </style>
         <script>
-        function crmToggleBell(e){e.stopPropagation();var m=document.getElementById('crmBellMenu');if(m)m.classList.toggle('show');}
+        function crmBellSigs(){var b=document.getElementById('crmBellBtn');if(!b)return[];try{return JSON.parse(b.getAttribute('data-sigs')||'[]');}catch(e){return[];}}
+        function crmBellSeen(){try{return JSON.parse(localStorage.getItem('crm_bell_seen_v1')||'[]');}catch(e){return[];}}
+        function crmBellSaveSeen(a){try{localStorage.setItem('crm_bell_seen_v1',JSON.stringify(a));}catch(e){}}
+        function crmBellSync(){var badge=document.getElementById('crmBellBadge'),btn=document.getElementById('crmBellBtn');if(!btn)return;var sigs=crmBellSigs(),seen=crmBellSeen().filter(function(s){return sigs.indexOf(s)!==-1;});crmBellSaveSeen(seen);if(!badge)return;var unseen=sigs.filter(function(s){return seen.indexOf(s)===-1;});if(unseen.length>0){badge.textContent=unseen.length>9?'9+':String(unseen.length);badge.hidden=false;var od=unseen.some(function(s){return s.slice(-3)===':od';});badge.classList.toggle('is-overdue',od);btn.classList.toggle('has-overdue',od);}else{badge.hidden=true;badge.classList.remove('is-overdue');btn.classList.remove('has-overdue');}}
+        function crmToggleBell(e){e.stopPropagation();var m=document.getElementById('crmBellMenu');if(m)m.classList.toggle('show');if(m&&m.classList.contains('show')){crmBellSaveSeen(crmBellSigs());crmBellSync();}}
         document.addEventListener('click',function(e){var m=document.getElementById('crmBellMenu');if(m&&m.classList.contains('show')&&!e.target.closest('.crm-bell-wrap'))m.classList.remove('show');});
+        function crmEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+        function crmBellRender(d){if(!d)return;var btn=document.getElementById('crmBellBtn');if(btn)btn.setAttribute('data-sigs',JSON.stringify(d.signatures||[]));var head=document.getElementById('crmBellHead');if(head)head.textContent=((d.overdue>0)?(d.overdue+' overdue · '):'')+(d.count||0)+' due';var body=document.getElementById('crmBellBody');if(body){var items=d.items||[];if(items.length){body.innerHTML=items.map(function(it){var inv=it.invoice?('Inv '+crmEsc(it.invoice)+' · '):'';return '<a class="crm-bell-item" href="'+it.url+'"><span class="crm-bell-dot '+it.cls+'"></span><span class="crm-bell-copy"><strong>'+crmEsc(it.vendor)+'</strong><small>'+inv+crmEsc(it.currency)+' '+crmEsc(it.balance)+' due · '+crmEsc(it.due)+'</small></span><span class="crm-bell-tag '+it.cls+'">'+crmEsc(it.label)+'</span></a>';}).join('');}else{body.innerHTML='<div class="crm-bell-empty"><i class="fas fa-check-circle"></i> No payments due in the next 12 hours.</div>';}}crmBellSync();}
+        function crmBellRefresh(){fetch('{{ route('crm.vendor_purchases.due_reminders') }}',{headers:{'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'}).then(function(r){return r.ok?r.json():null;}).then(crmBellRender).catch(function(){});}
+        document.addEventListener('DOMContentLoaded',function(){crmBellSync();setInterval(crmBellRefresh,300000);});
+        document.addEventListener('visibilitychange',function(){if(!document.hidden)crmBellRefresh();});
         </script>
         <div class="top-bar">
             <div class="top-title" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -1550,50 +1560,32 @@
             </div>
             <div style="margin-left: auto; display:flex; align-items:center; gap:.9rem;">
                 @php
-                    try {
-                        $__remDays = 3;
-                        $__remToday = \Illuminate\Support\Carbon::today();
-                        $__dueReminders = \App\VendorPurchase::query()
-                            ->whereNotNull('due_date')
-                            ->whereIn('payment_status', ['Unpaid', 'Partial'])
-                            ->where('balance_amount', '>', 0)
-                            ->whereDate('due_date', '<=', $__remToday->copy()->addDays($__remDays))
-                            ->orderBy('due_date')
-                            ->limit(15)
-                            ->get(['id', 'vendor_id', 'vendor_name', 'due_date', 'balance_amount', 'invoice_number', 'currency', 'payment_status']);
-                    } catch (\Throwable $e) {
-                        $__dueReminders = collect();
-                    }
-                    $__remCount = $__dueReminders->count();
-                    $__remOverdue = $__dueReminders->filter(function ($r) use ($__remToday) { return $r->due_date && $r->due_date->lt($__remToday); })->count();
+                    // 12h-before-due reminders for the current workspace (centralized so the bell
+                    // and its auto-refresh JSON endpoint stay identical). Signatures drive "seen".
+                    $__rem = \App\Support\VendorPurchaseReminders::current();
+                    $__remCount = $__rem['count'];
+                    $__remOverdue = $__rem['overdue'];
+                    $__remSignatures = $__rem['signatures'];
                 @endphp
                 <div class="crm-bell-wrap">
-                    <button type="button" class="crm-bell-btn {{ $__remOverdue > 0 ? 'has-overdue' : '' }}" onclick="crmToggleBell(event)" aria-label="Payment reminders" title="Payment reminders">
+                    <button type="button" class="crm-bell-btn {{ $__remOverdue > 0 ? 'has-overdue' : '' }}" id="crmBellBtn" data-sigs='@json($__remSignatures)' onclick="crmToggleBell(event)" aria-label="Payment reminders" title="Payment reminders">
                         <i class="fas fa-bell"></i>
-                        @if($__remCount > 0)<span class="crm-bell-badge {{ $__remOverdue > 0 ? 'is-overdue' : '' }}">{{ $__remCount > 9 ? '9+' : $__remCount }}</span>@endif
+                        <span class="crm-bell-badge {{ $__remOverdue > 0 ? 'is-overdue' : '' }}" id="crmBellBadge" {{ $__remCount > 0 ? '' : 'hidden' }}>{{ $__remCount > 9 ? '9+' : $__remCount }}</span>
                     </button>
                     <div class="crm-bell-menu" id="crmBellMenu">
-                        <div class="crm-bell-head"><strong>Payment Reminders</strong><span>{{ $__remOverdue > 0 ? $__remOverdue.' overdue · ' : '' }}{{ $__remCount }} due soon</span></div>
-                        <div class="crm-bell-body">
-                            @forelse($__dueReminders as $__r)
-                                @php
-                                    $__d = $__r->due_date;
-                                    $__diff = $__d ? (int) $__remToday->diffInDays($__d, false) : null;
-                                    if ($__diff === null) { $__lbl = 'No date'; $__cls = 'soon'; }
-                                    elseif ($__diff < 0) { $__lbl = 'Overdue '.abs($__diff).'d'; $__cls = 'od'; }
-                                    elseif ($__diff === 0) { $__lbl = 'Due today'; $__cls = 'today'; }
-                                    else { $__lbl = 'In '.$__diff.'d'; $__cls = 'soon'; }
-                                @endphp
-                                <a class="crm-bell-item" href="{{ route('crm.vendor_purchases.edit', $__r->id) }}">
-                                    <span class="crm-bell-dot {{ $__cls }}"></span>
+                        <div class="crm-bell-head"><strong>Payment Reminders</strong><span id="crmBellHead">{{ $__remOverdue > 0 ? $__remOverdue.' overdue · ' : '' }}{{ $__remCount }} due</span></div>
+                        <div class="crm-bell-body" id="crmBellBody">
+                            @forelse($__rem['items'] as $__it)
+                                <a class="crm-bell-item" href="{{ $__it['url'] }}">
+                                    <span class="crm-bell-dot {{ $__it['cls'] }}"></span>
                                     <span class="crm-bell-copy">
-                                        <strong>{{ $__r->vendor_name ?: 'Vendor' }}</strong>
-                                        <small>{{ $__r->invoice_number ? 'Inv '.$__r->invoice_number.' · ' : '' }}{{ $__r->currency }} {{ number_format((float) $__r->balance_amount, 2) }} due · {{ optional($__d)->format('d M') }}</small>
+                                        <strong>{{ $__it['vendor'] }}</strong>
+                                        <small>{{ $__it['invoice'] ? 'Inv '.$__it['invoice'].' · ' : '' }}{{ $__it['currency'] }} {{ $__it['balance'] }} due · {{ $__it['due'] }}</small>
                                     </span>
-                                    <span class="crm-bell-tag {{ $__cls }}">{{ $__lbl }}</span>
+                                    <span class="crm-bell-tag {{ $__it['cls'] }}">{{ $__it['label'] }}</span>
                                 </a>
                             @empty
-                                <div class="crm-bell-empty"><i class="fas fa-check-circle"></i> No payments due in the next {{ $__remDays }} days.</div>
+                                <div class="crm-bell-empty"><i class="fas fa-check-circle"></i> No payments due in the next 12 hours.</div>
                             @endforelse
                         </div>
                         <a class="crm-bell-foot" href="{{ route('crm.vendor_purchases.index') }}">Open vendor purchases <i class="fas fa-arrow-right"></i></a>

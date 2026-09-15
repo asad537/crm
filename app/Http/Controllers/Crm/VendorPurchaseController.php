@@ -198,6 +198,14 @@ class VendorPurchaseController extends Controller
     /**
      * Job-wise purchase report: all jobs with their total expense, or one job's purchases.
      */
+    /** JSON feed for the header bell's auto-refresh (12h-before due reminders, workspace-scoped). */
+    public function dueReminders(Request $request)
+    {
+        $this->authorizeAccess();
+
+        return response()->json(\App\Support\VendorPurchaseReminders::current());
+    }
+
     public function jobs(Request $request)
     {
         $this->authorizeAccess();
