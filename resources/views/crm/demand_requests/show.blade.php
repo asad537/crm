@@ -88,9 +88,11 @@
         <div class="dr-money">
             <div class="dr-m dr-m1"><span>Requested</span><strong>{{ number_format($estimated,2) }}</strong></div>
             <div class="dr-m dr-m2"><span>Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
-            <div class="dr-m dr-m3"><span>Total Outstanding</span><strong>{{ number_format($outstanding,2) }}</strong></div>
-            <div class="dr-m dr-m3"><span>Account Outstanding</span><strong>{{ number_format($dr->accountOutstanding(),2) }}</strong></div>
-            <div class="dr-m dr-m3"><span>Company Outstanding</span><strong>{{ number_format($dr->companyOutstanding(),2) }}</strong></div>
+            @php($__ao = $dr->accountOutstanding())
+            @php($__co = $dr->companyOutstanding())
+            <div class="dr-m {{ $outstanding>0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Total Outstanding</span><strong>{{ $outstanding>0.009 ? '− '.number_format($outstanding,2) : '✔ 0.00' }}</strong></div>
+            <div class="dr-m {{ $__ao>0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Account Outstanding</span><strong>{{ $__ao>0.009 ? '− '.number_format($__ao,2) : '✔ 0.00' }}</strong></div>
+            <div class="dr-m {{ $__co>0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Company Outstanding</span><strong>{{ $__co>0.009 ? '− '.number_format($__co,2) : '✔ 0.00' }}</strong></div>
         </div>
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
         <div class="dr-prog-txt">{{ $pct }}% covered @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif @if($writeOff>0)· <span style="color:#15803d">{{ number_format($writeOff,2) }} settled directly by company</span>@endif</div>
@@ -127,12 +129,13 @@
     @if(in_array($dr->status,['Approved','Partially Paid']))
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record Payments @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
-        <form method="POST" action="{{ route('crm.demand_requests.add_payments',$dr->id) }}" enctype="multipart/form-data">
+        @if($errors->has('proof'))<div style="margin-bottom:.8rem;padding:.7rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem;font-weight:700"><i class="fas fa-exclamation-triangle"></i> {{ $errors->first('proof') }}</div>@endif
+        <form method="POST" action="{{ route('crm.demand_requests.add_payments',$dr->id) }}" enctype="multipart/form-data" onsubmit="return drCheckProof(this)">
             {{ csrf_field() }}
             <datalist id="drPayers">@foreach($payers as $p)<option value="{{ $p }}">@endforeach<option value="Direct Payment"></datalist>
             <div class="dr-table-wrap">
             <table class="dr-table dr-pay-table">
-                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof</th></tr></thead>
+                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
                 <tbody>
                 @php($__anyOpen = false)
                 @foreach($dr->items as $i => $it)
@@ -154,8 +157,23 @@
                 </tbody>
             </table>
             </div>
-            <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button> <span style="color:#94a3b8;font-size:.74rem;margin-left:.5rem">Sirf jin rows mein amount ho wahi save hongi</span></div>
+            <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button> <span style="color:#94a3b8;font-size:.74rem;margin-left:.5rem">Amount wali har row ka proof zaroori hai <span style="color:#e11d48">*</span></span></div>
         </form>
+        <script>
+        function drCheckProof(form){
+            var rows = form.querySelectorAll('table.dr-pay-table tbody tr');
+            for (var r=0; r<rows.length; r++){
+                var amt = rows[r].querySelector('input[type=number]');
+                var file = rows[r].querySelector('input[type=file]');
+                if (amt && file && parseFloat(amt.value||0) > 0 && file.files.length === 0){
+                    alert('Proof attachment is required for every payment you enter. Please attach a file for the amounts you added.');
+                    file.focus();
+                    return false;
+                }
+            }
+            return true;
+        }
+        </script>
     </div>
     @endif
 

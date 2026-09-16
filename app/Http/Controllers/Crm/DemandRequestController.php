@@ -256,6 +256,20 @@ class DemandRequestController extends Controller
             return back()->with('status', 'Approve or reopen the demand before recording payments.');
         }
         $rows = (array) $request->input('rows', []);
+
+        // Proof attachment is mandatory for every row that carries an amount.
+        $missing = [];
+        foreach ($rows as $i => $row) {
+            if (round((float) ($row['amount'] ?? 0), 2) > 0 && !$request->file("rows.$i.proof")) {
+                $missing[] = trim(($row['note'] ?? '') !== '' ? $row['note'] : 'row #' . ((int) $i + 1));
+            }
+        }
+        if (!empty($missing)) {
+            return back()->withInput()->withErrors([
+                'proof' => 'Proof attachment is required for every payment you enter. Missing proof for: ' . implode(', ', $missing) . '.',
+            ]);
+        }
+
         $dir = public_path('uploads/demand-requests');
         $count = 0;
         foreach ($rows as $i => $row) {
