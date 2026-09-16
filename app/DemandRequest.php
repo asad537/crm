@@ -74,23 +74,16 @@ class DemandRequest extends Model
         return $this->payments->where('item_id', $itemId)->where('pay_type', 'Direct')->count() > 0;
     }
 
-    /** Estimate gap written off because the company paid those items directly. */
+    /** No automatic write-off — remaining is always requested minus paid. */
     public function writeOffTotal(): float
     {
-        $total = 0;
-        foreach ($this->items as $it) {
-            if ($this->itemHasDirect($it->id)) {
-                $total += max(0, (float) $it->estimated_total - $this->paidForItem($it->id));
-            }
-        }
-
-        return round($total, 2);
+        return 0.0;
     }
 
-    /** Requested amount still not covered — direct-settled items are treated as closed. */
+    /** Requested amount still not covered = requested − everything paid. */
     public function outstandingTotal(): float
     {
-        return max(0, round((float) $this->estimated_total - $this->paidTotal() - $this->writeOffTotal(), 2));
+        return round(array_sum($this->itemRemainingMap()), 2);
     }
 
     /** How much has been paid against one specific item (payments tagged to it). */
@@ -109,5 +102,63 @@ class DemandRequest extends Model
     public function directTotal(): float
     {
         return (float) $this->payments->where('pay_type', 'Direct')->sum('amount');
+    }
+
+    /** Payments not tied to any specific item (general / advance). */
+    public function generalPaid(): float
+    {
+        return (float) $this->payments->whereNull('item_id')->sum('amount');
+    }
+
+    /** Remaining on items the company is paying directly (still owed by company). */
+    public function companyOutstanding(): float
+    {
+        $map = $this->itemRemainingMap();
+        $total = 0;
+        foreach ($this->items as $it) {
+            if ($this->itemHasDirect($it->id)) {
+                $total += $map[$it->id] ?? 0;
+            }
+        }
+
+        return round($total, 2);
+    }
+
+    /** Remaining on items that still have to be arranged through the account. */
+    public function accountOutstanding(): float
+    {
+        $map = $this->itemRemainingMap();
+        $total = 0;
+        foreach ($this->items as $it) {
+            if (!$this->itemHasDirect($it->id)) {
+                $total += $map[$it->id] ?? 0;
+            }
+        }
+
+        return round($total, 2);
+    }
+
+    /**
+     * Remaining per item = requested − paid (tagged), then a waterfall share of any
+     * general / advance (untagged) money. No automatic write-off.
+     */
+    public function itemRemainingMap(): array
+    {
+        $general = $this->generalPaid();
+        $map = [];
+        foreach ($this->items as $it) {
+            $base = max(0, (float) $it->estimated_total - $this->paidForItem($it->id));
+            $alloc = min($general, $base);
+            $general -= $alloc;
+            $map[$it->id] = round($base - $alloc, 2);
+        }
+
+        return $map;
+    }
+
+    /** Remaining still owed on one item (waterfall-aware). */
+    public function itemRemaining($itemId): float
+    {
+        return $this->itemRemainingMap()[$itemId] ?? 0.0;
     }
 }

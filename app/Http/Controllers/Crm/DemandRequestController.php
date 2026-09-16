@@ -248,6 +248,53 @@ class DemandRequestController extends Controller
         return back()->with('status', 'Payment of ' . number_format((float) $data['amount'], 2) . ' recorded for Demand #' . $dr->request_no . '.');
     }
 
+    public function addPayments(Request $request, $id)
+    {
+        $this->authorizeAccess();
+        $dr = DemandRequest::with('items')->findOrFail($id);
+        if (!in_array($dr->status, ['Approved', 'Partially Paid'], true)) {
+            return back()->with('status', 'Approve or reopen the demand before recording payments.');
+        }
+        $rows = (array) $request->input('rows', []);
+        $dir = public_path('uploads/demand-requests');
+        $count = 0;
+        foreach ($rows as $i => $row) {
+            $amount = round((float) ($row['amount'] ?? 0), 2);
+            if ($amount <= 0) {
+                continue;
+            }
+            $itemId = null;
+            if (!empty($row['item_id']) && $dr->items->firstWhere('id', (int) $row['item_id'])) {
+                $itemId = (int) $row['item_id'];
+            }
+            $proof = ['attachment_path' => null, 'attachment_name' => null, 'attachment_mime' => null];
+            $file = $request->file("rows.$i.proof");
+            if ($file) {
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                $ext = strtolower($file->getClientOriginalExtension());
+                $fname = 'drp_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+                $proof = ['attachment_path' => 'uploads/demand-requests/' . $fname, 'attachment_name' => $file->getClientOriginalName(), 'attachment_mime' => $file->getClientMimeType()];
+                $file->move($dir, $fname);
+            }
+            $dr->payments()->create(array_merge([
+                'item_id' => $itemId,
+                'pay_type' => (($row['pay_type'] ?? 'Account') === 'Direct') ? 'Direct' : 'Account',
+                'amount' => $amount,
+                'method' => $row['method'] ?? null,
+                'paid_to' => $row['paid_to'] ?? null,
+                'note' => $row['note'] ?? null,
+                'paid_at' => now()->toDateString(),
+                'created_by' => \Auth::guard('crm')->id(),
+            ], $proof));
+            $count++;
+        }
+        $this->recomputeStatus($dr);
+
+        return back()->with('status', $count . ' payment(s) recorded for Demand #' . $dr->request_no . '.');
+    }
+
     public function deletePayment($id, $paymentId)
     {
         $this->authorizeAccess();

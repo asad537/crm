@@ -243,6 +243,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::delete('demand-requests/{id}/attachments/{attId}', 'DemandRequestController@deleteAttachment')->name('crm.demand_requests.delete_attachment');
         Route::get('demand-requests/{id}/edit', 'DemandRequestController@edit')->name('crm.demand_requests.edit');
         Route::post('demand-requests/{id}/payments', 'DemandRequestController@addPayment')->name('crm.demand_requests.add_payment');
+        Route::post('demand-requests/{id}/payments-bulk', 'DemandRequestController@addPayments')->name('crm.demand_requests.add_payments');
         Route::delete('demand-requests/{id}/payments/{paymentId}', 'DemandRequestController@deletePayment')->name('crm.demand_requests.delete_payment');
         Route::get('demand-requests/{id}/pdf', 'DemandRequestController@pdf')->name('crm.demand_requests.pdf');
         Route::post('demand-requests/{id}/approve', 'DemandRequestController@approve')->name('crm.demand_requests.approve');

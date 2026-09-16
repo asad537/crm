@@ -28,7 +28,7 @@
 .dr-badge{display:inline-flex;padding:.28rem .65rem;border-radius:999px;font-size:.66rem;font-weight:850}
 .dr-pri-Urgent{background:#fff1f2;color:#e11d48}.dr-pri-Normal{background:#eef2f7;color:#64748b}
 .dr-st-Draft{background:#eef2f7;color:#64748b}.dr-st-Submitted{background:#fff7ed;color:#c2620c}.dr-st-Approved{background:#e0f7fb;color:#0891b2}.dr-st-Rejected{background:#fff1f2;color:#e11d48}.dr-st-Partially-Paid{background:#fef3c7;color:#b45309}.dr-st-Completed{background:#e6f7e9;color:#159447}
-.dr-money{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-top:.2rem}
+.dr-money{display:grid;grid-template-columns:repeat(4,1fr);gap:.9rem;margin-top:.2rem}
 .dr-m{padding:1rem;border-radius:14px;text-align:center}
 .dr-m span{display:block;font-size:.66rem;font-weight:800;text-transform:uppercase;opacity:.85}
 .dr-m strong{display:block;margin-top:.25rem;font-size:1.55rem;font-weight:850}
@@ -54,6 +54,7 @@
 .dr-tag-gen{background:#eef2f7;color:#64748b}
 .dr-del{width:30px;height:30px;border:0;border-radius:8px;background:#fff1f2;color:#e11d48;cursor:pointer}
 .dr-table-wrap{overflow-x:auto}
+.dr-pay-table td{padding:.3rem .35rem}.dr-pay-table .dr-control{min-height:36px;padding:.4rem .5rem;font-size:.78rem}
 @media(max-width:900px){.dr-money{grid-template-columns:1fr}.dr-pay-grid{grid-template-columns:1fr 1fr}}
 .dr-att{display:inline-flex;align-items:center;gap:.45rem;padding:.4rem .7rem;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;font-size:.78rem}
 .dr-att a{color:#334155;text-decoration:none;font-weight:700}.dr-att a:hover{color:var(--primary-purple)}
@@ -86,7 +87,8 @@
         <div class="dr-money">
             <div class="dr-m dr-m1"><span>Requested</span><strong>{{ number_format($estimated,2) }}</strong></div>
             <div class="dr-m dr-m2"><span>Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
-            <div class="dr-m dr-m3"><span>Outstanding</span><strong>{{ number_format($outstanding,2) }}</strong></div>
+            <div class="dr-m dr-m3"><span>Account Outstanding</span><strong>{{ number_format($dr->accountOutstanding(),2) }}</strong></div>
+            <div class="dr-m dr-m3"><span>Company Outstanding</span><strong>{{ number_format($dr->companyOutstanding(),2) }}</strong></div>
         </div>
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
         <div class="dr-prog-txt">{{ $pct }}% covered @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif @if($writeOff>0)· <span style="color:#15803d">{{ number_format($writeOff,2) }} settled directly by company</span>@endif</div>
@@ -100,9 +102,8 @@
             <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
-                @php($ip = $dr->paidForItem($it->id))
-                @php($__isDirect = $dr->itemHasDirect($it->id))
-                @php($ir = ($__isDirect || $ip >= (float)$it->estimated_total) ? 0 : max(0, (float)$it->estimated_total - $ip))
+                @php($ir = $dr->itemRemaining($it->id))
+                @php($ip = (float)$it->estimated_total - $ir)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $it->category ?: '—' }}</td>
@@ -120,27 +121,38 @@
         </div>
     </div>
 
-    {{-- Add payment (only after Approved) --}}
+    {{-- Record payments: one row per item, submit all at once --}}
     @if(in_array($dr->status,['Approved','Partially Paid']))
     <div class="dr-card">
-        <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record a Payment @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
-        <form method="POST" action="{{ route('crm.demand_requests.add_payment',$dr->id) }}" enctype="multipart/form-data">
+        <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record Payments @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
+        <form method="POST" action="{{ route('crm.demand_requests.add_payments',$dr->id) }}" enctype="multipart/form-data">
             {{ csrf_field() }}
-            <div class="dr-pay-grid">
-                <div class="dr-field"><label>Amount *</label><input class="dr-control" type="number" step="0.01" min="0.01" name="amount" required placeholder="e.g. 3000"></div>
-                <div class="dr-field"><label>Pay By</label><select class="dr-control" name="pay_type"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></div>
-                <div class="dr-field"><label>Source / Method</label><input class="dr-control" list="drPayers" name="method" placeholder="Petty Cash / Bank…"><datalist id="drPayers">@foreach($payers as $p)<option value="{{ $p }}">@endforeach<option value="Direct Payment"></datalist></div>
-                <div class="dr-field"><label>Against</label>
-                    <select class="dr-control" name="item_id">
-                        <option value="">General / Advance</option>
-                        @foreach($dr->items as $it)<option value="{{ $it->id }}">{{ $loop->iteration }}. {{ \Illuminate\Support\Str::limit($it->description ?: $it->category, 30) }}</option>@endforeach
-                    </select>
-                </div>
-                <div class="dr-field"><label>Paid To</label><input class="dr-control" name="paid_to" placeholder="Vendor / person"></div>
-                <div class="dr-field"><label>Note</label><input class="dr-control" name="note" placeholder="Optional"></div>
-                <div class="dr-field"><label>Proof (file)</label><input class="dr-control" type="file" name="proof" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.32rem .45rem;font-size:.72rem"></div>
-                <div class="dr-field dr-f-btn"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Add</button></div>
+            <datalist id="drPayers">@foreach($payers as $p)<option value="{{ $p }}">@endforeach<option value="Direct Payment"></datalist>
+            <div class="dr-table-wrap">
+            <table class="dr-table dr-pay-table">
+                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof</th></tr></thead>
+                <tbody>
+                @php($__anyOpen = false)
+                @foreach($dr->items as $i => $it)
+                    @php($__rem = $dr->itemRemaining($it->id))
+                    @if($__rem > 0.009)
+                    @php($__anyOpen = true)
+                    <tr>
+                        <td><div style="font-weight:700;color:#27364b">{{ $loop->iteration }}. {{ \Illuminate\Support\Str::limit($it->description ?: $it->category, 24) }}</div><div style="font-size:.67rem;color:#e11d48">{{ number_format($__rem,2) }} left</div><input type="hidden" name="rows[{{ $i }}][item_id]" value="{{ $it->id }}"></td>
+                        <td><input class="dr-control" type="number" step="0.01" min="0" name="rows[{{ $i }}][amount]" placeholder="0.00"></td>
+                        <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>
+                        <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
+                        <td><input class="dr-control" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
+                        <td><input class="dr-control" name="rows[{{ $i }}][note]" placeholder="Optional"></td>
+                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proof]" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>
+                    </tr>
+                    @endif
+                @endforeach
+                @if(!$__anyOpen)<tr><td colspan="7"><div class="dr-empty" style="padding:1.2rem;color:#159447;font-weight:700">All items settled ✔ — nothing left to pay.</div></td></tr>@endif
+                </tbody>
+            </table>
             </div>
+            <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button> <span style="color:#94a3b8;font-size:.74rem;margin-left:.5rem">Sirf jin rows mein amount ho wahi save hongi</span></div>
         </form>
     </div>
     @endif
@@ -148,10 +160,7 @@
     {{-- Payment history --}}
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-receipt"></i> Payment History &amp; Breakdown</div>
-        <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem">
-            <span style="padding:.45rem .8rem;border-radius:9px;background:#e0f2fe;color:#0369a1;font-size:.76rem;font-weight:700"><i class="fas fa-university"></i> By Account (to reconcile): <strong>{{ number_format($dr->accountTotal(),2) }}</strong></span>
-            <span style="padding:.45rem .8rem;border-radius:9px;background:#dcfce7;color:#15803d;font-size:.76rem;font-weight:700"><i class="fas fa-building"></i> Direct by Company: <strong>{{ number_format($dr->directTotal(),2) }}</strong></span>
-        </div>
+
         <div class="dr-table-wrap">
         <table class="dr-table">
             <thead><tr><th>Date</th><th class="dr-num">Amount</th><th>Type / Source</th><th>Against</th><th>Paid To</th><th>Note</th><th>Proof</th><th></th></tr></thead>
@@ -185,6 +194,10 @@
             @endforeach
         </div>
         @endif
+        <div style="display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1rem;padding-top:1rem;border-top:1px solid #eef2f7">
+            <div style="flex:1;min-width:180px;padding:.7rem .95rem;border-radius:12px;background:#e0f2fe"><div style="font-size:.62rem;font-weight:850;text-transform:uppercase;letter-spacing:.03em;color:#0369a1"><i class="fas fa-university"></i> Account — to reconcile</div><div style="font-size:1.25rem;font-weight:850;color:#0369a1;margin-top:.15rem">{{ number_format($dr->accountTotal(),2) }}</div></div>
+            <div style="flex:1;min-width:180px;padding:.7rem .95rem;border-radius:12px;background:#dcfce7"><div style="font-size:.62rem;font-weight:850;text-transform:uppercase;letter-spacing:.03em;color:#15803d"><i class="fas fa-building"></i> Company — direct paid</div><div style="font-size:1.25rem;font-weight:850;color:#15803d;margin-top:.15rem">{{ number_format($dr->directTotal(),2) }}</div></div>
+        </div>
     </div>
 
     {{-- Attachments --}}

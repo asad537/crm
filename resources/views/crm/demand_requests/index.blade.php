@@ -67,7 +67,7 @@
         <div style="overflow-x:auto">
         <table class="dr-table">
             <thead><tr>
-                <th>No.</th><th>Date</th><th>Requested By</th><th>Priority</th><th>Items</th><th class="dr-num2">Est. Total</th><th class="dr-num2">Paid</th><th class="dr-num2">Remaining</th><th>Status</th><th>Actions</th>
+                <th>No.</th><th>Date</th><th>Requested By</th><th>Priority</th><th>Items</th><th class="dr-num2">Est. Total</th><th class="dr-num2">Paid</th><th class="dr-num2">Remaining</th><th class="dr-num2">Acc. Out.</th><th class="dr-num2">Co. Out.</th><th>Status</th><th>Actions</th>
             </tr></thead>
             <tbody>
             @forelse($requests as $dr)
@@ -85,6 +85,8 @@
                         @elseif($__bal > 0.009)<span style="color:#159447;font-weight:850" title="Overpaid">+ {{ number_format($__bal,2) }}</span>
                         @else<span style="color:#159447;font-weight:850" title="Fully settled">&#10004;</span>@endif
                     </td>
+                    <td class="dr-num2" style="color:#0369a1;font-weight:750" title="Account outstanding">{{ number_format($dr->accountOutstanding(),2) }}</td>
+                    <td class="dr-num2" style="color:#15803d;font-weight:750" title="Company outstanding">{{ number_format($dr->companyOutstanding(),2) }}</td>
                     <td><span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span></td>
                     <td>
                         <div class="dr-actions">
@@ -97,7 +99,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="10"><div class="dr-empty"><i class="fas fa-clipboard-list" style="font-size:2rem;display:block;margin-bottom:.6rem"></i>No demand requests yet. Click “New Demand Request” to create one.</div></td></tr>
+                <tr><td colspan="12"><div class="dr-empty"><i class="fas fa-clipboard-list" style="font-size:2rem;display:block;margin-bottom:.6rem"></i>No demand requests yet. Click “New Demand Request” to create one.</div></td></tr>
             @endforelse
             </tbody>
         </table>
