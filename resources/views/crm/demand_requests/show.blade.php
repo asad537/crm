@@ -88,11 +88,12 @@
         <div class="dr-money">
             <div class="dr-m dr-m1"><span>Requested</span><strong>{{ number_format($estimated,2) }}</strong></div>
             <div class="dr-m dr-m2"><span>Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
+            @php($__net = $dr->netBalance())
             @php($__ao = $dr->accountOutstanding())
             @php($__co = $dr->companyOutstanding())
-            <div class="dr-m {{ $outstanding>0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Total Outstanding</span><strong>{{ $outstanding>0.009 ? '− '.number_format($outstanding,2) : '✔ 0.00' }}</strong></div>
-            <div class="dr-m {{ $__ao>0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Account Outstanding</span><strong>{{ $__ao>0.009 ? '− '.number_format($__ao,2) : '✔ 0.00' }}</strong></div>
-            <div class="dr-m {{ $__co>0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Company Outstanding</span><strong>{{ $__co>0.009 ? '− '.number_format($__co,2) : '✔ 0.00' }}</strong></div>
+            <div class="dr-m {{ $__net < -0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Total Outstanding</span><strong>{{ $__net < -0.009 ? '− '.number_format(abs($__net),2) : ($__net > 0.009 ? '+ '.number_format($__net,2) : '✔ 0.00') }}</strong></div>
+            <div class="dr-m {{ $__ao < -0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Account Outstanding</span><strong>{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔ 0.00') }}</strong></div>
+            <div class="dr-m {{ $__co < -0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Company Outstanding</span><strong>{{ $__co < -0.009 ? '− '.number_format(abs($__co),2) : ($__co > 0.009 ? '+ '.number_format($__co,2) : '✔ 0.00') }}</strong></div>
         </div>
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
         <div class="dr-prog-txt">{{ $pct }}% covered @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif @if($writeOff>0)· <span style="color:#15803d">{{ number_format($writeOff,2) }} settled directly by company</span>@endif</div>
@@ -106,8 +107,8 @@
             <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
-                @php($ir = $dr->itemRemaining($it->id))
-                @php($ip = (float)$it->estimated_total - $ir)
+                @php($ip = $dr->paidForItem($it->id))
+                @php($inet = $dr->itemNet($it->id))
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $it->category ?: '—' }}</td>
@@ -117,7 +118,7 @@
                     <td>{{ $it->qty ?: '—' }}</td>
                     <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
                     <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}</td>
-                    <td class="dr-num" style="{{ $ir>0 ? 'color:#e11d48;font-weight:800' : 'color:#159447' }}">{{ $ir>0 ? number_format($ir,2) : '✔' }}</td>
+                    <td class="dr-num" style="font-weight:800;color:{{ $inet < -0.009 ? '#e11d48' : '#159447' }}">{{ $inet < -0.009 ? '− '.number_format(abs($inet),2) : ($inet > 0.009 ? '+ '.number_format($inet,2) : '✔') }}</td>
                 </tr>
             @endforeach
             </tbody>

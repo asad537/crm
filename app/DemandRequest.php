@@ -80,10 +80,10 @@ class DemandRequest extends Model
         return 0.0;
     }
 
-    /** Requested amount still not covered = requested − everything paid. */
+    /** Amount still owed by any side (no cross-subsidy). */
     public function outstandingTotal(): float
     {
-        return round(array_sum($this->itemRemainingMap()), 2);
+        return $this->owedTotal();
     }
 
     /** How much has been paid against one specific item (payments tagged to it). */
@@ -110,28 +110,17 @@ class DemandRequest extends Model
         return (float) $this->payments->whereNull('item_id')->sum('amount');
     }
 
-    /** Remaining on items the company is paying directly (still owed by company). */
+    /**
+     * Signed balance for the company (direct) side = paid − requested on items the
+     * company is paying directly. Negative = still owed, positive = credit/overpaid.
+     * No cross-subsidy: account surplus never covers a company shortfall.
+     */
     public function companyOutstanding(): float
     {
-        $map = $this->itemRemainingMap();
         $total = 0;
         foreach ($this->items as $it) {
             if ($this->itemHasDirect($it->id)) {
-                $total += $map[$it->id] ?? 0;
-            }
-        }
-
-        return round($total, 2);
-    }
-
-    /** Remaining on items that still have to be arranged through the account. */
-    public function accountOutstanding(): float
-    {
-        $map = $this->itemRemainingMap();
-        $total = 0;
-        foreach ($this->items as $it) {
-            if (!$this->itemHasDirect($it->id)) {
-                $total += $map[$it->id] ?? 0;
+                $total += $this->paidForItem($it->id) - (float) $it->estimated_total;
             }
         }
 
@@ -139,24 +128,70 @@ class DemandRequest extends Model
     }
 
     /**
-     * Remaining per item = requested − paid (tagged), then a waterfall share of any
-     * general / advance (untagged) money. No automatic write-off.
+     * Signed balance for the account side = paid − requested on items paid through the
+     * account, plus any untagged general/advance money. Negative = owed, positive = credit.
      */
+    public function accountOutstanding(): float
+    {
+        $total = 0;
+        foreach ($this->items as $it) {
+            if (!$this->itemHasDirect($it->id)) {
+                $total += $this->paidForItem($it->id) - (float) $it->estimated_total;
+            }
+        }
+        $total += $this->generalPaid();
+
+        return round($total, 2);
+    }
+
+    /** Net balance across the whole demand = paid − requested (signed). */
+    public function netBalance(): float
+    {
+        return round($this->paidTotal() - (float) $this->estimated_total, 2);
+    }
+
+    /** What any side still owes (no cross-subsidy) — drives completion status. */
+    public function owedTotal(): float
+    {
+        $owed = 0;
+        $c = $this->companyOutstanding();
+        $a = $this->accountOutstanding();
+        if ($c < 0) {
+            $owed += -$c;
+        }
+        if ($a < 0) {
+            $owed += -$a;
+        }
+
+        return round($owed, 2);
+    }
+
+    /** Amount paid over and above the requested total (credit). */
+    public function overpaidTotal(): float
+    {
+        return max(0, $this->netBalance());
+    }
+
+    /** Owed per item (>=0) from that item's own tagged payments. */
     public function itemRemainingMap(): array
     {
-        $general = $this->generalPaid();
         $map = [];
         foreach ($this->items as $it) {
-            $base = max(0, (float) $it->estimated_total - $this->paidForItem($it->id));
-            $alloc = min($general, $base);
-            $general -= $alloc;
-            $map[$it->id] = round($base - $alloc, 2);
+            $map[$it->id] = max(0, round((float) $it->estimated_total - $this->paidForItem($it->id), 2));
         }
 
         return $map;
     }
 
-    /** Remaining still owed on one item (waterfall-aware). */
+    /** Signed net for one item = paid − requested (tagged payments). */
+    public function itemNet($itemId): float
+    {
+        $it = $this->items->firstWhere('id', $itemId);
+
+        return $it ? round($this->paidForItem($itemId) - (float) $it->estimated_total, 2) : 0.0;
+    }
+
+    /** Owed (>=0) on one item. */
     public function itemRemaining($itemId): float
     {
         return $this->itemRemainingMap()[$itemId] ?? 0.0;
