@@ -232,6 +232,25 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::put('customer-sales/{id}', 'CustomerSaleController@updateSale')->name('crm.customer_sales.update');
         Route::patch('customer-sales/{id}/payment', 'CustomerSaleController@updatePayment')->name('crm.customer_sales.update_payment');
 
+        // Demand Requests (procurement request -> approve -> receive)
+        Route::get('demand-requests', 'DemandRequestController@index')->name('crm.demand_requests.index');
+        Route::get('demand-requests/create', 'DemandRequestController@create')->name('crm.demand_requests.create');
+        Route::get('demand-requests/export', 'DemandRequestController@export')->name('crm.demand_requests.export');
+        Route::post('demand-requests', 'DemandRequestController@store')->name('crm.demand_requests.store');
+        Route::post('demand-requests/{id}/complete', 'DemandRequestController@markComplete')->name('crm.demand_requests.complete');
+        Route::post('demand-requests/{id}/reopen', 'DemandRequestController@reopen')->name('crm.demand_requests.reopen');
+        Route::post('demand-requests/{id}/attachments', 'DemandRequestController@addAttachment')->name('crm.demand_requests.add_attachment');
+        Route::delete('demand-requests/{id}/attachments/{attId}', 'DemandRequestController@deleteAttachment')->name('crm.demand_requests.delete_attachment');
+        Route::get('demand-requests/{id}/edit', 'DemandRequestController@edit')->name('crm.demand_requests.edit');
+        Route::post('demand-requests/{id}/payments', 'DemandRequestController@addPayment')->name('crm.demand_requests.add_payment');
+        Route::delete('demand-requests/{id}/payments/{paymentId}', 'DemandRequestController@deletePayment')->name('crm.demand_requests.delete_payment');
+        Route::get('demand-requests/{id}/pdf', 'DemandRequestController@pdf')->name('crm.demand_requests.pdf');
+        Route::post('demand-requests/{id}/approve', 'DemandRequestController@approve')->name('crm.demand_requests.approve');
+        Route::post('demand-requests/{id}/reject', 'DemandRequestController@reject')->name('crm.demand_requests.reject');
+        Route::get('demand-requests/{id}', 'DemandRequestController@show')->whereNumber('id')->name('crm.demand_requests.show');
+        Route::put('demand-requests/{id}', 'DemandRequestController@update')->name('crm.demand_requests.update');
+        Route::delete('demand-requests/{id}', 'DemandRequestController@destroy')->name('crm.demand_requests.destroy');
+
         // Sales Orders (Sales Workflow)
         Route::get('sales-orders', 'SalesOrderController@index')->name('crm.sales_orders.index');
         Route::post('sales-orders', 'SalesOrderController@store')->name('crm.sales_orders.store');

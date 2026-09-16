@@ -1,0 +1,235 @@
+@extends('crm.layout')
+@section('title', 'Demand #'.str_pad($dr->request_no,3,'0',STR_PAD_LEFT))
+@section('header_actions')
+<a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.index') }}"><i class="fas fa-arrow-left"></i> Back</a>
+@endsection
+@section('content')
+@php
+    $estimated = (float) $dr->estimated_total;
+    $paid = $dr->paidTotal();
+    $outstanding = $dr->outstandingTotal();
+    $pct = $estimated > 0 ? min(100, round($paid / $estimated * 100)) : ($paid > 0 ? 100 : 0);
+    $stSlug = str_replace([' ','/'],['-','-'],$dr->status);
+@endphp
+<style>
+.dr-wrap{max-width:1120px;margin:0 auto}
+.dr-btn{display:inline-flex;align-items:center;gap:.45rem;min-height:40px;padding:.55rem 1rem;border:0;border-radius:10px;font-weight:800;text-decoration:none;cursor:pointer;font-size:.82rem}
+.dr-btn-primary{color:#fff;background:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}.dr-btn-light{color:#475569;background:#eef2f7}
+.dr-btn-green{color:#fff;background:#159447}.dr-btn-red{color:#fff;background:#e11d48}.dr-btn-outline{color:var(--primary-purple);border:1px solid var(--primary-shadow);background:var(--primary-soft)}
+.dr-btn-sm{min-height:34px;padding:.4rem .7rem;font-size:.76rem}
+.dr-card{padding:1.15rem 1.3rem;background:#fff;border:1px solid #e5ebf2;border-radius:16px;box-shadow:0 8px 28px rgba(15,23,42,.05);margin-bottom:1rem}
+.dr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.dr-co h2{margin:0;color:#172033;font-size:1.1rem}.dr-co small{color:#8290a3;font-size:.72rem}
+.dr-meta{display:flex;gap:1.6rem;flex-wrap:wrap;margin-top:.9rem}
+.dr-meta div span{display:block;color:#8a99ae;font-size:.63rem;font-weight:800;text-transform:uppercase}
+.dr-meta div strong{display:block;margin-top:.15rem;color:#27364b;font-size:.86rem}
+.dr-badge{display:inline-flex;padding:.28rem .65rem;border-radius:999px;font-size:.66rem;font-weight:850}
+.dr-pri-Urgent{background:#fff1f2;color:#e11d48}.dr-pri-Normal{background:#eef2f7;color:#64748b}
+.dr-st-Draft{background:#eef2f7;color:#64748b}.dr-st-Submitted{background:#fff7ed;color:#c2620c}.dr-st-Approved{background:#e0f7fb;color:#0891b2}.dr-st-Rejected{background:#fff1f2;color:#e11d48}.dr-st-Partially-Paid{background:#fef3c7;color:#b45309}.dr-st-Completed{background:#e6f7e9;color:#159447}
+.dr-money{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-top:.2rem}
+.dr-m{padding:1rem;border-radius:14px;text-align:center}
+.dr-m span{display:block;font-size:.66rem;font-weight:800;text-transform:uppercase;opacity:.85}
+.dr-m strong{display:block;margin-top:.25rem;font-size:1.55rem;font-weight:850}
+.dr-m1{background:var(--primary-soft);color:var(--primary-purple)}.dr-m2{background:#e6f7e9;color:#159447}.dr-m3{background:#fff1f2;color:#e11d48}
+.dr-prog{height:9px;border-radius:99px;background:#eef2f7;margin-top:.9rem;overflow:hidden}
+.dr-prog > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary-purple),#22c55e)}
+.dr-prog-txt{margin-top:.35rem;font-size:.7rem;color:#8290a3;font-weight:700}
+.dr-secttl{display:flex;align-items:center;gap:.5rem;margin:.1rem 0 .85rem;color:#8a99ae;font-size:.7rem;font-weight:850;text-transform:uppercase}.dr-secttl:after{content:'';flex:1;height:1px;background:#e8edf3}
+.dr-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.dr-table th{padding:.5rem .6rem;text-align:left;color:#8a99ae;font-size:.62rem;font-weight:850;text-transform:uppercase;border-bottom:1px solid #eef2f7;white-space:nowrap}
+.dr-table td{padding:.55rem .6rem;border-bottom:1px solid #f2f5f9;color:#334155}
+.dr-num{text-align:right;font-variant-numeric:tabular-nums}
+.dr-pay-grid{display:grid;grid-template-columns:1.1fr 1fr 1.4fr 1.1fr 1.4fr auto;gap:.6rem;align-items:end}
+.dr-field label{display:block;margin-bottom:.28rem;color:#425168;font-size:.68rem;font-weight:780}
+.dr-control{width:100%;min-height:40px;padding:.5rem .6rem;border:1px solid #d8e1eb;border-radius:9px;font-size:.8rem;outline:0;background:#fff}
+.dr-control:focus{border-color:var(--primary-purple);box-shadow:0 0 0 3px var(--primary-shadow)}
+.dr-flash{margin-bottom:1rem;padding:.7rem 1rem;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#15803d;font-size:.8rem;font-weight:700}
+.dr-actbar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.dr-reject{display:none;margin-top:.8rem;padding:.8rem;border:1px solid #fecaca;border-radius:12px;background:#fff5f5}
+.dr-reason{margin-top:.7rem;padding:.7rem .9rem;border-radius:10px;background:#fff1f2;color:#b91c1c;font-size:.78rem}
+.dr-empty{padding:1.2rem;text-align:center;color:#94a3b8;font-size:.8rem}
+.dr-tag{display:inline-block;padding:.15rem .5rem;border-radius:8px;background:#eef2ff;color:#4f46e5;font-size:.66rem;font-weight:800}
+.dr-tag-gen{background:#eef2f7;color:#64748b}
+.dr-del{width:30px;height:30px;border:0;border-radius:8px;background:#fff1f2;color:#e11d48;cursor:pointer}
+.dr-table-wrap{overflow-x:auto}
+@media(max-width:900px){.dr-money{grid-template-columns:1fr}.dr-pay-grid{grid-template-columns:1fr 1fr}}
+.dr-att{display:inline-flex;align-items:center;gap:.45rem;padding:.4rem .7rem;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;font-size:.78rem}
+.dr-att a{color:#334155;text-decoration:none;font-weight:700}.dr-att a:hover{color:var(--primary-purple)}
+.dr-att i{color:var(--primary-purple)}
+.dr-att-x{border:0;background:#fff1f2;color:#e11d48;width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:.7rem}
+</style>
+<div class="dr-wrap">
+    @if(session('status'))<div class="dr-flash"><i class="fas fa-check-circle"></i> {{ session('status') }}</div>@endif
+
+    {{-- Header + money summary --}}
+    <div class="dr-card">
+        <div class="dr-top">
+            <div class="dr-co">
+                <h2>{{ $company['name'] }}</h2>
+                @if($company['address'])<small>{{ $company['address'] }}</small>@endif
+            </div>
+            <div style="text-align:right">
+                <div style="font-weight:850;color:#172033">Demand #{{ str_pad($dr->request_no,3,'0',STR_PAD_LEFT) }}</div>
+                <span class="dr-badge dr-st-{{ $stSlug }}">{{ $dr->status }}</span>
+            </div>
+        </div>
+        <div class="dr-meta">
+            <div><span>Date</span><strong>{{ optional($dr->request_date)->format('d M Y') }}</strong></div>
+            <div><span>Requested By</span><strong>{{ $dr->requested_by ?: ($dr->creator->name ?? '—') }}</strong></div>
+            <div><span>Priority</span><strong><span class="dr-badge dr-pri-{{ $dr->priority }}">{{ $dr->priority }}</span></strong></div>
+            @if($dr->approved_at)<div><span>{{ $dr->status==='Rejected'?'Rejected By':'Approved By' }}</span><strong>{{ $dr->approver->name ?? '—' }}</strong></div>@endif
+        </div>
+        @if($dr->status==='Rejected' && $dr->rejection_reason)<div class="dr-reason"><i class="fas fa-times-circle"></i> {{ $dr->rejection_reason }}</div>@endif
+
+        <div class="dr-money">
+            <div class="dr-m dr-m1"><span>Requested</span><strong>{{ number_format($estimated,2) }}</strong></div>
+            <div class="dr-m dr-m2"><span>Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
+            <div class="dr-m dr-m3"><span>Outstanding</span><strong>{{ number_format($outstanding,2) }}</strong></div>
+        </div>
+        <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
+        <div class="dr-prog-txt">{{ $pct }}% paid @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif</div>
+    </div>
+
+    {{-- Items with per-item paid / remaining --}}
+    <div class="dr-card">
+        <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
+        <div class="dr-table-wrap">
+        <table class="dr-table">
+            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th></tr></thead>
+            <tbody>
+            @foreach($dr->items as $it)
+                @php($ip = $dr->paidForItem($it->id))
+                @php($ir = max(0, (float)$it->estimated_total - $ip))
+                <tr>
+                    <td>{{ $loop->iteration }}</td>
+                    <td>{{ $it->category ?: '—' }}</td>
+                    <td>{{ $it->job_no ?: '—' }}</td>
+                    <td>{{ $it->description ?: '—' }}</td>
+                    <td>{{ $it->specification ?: '—' }}</td>
+                    <td>{{ $it->qty ?: '—' }}</td>
+                    <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
+                    <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}</td>
+                    <td class="dr-num" style="{{ $ir>0 ? 'color:#e11d48;font-weight:800' : 'color:#159447' }}">{{ $ir>0 ? number_format($ir,2) : '✔' }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    {{-- Add payment (only after Approved) --}}
+    @if(in_array($dr->status,['Approved','Partially Paid','Completed']))
+    <div class="dr-card">
+        <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record a Payment @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
+        <form method="POST" action="{{ route('crm.demand_requests.add_payment',$dr->id) }}" enctype="multipart/form-data">
+            {{ csrf_field() }}
+            <div class="dr-pay-grid">
+                <div class="dr-field"><label>Amount *</label><input class="dr-control" type="number" step="0.01" min="0.01" name="amount" required placeholder="e.g. 3000"></div>
+                <div class="dr-field"><label>Source / Method</label><input class="dr-control" list="drPayers" name="method" placeholder="Petty Cash / Bank…"><datalist id="drPayers">@foreach($payers as $p)<option value="{{ $p }}">@endforeach<option value="Direct Payment"></datalist></div>
+                <div class="dr-field"><label>Against</label>
+                    <select class="dr-control" name="item_id">
+                        <option value="">General / Advance</option>
+                        @foreach($dr->items as $it)<option value="{{ $it->id }}">{{ $loop->iteration }}. {{ \Illuminate\Support\Str::limit($it->description ?: $it->category, 30) }}</option>@endforeach
+                    </select>
+                </div>
+                <div class="dr-field"><label>Paid To</label><input class="dr-control" name="paid_to" placeholder="Vendor / person"></div>
+                <div class="dr-field"><label>Note</label><input class="dr-control" name="note" placeholder="Optional"></div>
+                <div class="dr-field"><label>Proof (file)</label><input class="dr-control" type="file" name="proof" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.32rem .45rem;font-size:.72rem"></div>
+                <div class="dr-field"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Add</button></div>
+            </div>
+        </form>
+    </div>
+    @endif
+
+    {{-- Payment history --}}
+    <div class="dr-card">
+        <div class="dr-secttl"><i class="fas fa-receipt"></i> Payment History &amp; Breakdown</div>
+        <div class="dr-table-wrap">
+        <table class="dr-table">
+            <thead><tr><th>Date</th><th class="dr-num">Amount</th><th>Source</th><th>Against</th><th>Paid To</th><th>Note</th><th>Proof</th><th></th></tr></thead>
+            <tbody>
+            @forelse($dr->payments as $pmt)
+                <tr>
+                    <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
+                    <td class="dr-num"><strong style="color:#159447">{{ number_format($pmt->amount,2) }}</strong></td>
+                    <td>{{ $pmt->method ?: '—' }}</td>
+                    <td>@if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@else<span class="dr-tag dr-tag-gen">General</span>@endif</td>
+                    <td>{{ $pmt->paid_to ?: '—' }}</td>
+                    <td>{{ $pmt->note ?: '—' }}</td>
+                    <td>@if($pmt->attachment_path)<a href="{{ $pmt->attachment_url }}" target="_blank" title="{{ $pmt->attachment_name }}" style="color:var(--primary-purple)"><i class="fas fa-paperclip"></i></a>@else<span style="color:#cbd5e1">—</span>@endif</td>
+                    <td>
+                        <form method="POST" action="{{ route('crm.demand_requests.delete_payment',[$dr->id,$pmt->id]) }}" onsubmit="return confirm('Remove this payment?');">
+                            {{ csrf_field() }} {{ method_field('DELETE') }}
+                            <button class="dr-del" type="submit" title="Remove"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="8"><div class="dr-empty">No payments recorded yet.</div></td></tr>
+            @endforelse
+            </tbody>
+        </table>
+        </div>
+        @if(count($payerSummary))
+        <div style="margin-top:.9rem;display:flex;flex-wrap:wrap;gap:.5rem">
+            @foreach($payerSummary as $src => $amt)
+                <span class="dr-tag" style="padding:.4rem .7rem;font-size:.74rem"><i class="fas fa-wallet"></i> {{ $src }}: <strong>{{ number_format($amt,2) }}</strong></span>
+            @endforeach
+        </div>
+        @endif
+    </div>
+
+    {{-- Attachments --}}
+    <div class="dr-card">
+        <div class="dr-secttl"><i class="fas fa-paperclip"></i> Attachments</div>
+        <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
+            {{ csrf_field() }}
+            <input class="dr-control" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:360px">
+            <button class="dr-btn dr-btn-outline dr-btn-sm" type="submit"><i class="fas fa-upload"></i> Upload</button>
+            <span style="color:#94a3b8;font-size:.72rem">Quote / invoice / receipt — max 20 MB each</span>
+        </form>
+        @if($dr->attachments->count())
+            <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+                @foreach($dr->attachments as $att)
+                    <div class="dr-att">
+                        <i class="fas {{ $att->is_image ? 'fa-image' : 'fa-file-alt' }}"></i>
+                        <a href="{{ $att->url }}" target="_blank">{{ \Illuminate\Support\Str::limit($att->name ?: 'file', 28) }}</a>
+                        <form method="POST" action="{{ route('crm.demand_requests.delete_attachment',[$dr->id,$att->id]) }}" onsubmit="return confirm('Remove attachment?');" style="display:inline">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="dr-att-x" type="submit"><i class="fas fa-times"></i></button></form>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="dr-empty">No attachments yet.</div>
+        @endif
+    </div>
+
+    {{-- Actions --}}
+    <div class="dr-card">
+        <div class="dr-actbar">
+            @if(in_array($dr->status,['Draft','Submitted']))
+                <a class="dr-btn dr-btn-outline" href="{{ route('crm.demand_requests.edit',$dr->id) }}"><i class="fas fa-pen"></i> Edit</a>
+            @endif
+            @if($canApprove && $dr->status==='Submitted')
+                <form method="POST" action="{{ route('crm.demand_requests.approve',$dr->id) }}" style="display:inline">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-check"></i> Approve</button></form>
+                <button class="dr-btn dr-btn-red" type="button" onclick="document.getElementById('drReject').style.display='block'"><i class="fas fa-times"></i> Reject</button>
+            @endif
+            <a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.pdf',$dr->id) }}" target="_blank"><i class="fas fa-file-pdf"></i> Print PDF</a>
+            @if(in_array($dr->status,['Approved','Partially Paid']) && !$dr->force_completed)
+                <form method="POST" action="{{ route('crm.demand_requests.complete',$dr->id) }}" style="display:inline" onsubmit="return confirm('Mark this demand complete (close it)?');">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-flag-checkered"></i> Mark Complete</button></form>
+            @endif
+            @if($dr->force_completed)
+                <form method="POST" action="{{ route('crm.demand_requests.reopen',$dr->id) }}" style="display:inline">{{ csrf_field() }}<button class="dr-btn dr-btn-outline" type="submit"><i class="fas fa-undo"></i> Reopen</button></form>
+            @endif
+        </div>
+        @if($canApprove && $dr->status==='Submitted')
+        <div class="dr-reject" id="drReject">
+            <form method="POST" action="{{ route('crm.demand_requests.reject',$dr->id) }}">{{ csrf_field() }}
+                <label style="font-size:.74rem;font-weight:780;color:#b91c1c;display:block;margin-bottom:.35rem">Rejection reason (optional)</label>
+                <textarea class="dr-control" name="rejection_reason" rows="2" placeholder="Why is this rejected?"></textarea>
+                <div style="margin-top:.6rem"><button class="dr-btn dr-btn-red" type="submit"><i class="fas fa-times"></i> Confirm Reject</button></div>
+            </form>
+        </div>
+        @endif
+    </div>
+</div>
+@endsection

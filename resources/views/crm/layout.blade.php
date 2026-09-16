@@ -1340,6 +1340,14 @@
                         <i class="fas fa-chevron-right arrow"></i>
                     </span>
                 </a>
+                <a href="{{ route('crm.demand_requests.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.demand_requests.*') ? 'active' : '' }}">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span class="nav-label">Demand Requests</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
             @endif
 
             @if($__navUser->isShipping() || $__navUser->isSalesManager() || $__navUser->isAdmin())

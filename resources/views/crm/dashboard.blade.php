@@ -322,6 +322,8 @@
 
     <div class="dashboard-container">
 
+        @include('crm.demand_requests._widget')
+
         <!-- STATS CARDS -->
         @php $__dashUser = Auth::guard('crm')->user(); @endphp
 
