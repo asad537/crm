@@ -28,7 +28,8 @@
 .dr-badge{display:inline-flex;padding:.28rem .65rem;border-radius:999px;font-size:.66rem;font-weight:850}
 .dr-pri-Urgent{background:#fff1f2;color:#e11d48}.dr-pri-Normal{background:#eef2f7;color:#64748b}
 .dr-st-Draft{background:#eef2f7;color:#64748b}.dr-st-Submitted{background:#fff7ed;color:#c2620c}.dr-st-Approved{background:#e0f7fb;color:#0891b2}.dr-st-Rejected{background:#fff1f2;color:#e11d48}.dr-st-Partially-Paid{background:#fef3c7;color:#b45309}.dr-st-Completed{background:#e6f7e9;color:#159447}
-.dr-money{display:grid;grid-template-columns:repeat(4,1fr);gap:.9rem;margin-top:.2rem}
+.dr-money{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem;margin-top:.2rem}
+@media(max-width:1100px){.dr-money{grid-template-columns:repeat(3,1fr)}}
 .dr-m{padding:1rem;border-radius:14px;text-align:center}
 .dr-m span{display:block;font-size:.66rem;font-weight:800;text-transform:uppercase;opacity:.85}
 .dr-m strong{display:block;margin-top:.25rem;font-size:1.55rem;font-weight:850}
@@ -87,6 +88,7 @@
         <div class="dr-money">
             <div class="dr-m dr-m1"><span>Requested</span><strong>{{ number_format($estimated,2) }}</strong></div>
             <div class="dr-m dr-m2"><span>Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
+            <div class="dr-m dr-m3"><span>Total Outstanding</span><strong>{{ number_format($outstanding,2) }}</strong></div>
             <div class="dr-m dr-m3"><span>Account Outstanding</span><strong>{{ number_format($dr->accountOutstanding(),2) }}</strong></div>
             <div class="dr-m dr-m3"><span>Company Outstanding</span><strong>{{ number_format($dr->companyOutstanding(),2) }}</strong></div>
         </div>
