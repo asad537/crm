@@ -109,7 +109,7 @@
             <th>Item / Material Description</th>
             <th style="width:16%">Specification</th>
             <th class="c" style="width:8%">Qty</th>
-            <th class="r" style="width:11%">Est. Price</th>
+            <th class="r" style="width:11%">Unit Price</th>
             <th class="r" style="width:12%">Total</th>
         </tr></thead>
         <tbody>
@@ -141,6 +141,7 @@
             <td class="m3"><div class="lbl">Outstanding</div><div class="val">{{ number_format($outstanding,2) }}</div></td>
         </tr>
     </table>
+    <div style="margin-top:6px;font-size:9px;color:#4a5568">By Account (to reconcile): <b>{{ number_format($dr->accountTotal(),2) }}</b> &nbsp;&middot;&nbsp; Direct by Company: <b>{{ number_format($dr->directTotal(),2) }}</b></div>
 
     {{-- Payment history --}}
     @if($dr->payments->count())
@@ -151,7 +152,7 @@
             <tr>
                 <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
                 <td class="r" style="color:#15803d;font-weight:bold">{{ number_format($pmt->amount,2) }}</td>
-                <td>{{ $pmt->method ?: '—' }}</td>
+                <td>{{ ($pmt->pay_type ?? 'Account')==='Direct' ? 'Direct' : 'Account' }}{{ $pmt->method ? ' / '.$pmt->method : '' }}</td>
                 <td>@if($pmt->item_id)<span class="tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 22) }}</span>@else<span class="tag tag-gen">General</span>@endif</td>
                 <td>{{ $pmt->paid_to ?: '—' }}</td>
                 <td>{{ $pmt->note ?: '—' }}</td>

@@ -32,7 +32,7 @@ class DemandRequestController extends Controller
     {
         $this->authorizeAccess();
 
-        $query = DemandRequest::with('creator')->withSum('payments as paid_sum', 'amount')->orderBy('request_date', 'desc')->orderBy('id', 'desc');
+        $query = DemandRequest::with(['creator', 'items', 'payments'])->orderBy('request_date', 'desc')->orderBy('id', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -53,14 +53,13 @@ class DemandRequestController extends Controller
 
         $requests = $query->paginate(20)->appends($request->all());
 
-        $summaryBase = DemandRequest::query();
-        $estimated = (float) (clone $summaryBase)->sum('estimated_total');
-        $paid = (float) \App\DemandRequestPayment::whereHas('request')->sum('amount');
+        $all = DemandRequest::with(['items', 'payments'])->get();
         $summary = [
-            'total' => (clone $summaryBase)->count(),
-            'estimated' => $estimated,
-            'paid' => $paid,
-            'outstanding' => round($estimated - $paid, 2),
+            'total' => $all->count(),
+            'estimated' => (float) $all->sum('estimated_total'),
+            'paid' => (float) $all->sum(fn($d) => $d->paidTotal()),
+            'outstanding' => round((float) $all->sum(fn($d) => $d->outstandingTotal()), 2),
+            'balance' => round((float) $all->sum(fn($d) => $d->paidTotal() + $d->writeOffTotal() - (float) $d->estimated_total), 2),
         ];
 
         return view('crm.demand_requests.index', [
@@ -215,6 +214,7 @@ class DemandRequestController extends Controller
             'note' => 'nullable|string|max:255',
             'paid_at' => 'nullable|date',
             'item_id' => 'nullable|integer',
+            'pay_type' => 'nullable|in:Account,Direct',
             'proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
         ]);
         $itemId = null;
@@ -235,6 +235,7 @@ class DemandRequestController extends Controller
         }
         $dr->payments()->create(array_merge([
             'item_id' => $itemId,
+            'pay_type' => $data['pay_type'] ?? 'Account',
             'amount' => round((float) $data['amount'], 2),
             'method' => $data['method'] ?? null,
             'paid_to' => $data['paid_to'] ?? null,
@@ -266,18 +267,18 @@ class DemandRequestController extends Controller
     /** Status follows the money: paid 0 -> Approved, partial -> Partially Paid, full -> Completed. */
     private function recomputeStatus(DemandRequest $dr): void
     {
-        $dr->load('payments');
+        $dr->load(['payments', 'items']);
         $paid = $dr->paidTotal();
-        $target = (float) $dr->estimated_total;
         if ($dr->force_completed) {
             $dr->update(['actual_total' => $paid, 'status' => 'Completed']);
             return;
         }
+        $outstanding = $dr->outstandingTotal();
         $status = $dr->status;
         if (in_array($status, ['Approved', 'Partially Paid', 'Completed'], true)) {
             if ($paid <= 0) {
                 $status = 'Approved';
-            } elseif ($target > 0 && $paid + 0.009 >= $target) {
+            } elseif ($outstanding <= 0.009) {
                 $status = 'Completed';
             } else {
                 $status = 'Partially Paid';
@@ -356,7 +357,8 @@ class DemandRequestController extends Controller
     {
         $this->authorizeAccess();
         $dr = DemandRequest::findOrFail($id);
-        $dr->update(['force_completed' => false]);
+        // Reopen: clear the manual-complete flag and drop to Approved so payments can resume.
+        $dr->update(['force_completed' => false, 'status' => 'Approved']);
         $this->recomputeStatus($dr);
 
         return back()->with('status', 'Demand Request #' . $dr->request_no . ' reopened.');

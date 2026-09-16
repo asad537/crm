@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class DemandRequestPayment extends Model
 {
     protected $fillable = [
-        'demand_request_id', 'item_id', 'amount', 'method', 'paid_to', 'note', 'paid_at', 'created_by',
+        'demand_request_id', 'item_id', 'pay_type', 'amount', 'method', 'paid_to', 'note', 'paid_at', 'created_by',
         'attachment_path', 'attachment_name', 'attachment_mime',
     ];
 

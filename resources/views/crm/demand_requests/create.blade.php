@@ -19,16 +19,22 @@
 .dr-control:focus{border-color:var(--primary-purple);box-shadow:0 0 0 3px var(--primary-shadow)}
 .dr-section{display:flex;align-items:center;gap:.5rem;margin:.4rem 0 .7rem;color:#8a99ae;font-size:.7rem;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
 .dr-section:after{content:'';flex:1;height:1px;background:#e8edf3}
-.dr-items{width:100%;border-collapse:separate;border-spacing:0}
-.dr-items th{padding:.5rem .5rem;text-align:left;color:#64748b;font-size:.66rem;font-weight:850;text-transform:uppercase;letter-spacing:.03em}
-.dr-items td{padding:.25rem .3rem;vertical-align:top}
-.dr-items .dr-control{min-height:38px;padding:.45rem .55rem;font-size:.8rem}
-.dr-sr{width:34px;text-align:center;color:#94a3b8;font-weight:800;padding-top:.6rem!important}
+.dr-items{width:100%;border-collapse:separate;border-spacing:0 .5rem}
+.dr-items th{padding:.2rem .55rem .5rem;text-align:left;color:#8a99ae;font-size:.63rem;font-weight:850;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #eef2f7}
+.dr-items tbody tr{background:#fbfcff;transition:.12s}
+.dr-items tbody tr:hover{background:#f4f2ff}
+.dr-items td{padding:.35rem .3rem;vertical-align:middle;border-top:1px solid #eef1f6;border-bottom:1px solid #eef1f6}
+.dr-items td:first-child{border-left:1px solid #eef1f6;border-radius:11px 0 0 11px}
+.dr-items td:nth-last-child(2){border-right:0}
+.dr-items td:last-child{border:0;background:transparent}
+.dr-items .dr-control{min-height:40px;padding:.5rem .6rem;font-size:.8rem}
+.dr-sr{width:40px;text-align:center;border-radius:11px 0 0 11px}
+.dr-srno{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--primary-soft);color:var(--primary-purple);font-weight:850;font-size:.74rem}
 .dr-rm{width:36px;height:36px;border:0;border-radius:9px;background:#fff1f2;color:#e11d48;cursor:pointer;margin-top:.15rem}
 .dr-total-input{background:#f5f3ff;color:var(--primary-purple);font-weight:800}
 .dr-add{margin:.8rem 0 0}
-.dr-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.2rem;padding-top:1rem;border-top:1px solid #eef2f7}
-.dr-grand{font-size:.8rem;color:#64748b}
+.dr-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.3rem;padding:1rem 1.1rem;border-radius:14px;background:linear-gradient(135deg,var(--primary-soft),#fff 75%);border:1px solid #ece9ff}
+.dr-grand{font-size:.74rem;color:#8a8099;font-weight:800;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:baseline;gap:.6rem}
 .dr-grand strong{font-size:1.5rem;color:var(--primary-purple);margin-left:.5rem}
 .dr-actions{display:flex;gap:.6rem}
 .dr-errors{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem}
@@ -40,7 +46,7 @@
         <div class="dr-errors"><strong>Please check the form:</strong><ul style="margin:.4rem 0 0 1rem">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     @endif
 
-    <form class="dr-card" method="POST" action="{{ $isEdit ? route('crm.demand_requests.update', $demandRequest->id) : route('crm.demand_requests.store') }}">
+    <form class="dr-card" autocomplete="off" method="POST" action="{{ $isEdit ? route('crm.demand_requests.update', $demandRequest->id) : route('crm.demand_requests.store') }}">
         {{ csrf_field() }}
         @if($isEdit) {{ method_field('PUT') }} @endif
 
@@ -79,19 +85,19 @@
                 <th style="min-width:200px">Item / Material Description</th>
                 <th style="min-width:140px">Specification</th>
                 <th style="min-width:90px">Qty</th>
-                <th style="min-width:110px">Est. Price</th>
+                <th style="min-width:110px">Per Unit Price</th>
                 <th style="min-width:120px">Total</th>
                 <th style="width:40px"></th>
             </tr></thead>
             <tbody>
             @foreach($items as $i => $it)
                 <tr class="dr-row">
-                    <td class="dr-sr dr-srno">{{ $i + 1 }}</td>
+                    <td class="dr-sr"><span class="dr-srno">{{ $i + 1 }}</span></td>
                     <td><input class="dr-control" list="drCats" name="items[{{ $i }}][category]" value="{{ $it['category'] ?? '' }}"></td>
-                    <td><input class="dr-control" name="items[{{ $i }}][job_no]" value="{{ $it['job_no'] ?? '' }}" placeholder="If against job"></td>
-                    <td><input class="dr-control" name="items[{{ $i }}][description]" value="{{ $it['description'] ?? '' }}"></td>
-                    <td><input class="dr-control" name="items[{{ $i }}][specification]" value="{{ $it['specification'] ?? '' }}"></td>
-                    <td><input class="dr-control dr-qty" name="items[{{ $i }}][qty]" value="{{ $it['qty'] ?? '' }}" oninput="drCalcRow(this)"></td>
+                    <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][job_no]" value="{{ $it['job_no'] ?? '' }}" placeholder="If against job"></td>
+                    <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][description]" value="{{ $it['description'] ?? '' }}"></td>
+                    <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][specification]" value="{{ $it['specification'] ?? '' }}"></td>
+                    <td><input class="dr-control dr-qty" autocomplete="off" name="items[{{ $i }}][qty]" value="{{ $it['qty'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-price" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_price]" value="{{ $it['estimated_price'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-total dr-total-input" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_total]" value="{{ $it['estimated_total'] ?? '' }}" oninput="drCalcGrand()"></td>
                     <td><button class="dr-rm" type="button" onclick="drRemoveRow(this)" title="Remove"><i class="fas fa-trash"></i></button></td>

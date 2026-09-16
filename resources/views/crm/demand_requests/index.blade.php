@@ -41,7 +41,8 @@
         <div class="dr-card"><span>Total Requests</span><strong>{{ number_format($summary['total']) }}</strong></div>
         <div class="dr-card"><span>Estimated Value</span><strong>{{ number_format($summary['estimated'], 2) }}</strong></div>
         <div class="dr-card"><span>Total Paid</span><strong style="color:#159447">{{ number_format($summary['paid'], 2) }}</strong></div>
-        <div class="dr-card"><span>Outstanding</span><strong style="color:{{ $summary['outstanding']>0?'#e11d48':'#159447' }}">{{ number_format($summary['outstanding'], 2) }}</strong></div>
+        @php($__sb = $summary['balance'] ?? 0)
+        <div class="dr-card"><span>Balance (Paid &minus; Requested)</span><strong style="color:{{ $__sb < -0.009 ? '#e11d48' : '#159447' }}">@if($__sb < -0.009)&minus; {{ number_format(abs($__sb),2) }}@elseif($__sb > 0.009)+ {{ number_format($__sb,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
     </div>
 
     <div class="dr-panel">
@@ -75,14 +76,14 @@
                     <td>{{ optional($dr->request_date)->format('d M Y') }}</td>
                     <td>{{ $dr->requested_by ?: ($dr->creator->name ?? '—') }}</td>
                     <td><span class="dr-badge dr-pri-{{ $dr->priority }}">{{ $dr->priority }}</span></td>
-                    <td>{{ $dr->items()->count() }}</td>
+                    <td>{{ $dr->items->count() }}</td>
                     <td class="dr-num2"><strong>{{ number_format($dr->estimated_total, 2) }}</strong></td>
-                    <td class="dr-num2" style="color:#159447;font-weight:750">{{ number_format((float)($dr->paid_sum ?? 0), 2) }}</td>
-                    @php($__bal = round((float)($dr->paid_sum ?? 0) - (float)$dr->estimated_total, 2))
+                    <td class="dr-num2" style="color:#159447;font-weight:750">{{ number_format($dr->paidTotal(), 2) }}</td>
+                    @php($__bal = round($dr->paidTotal() + $dr->writeOffTotal() - (float)$dr->estimated_total, 2))
                     <td class="dr-num2">
-                        @if($__bal < 0)<span style="color:#e11d48;font-weight:850">&minus; {{ number_format(abs($__bal),2) }}</span>
-                        @elseif($__bal > 0)<span style="color:#159447;font-weight:850">+ {{ number_format($__bal,2) }}</span>
-                        @else<span style="color:#159447;font-weight:850">0.00</span>@endif
+                        @if($__bal < -0.009)<span style="color:#e11d48;font-weight:850" title="Short / still to pay">&minus; {{ number_format(abs($__bal),2) }}</span>
+                        @elseif($__bal > 0.009)<span style="color:#159447;font-weight:850" title="Overpaid">+ {{ number_format($__bal,2) }}</span>
+                        @else<span style="color:#159447;font-weight:850" title="Fully settled">&#10004;</span>@endif
                     </td>
                     <td><span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span></td>
                     <td>

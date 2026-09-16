@@ -68,15 +68,46 @@ class DemandRequest extends Model
         return (float) $this->payments->sum('amount');
     }
 
-    /** Requested/estimated amount still not paid. */
+    /** True if an item has been paid directly by the company (closes it — gap written off). */
+    public function itemHasDirect($itemId): bool
+    {
+        return $this->payments->where('item_id', $itemId)->where('pay_type', 'Direct')->count() > 0;
+    }
+
+    /** Estimate gap written off because the company paid those items directly. */
+    public function writeOffTotal(): float
+    {
+        $total = 0;
+        foreach ($this->items as $it) {
+            if ($this->itemHasDirect($it->id)) {
+                $total += max(0, (float) $it->estimated_total - $this->paidForItem($it->id));
+            }
+        }
+
+        return round($total, 2);
+    }
+
+    /** Requested amount still not covered — direct-settled items are treated as closed. */
     public function outstandingTotal(): float
     {
-        return max(0, round((float) $this->estimated_total - $this->paidTotal(), 2));
+        return max(0, round((float) $this->estimated_total - $this->paidTotal() - $this->writeOffTotal(), 2));
     }
 
     /** How much has been paid against one specific item (payments tagged to it). */
     public function paidForItem($itemId): float
     {
         return (float) $this->payments->where('item_id', $itemId)->sum('amount');
+    }
+
+    /** Money that went through a company account and needs reconciliation. */
+    public function accountTotal(): float
+    {
+        return (float) $this->payments->where('pay_type', '!=', 'Direct')->sum('amount');
+    }
+
+    /** Money the company paid directly (no reconciliation needed). */
+    public function directTotal(): float
+    {
+        return (float) $this->payments->where('pay_type', 'Direct')->sum('amount');
     }
 }
