@@ -90,7 +90,6 @@
                 <th style="min-width:140px">Specification</th>
                 <th style="min-width:130px">Vendor Name <span style="color:#94a3b8;font-weight:600">(opt)</span></th>
                 <th style="min-width:90px">Qty</th>
-                <th style="min-width:80px">GSM <span style="color:#94a3b8;font-weight:600">(opt)</span></th>
                 <th style="min-width:110px">Per Unit Price</th>
                 <th style="min-width:120px">Total</th>
                 <th style="width:40px"></th>
@@ -111,7 +110,6 @@
                     <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][specification]" value="{{ $it['specification'] ?? '' }}"></td>
                     <td><input class="dr-control" list="drVendorNames" autocomplete="off" name="items[{{ $i }}][vendor_name]" value="{{ $it['vendor_name'] ?? '' }}" placeholder="Vendor"></td>
                     <td><input class="dr-control dr-qty" autocomplete="off" name="items[{{ $i }}][qty]" value="{{ $it['qty'] ?? '' }}" oninput="drCalcRow(this)"></td>
-                    <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][gsm]" value="{{ $it['gsm'] ?? '' }}" placeholder="e.g. 350"></td>
                     <td><input class="dr-control dr-price" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_price]" value="{{ $it['estimated_price'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-total dr-total-input" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_total]" value="{{ $it['estimated_total'] ?? '' }}" oninput="drCalcGrand()"></td>
                     <td><button class="dr-rm" type="button" onclick="drRemoveRow(this)" title="Remove"><i class="fas fa-trash"></i></button></td>
