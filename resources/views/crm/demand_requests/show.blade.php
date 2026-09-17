@@ -138,6 +138,7 @@
             {{ csrf_field() }}
             <datalist id="drPayers">@foreach($payers as $p)<option value="{{ $p }}">@endforeach<option value="Direct Payment"></datalist>
             <datalist id="drVendors">@foreach($vendors as $v)<option value="{{ $v }}">@endforeach</datalist>
+            <datalist id="drCatsPay">@foreach(($categories ?? []) as $c)<option value="{{ $c }}">@endforeach</datalist>
             <div class="dr-table-wrap">
             <table class="dr-table dr-pay-table">
                 <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
@@ -174,11 +175,12 @@
             var no = document.getElementById('drNoOpen'); if (no) no.remove();
             var tb = document.querySelector('table.dr-pay-table tbody');
             var i = drNewIdx++;
-            var opts = '<option value="">General / Advance</option>';
+            var opts = '<option value="">— Against (item) —</option>';
             for (var k=0;k<drItems.length;k++){ opts += '<option value="'+drItems[k].id+'">'+drItems[k].label+'</option>'; }
             var tr = document.createElement('tr');
             tr.innerHTML =
-                '<td><select class="dr-control" name="rows['+i+'][item_id]">'+opts+'</select>'+
+                '<td><input class="dr-control" list="drCatsPay" name="rows['+i+'][category]" placeholder="Category (type or pick)" style="margin-bottom:.25rem">'+
+                '<select class="dr-control" name="rows['+i+'][item_id]">'+opts+'</select>'+
                 '<button type="button" class="dr-btn dr-btn-light" onclick="this.closest(\'tr\').remove()" style="margin-top:.25rem;padding:.2rem .5rem;min-height:0;font-size:.66rem;color:#e11d48;background:#fff1f2"><i class="fas fa-trash"></i> Remove</button></td>'+
                 '<td><input class="dr-control" type="number" step="0.01" min="0" name="rows['+i+'][amount]" placeholder="0.00"></td>'+
                 '<td><select class="dr-control" name="rows['+i+'][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>'+
@@ -218,7 +220,10 @@
                     <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
                     <td class="dr-num"><strong style="color:#159447">{{ number_format($pmt->amount,2) }}</strong></td>
                     <td>@if(($pmt->pay_type ?? 'Account')==='Direct')<span style="background:#dcfce7;color:#15803d;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">DIRECT</span>@else<span style="background:#e0f2fe;color:#0369a1;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">ACCOUNT</span>@endif{{ $pmt->method ? ' · '.$pmt->method : '' }}</td>
-                    <td>@if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@else<span class="dr-tag dr-tag-gen">General</span>@endif</td>
+                    <td>
+                        @if($pmt->category)<span class="dr-tag" style="background:#eef2ff;color:#4338ca">{{ $pmt->category }}</span> @endif
+                        @if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@elseif(!$pmt->category)<span class="dr-tag dr-tag-gen">—</span>@endif
+                    </td>
                     <td>{{ $pmt->paid_to ?: '—' }}</td>
                     <td>{{ $pmt->note ?: '—' }}</td>
                     <td>@php($__proofs = $pmt->allProofs())@if(count($__proofs))<span style="display:inline-flex;gap:.35rem;flex-wrap:wrap">@foreach($__proofs as $__k => $__pf)<a href="{{ $__pf['url'] }}" target="_blank" title="{{ $__pf['name'] }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i>{{ count($__proofs)>1 ? ($__k+1) : '' }}</a>@endforeach</span>@else<span style="color:#cbd5e1">—</span>@endif</td>

@@ -209,6 +209,7 @@ class DemandRequestController extends Controller
             'payerSummary' => $this->payerSummary($dr),
             'payers' => self::PAYERS,
             'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
+            'categories' => self::CATEGORIES,
         ]);
     }
 
@@ -336,6 +337,7 @@ class DemandRequestController extends Controller
             }
             $payment = $dr->payments()->create([
                 'item_id' => $itemId,
+                'category' => trim((string) ($row['category'] ?? '')) ?: null,
                 'pay_type' => (($row['pay_type'] ?? 'Account') === 'Direct') ? 'Direct' : 'Account',
                 'amount' => $amount,
                 'method' => $row['method'] ?? null,
