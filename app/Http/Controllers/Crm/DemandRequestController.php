@@ -410,6 +410,7 @@ class DemandRequestController extends Controller
                 'amount' => $amount,
                 'method' => $row['method'] ?? null,
                 'paid_to' => $row['paid_to'] ?? null,
+                'vendor_invoice_no' => trim((string) ($row['vendor_invoice_no'] ?? '')) ?: null,
                 'note' => $row['note'] ?? null,
                 'paid_at' => now()->toDateString(),
                 'created_by' => \Auth::guard('crm')->id(),

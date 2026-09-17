@@ -144,7 +144,7 @@
             <datalist id="drCatsPay">@foreach(($categories ?? []) as $c)<option value="{{ $c }}">@endforeach</datalist>
             <div class="dr-table-wrap">
             <table class="dr-table dr-pay-table">
-                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
+                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:120px">Vendor Inv#</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
                 <tbody>
                 @php($__anyOpen = false)
                 @foreach($dr->items as $i => $it)
@@ -157,12 +157,13 @@
                         <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
                         <td><input class="dr-control" list="drVendors" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
+                        <td><input class="dr-control" name="rows[{{ $i }}][vendor_invoice_no]" placeholder="Invoice #"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][note]" placeholder="Optional"></td>
                         <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>
                     </tr>
                     @endif
                 @endforeach
-                @if(!$__anyOpen)<tr id="drNoOpen"><td colspan="7"><div class="dr-empty" style="padding:1rem;color:#159447;font-weight:700">All items settled ✔ — use “Add breakdown row” below to log any extra expense.</div></td></tr>@endif
+                @if(!$__anyOpen)<tr id="drNoOpen"><td colspan="8"><div class="dr-empty" style="padding:1rem;color:#159447;font-weight:700">All items settled ✔ — use “Add breakdown row” below to log any extra expense.</div></td></tr>@endif
                 </tbody>
             </table>
             </div>
@@ -189,6 +190,7 @@
                 '<td><select class="dr-control" name="rows['+i+'][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>'+
                 '<td><input class="dr-control" list="drPayers" name="rows['+i+'][method]" placeholder="Cash / Bank"></td>'+
                 '<td><input class="dr-control" list="drVendors" name="rows['+i+'][paid_to]" placeholder="Vendor / person"></td>'+
+                '<td><input class="dr-control" name="rows['+i+'][vendor_invoice_no]" placeholder="Invoice #"></td>'+
                 '<td><input class="dr-control" name="rows['+i+'][note]" placeholder="Optional"></td>'+
                 '<td><input class="dr-control" type="file" name="rows['+i+'][proofs][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>';
             tb.appendChild(tr);
@@ -227,7 +229,7 @@
                         @if($pmt->category)<span class="dr-tag" style="background:#eef2ff;color:#4338ca">{{ $pmt->category }}</span> @endif
                         @if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@elseif(!$pmt->category)<span class="dr-tag dr-tag-gen">—</span>@endif
                     </td>
-                    <td>{{ $pmt->paid_to ?: '—' }}</td>
+                    <td>{{ $pmt->paid_to ?: '—' }}@if($pmt->vendor_invoice_no)<div style="font-size:.68rem;color:#64748b">Inv# {{ $pmt->vendor_invoice_no }}</div>@endif</td>
                     <td>{{ $pmt->note ?: '—' }}</td>
                     <td>@php($__proofs = $pmt->allProofs())@if(count($__proofs))<span style="display:inline-flex;gap:.35rem;flex-wrap:wrap">@foreach($__proofs as $__k => $__pf)<a href="{{ $__pf['url'] }}" target="_blank" title="{{ $__pf['name'] }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i>{{ count($__proofs)>1 ? ($__k+1) : '' }}</a>@endforeach</span>@else<span style="color:#cbd5e1">—</span>@endif</td>
                     <td>
