@@ -204,6 +204,30 @@
             }
             return true;
         }
+        function drCompressInput(input){
+            if (!input.files || !input.files.length || typeof DataTransfer === 'undefined') return;
+            var files = Array.prototype.slice.call(input.files);
+            var dt = new DataTransfer(), done = 0;
+            var finish = function(){ if (++done === files.length){ try { input.files = dt.files; } catch(e){} } };
+            files.forEach(function(file){
+                if (!/^image\/(jpe?g|png|webp)$/i.test(file.type)){ dt.items.add(file); finish(); return; }
+                var img = new Image(), url = URL.createObjectURL(file);
+                img.onload = function(){
+                    var max = 1600, w = img.width, h = img.height;
+                    if (w > max || h > max){ if (w > h){ h = Math.round(h*max/w); w = max; } else { w = Math.round(w*max/h); h = max; } }
+                    var c = document.createElement('canvas'); c.width = w; c.height = h;
+                    c.getContext('2d').drawImage(img, 0, 0, w, h);
+                    c.toBlob(function(blob){
+                        URL.revokeObjectURL(url);
+                        if (blob && blob.size < file.size){ dt.items.add(new File([blob], file.name.replace(/\.(png|webp)$/i, '.jpg'), {type:'image/jpeg'})); }
+                        else { dt.items.add(file); }
+                        finish();
+                    }, 'image/jpeg', 0.7);
+                };
+                img.onerror = function(){ URL.revokeObjectURL(url); dt.items.add(file); finish(); };
+                img.src = url;
+            });
+        }
         document.addEventListener('change', function(e){
             var el = e.target;
             if (el && el.type === 'file' && el.dataset && el.dataset.max){
@@ -211,7 +235,9 @@
                 if (max > 0 && el.files.length > max){
                     alert('Maximum ' + max + ' files allowed here. Please select fewer.');
                     el.value = '';
+                    return;
                 }
+                drCompressInput(el);
             }
         });
         </script>
