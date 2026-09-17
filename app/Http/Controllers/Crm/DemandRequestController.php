@@ -96,6 +96,7 @@ class DemandRequestController extends Controller
             'priorities' => self::PRIORITIES,
             'defaultRequestedBy' => $demandRequest->requested_by,
             'demandRequest' => $demandRequest,
+            'canApprove' => $this->canApprove(),
             'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
             'items' => $demandRequest->items->map(function ($it) {
                 return [
@@ -242,6 +243,19 @@ class DemandRequestController extends Controller
             $demand->items()->whereIn('id', $removed)->delete();
         }
         $this->saveDemandAttachments($request, $demand);
+
+        // Edit + approve in one step: approver saves and approves from the edit form.
+        if ($request->input('action') === 'approve' && $this->canApprove() && in_array($demand->status, ['Submitted', 'Draft'], true)) {
+            $demand->update([
+                'status' => 'Approved',
+                'approved_by' => \Auth::guard('crm')->id(),
+                'approved_at' => now(),
+                'rejection_reason' => null,
+            ]);
+
+            return redirect()->route('crm.demand_requests.show', $demand->id)
+                ->with('status', 'Demand Request #' . $demand->request_no . ' updated & approved.');
+        }
 
         return redirect()->route('crm.demand_requests.index')
             ->with('status', 'Demand Request #' . $demand->request_no . ' updated.');

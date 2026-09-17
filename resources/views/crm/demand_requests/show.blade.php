@@ -291,7 +291,7 @@
             <a class="dr-btn dr-btn-outline" href="{{ route('crm.demand_requests.edit',$dr->id) }}"><i class="fas fa-pen"></i> Edit</a>
             <form method="POST" action="{{ route('crm.demand_requests.destroy',$dr->id) }}" style="display:inline" onsubmit="return confirm('Delete this demand request permanently?');">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="dr-btn dr-btn-red" type="submit"><i class="fas fa-trash"></i> Delete</button></form>
             @if($canApprove && $dr->status==='Submitted')
-                <form method="POST" action="{{ route('crm.demand_requests.approve',$dr->id) }}" style="display:inline">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-check"></i> Approve</button></form>
+                <a class="dr-btn dr-btn-green" href="{{ route('crm.demand_requests.edit',$dr->id) }}"><i class="fas fa-check"></i> Review &amp; Approve</a>
                 <button class="dr-btn dr-btn-red" type="button" onclick="document.getElementById('drReject').style.display='block'"><i class="fas fa-times"></i> Reject</button>
             @endif
             <a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.pdf',$dr->id) }}" target="_blank"><i class="fas fa-file-pdf"></i> Print PDF</a>

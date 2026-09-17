@@ -152,6 +152,9 @@
             <div class="dr-actions">
                 <button class="dr-btn dr-btn-light" type="submit" name="action" value="draft"><i class="fas fa-save"></i> Save as Draft</button>
                 <button class="dr-btn dr-btn-primary" type="submit" name="action" value="submit"><i class="fas fa-paper-plane"></i> {{ $isEdit ? 'Save' : 'Submit for Approval' }}</button>
+                @if($isEdit && !empty($canApprove) && in_array($demandRequest->status, ['Submitted','Draft']))
+                    <button class="dr-btn" type="submit" name="action" value="approve" style="background:#159447;color:#fff;box-shadow:0 8px 18px rgba(21,148,71,.3)"><i class="fas fa-check"></i> Save &amp; Approve</button>
+                @endif
             </div>
         </div>
     </form>
