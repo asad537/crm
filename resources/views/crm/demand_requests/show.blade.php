@@ -160,7 +160,7 @@
             <datalist id="drCatsPay">@foreach(($categories ?? []) as $c)<option value="{{ $c }}">@endforeach</datalist>
             <div class="dr-table-wrap">
             <table class="dr-table dr-pay-table">
-                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:120px">Vendor Inv#</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
+                <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Paid By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:120px">Vendor Inv#</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
                 <tbody>
                 @php($__anyOpen = false)
                 @foreach($dr->items as $i => $it)
@@ -170,7 +170,7 @@
                     <tr>
                         <td><div style="font-weight:700;color:#27364b">{{ $loop->iteration }}. {{ \Illuminate\Support\Str::limit($it->description ?: $it->category, 24) }}</div><div style="font-size:.67rem;color:#e11d48">{{ number_format($__rem,2) }} left</div><input type="hidden" name="rows[{{ $i }}][item_id]" value="{{ $it->id }}"></td>
                         <td><input class="dr-control" type="number" step="0.01" min="0" name="rows[{{ $i }}][amount]" placeholder="0.00"></td>
-                        <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>
+                        <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account">By Accountant</option><option value="Direct">Direct Company</option></select></td>
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
                         <td><input class="dr-control" list="drVendors" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][vendor_invoice_no]" placeholder="Invoice #"></td>
@@ -203,7 +203,7 @@
                 '<select class="dr-control" name="rows['+i+'][item_id]">'+opts+'</select>'+
                 '<button type="button" class="dr-btn dr-btn-light" onclick="this.closest(\'tr\').remove()" style="margin-top:.25rem;padding:.2rem .5rem;min-height:0;font-size:.66rem;color:#e11d48;background:#fff1f2"><i class="fas fa-trash"></i> Remove</button></td>'+
                 '<td><input class="dr-control" type="number" step="0.01" min="0" name="rows['+i+'][amount]" placeholder="0.00"></td>'+
-                '<td><select class="dr-control" name="rows['+i+'][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>'+
+                '<td><select class="dr-control" name="rows['+i+'][pay_type]"><option value="Account">By Accountant</option><option value="Direct">Direct Company</option></select></td>'+
                 '<td><input class="dr-control" list="drPayers" name="rows['+i+'][method]" placeholder="Cash / Bank"></td>'+
                 '<td><input class="dr-control" list="drVendors" name="rows['+i+'][paid_to]" placeholder="Vendor / person"></td>'+
                 '<td><input class="dr-control" name="rows['+i+'][vendor_invoice_no]" placeholder="Invoice #"></td>'+
