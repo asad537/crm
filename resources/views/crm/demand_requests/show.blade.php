@@ -156,7 +156,7 @@
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
                         <td><input class="dr-control" list="drVendors" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][note]" placeholder="Optional"></td>
-                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>
+                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>
                     </tr>
                     @endif
                 @endforeach
@@ -188,7 +188,7 @@
                 '<td><input class="dr-control" list="drPayers" name="rows['+i+'][method]" placeholder="Cash / Bank"></td>'+
                 '<td><input class="dr-control" list="drVendors" name="rows['+i+'][paid_to]" placeholder="Vendor / person"></td>'+
                 '<td><input class="dr-control" name="rows['+i+'][note]" placeholder="Optional"></td>'+
-                '<td><input class="dr-control" type="file" name="rows['+i+'][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>';
+                '<td><input class="dr-control" type="file" name="rows['+i+'][proofs][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>';
             tb.appendChild(tr);
         }
         function drCheckProof(form){
@@ -204,6 +204,16 @@
             }
             return true;
         }
+        document.addEventListener('change', function(e){
+            var el = e.target;
+            if (el && el.type === 'file' && el.dataset && el.dataset.max){
+                var max = parseInt(el.dataset.max, 10) || 0;
+                if (max > 0 && el.files.length > max){
+                    alert('Maximum ' + max + ' files allowed here. Please select fewer.');
+                    el.value = '';
+                }
+            }
+        });
         </script>
     </div>
     @endif
@@ -259,7 +269,7 @@
         <div class="dr-secttl"><i class="fas fa-paperclip"></i> Attachments</div>
         <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
             {{ csrf_field() }}
-            <input class="dr-control" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:360px">
+            <input class="dr-control" type="file" name="files[]" multiple data-max="10" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:360px">
             <button class="dr-btn dr-btn-outline dr-btn-sm" type="submit"><i class="fas fa-upload"></i> Upload</button>
             <span style="color:#94a3b8;font-size:.72rem">Quote / invoice / receipt — max 20 MB each</span>
         </form>

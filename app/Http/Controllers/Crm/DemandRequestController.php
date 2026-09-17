@@ -383,6 +383,14 @@ class DemandRequestController extends Controller
                 'proof' => 'At least one proof attachment is required for every payment you enter. Missing proof for: ' . implode(', ', $missing) . '.',
             ]);
         }
+        // Cap proof files per row.
+        foreach ($rows as $i => $row) {
+            if (count($filesFor($i)) > 5) {
+                return back()->withInput()->withErrors([
+                    'proof' => 'Maximum 5 proof files allowed per payment row.',
+                ]);
+            }
+        }
 
         $dir = public_path('uploads/demand-requests');
         $count = 0;
@@ -568,7 +576,7 @@ class DemandRequestController extends Controller
         $this->authorizeAccess();
         $dr = DemandRequest::findOrFail($id);
         $request->validate([
-            'files' => 'required|array',
+            'files' => 'required|array|max:10',
             'files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
         ]);
         $dir = public_path('uploads/demand-requests');
@@ -641,7 +649,7 @@ class DemandRequestController extends Controller
             'requested_by' => 'nullable|string|max:150',
             'priority' => 'nullable|in:Normal,Urgent',
             'vat_percentage' => 'nullable|numeric|min:0|max:100',
-            'files' => 'nullable|array',
+            'files' => 'nullable|array|max:10',
             'files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
             'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1',
@@ -656,7 +664,7 @@ class DemandRequestController extends Controller
             'items.*.vat_percentage' => 'nullable|numeric|min:0|max:100',
             'items.*.vendor_invoice_no' => 'nullable|string|max:120',
             'items.*.estimated_total' => 'nullable|numeric|min:0',
-            'items.*.files' => 'nullable|array',
+            'items.*.files' => 'nullable|array|max:5',
             'items.*.files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
         ]);
     }

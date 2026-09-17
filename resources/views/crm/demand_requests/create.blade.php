@@ -114,7 +114,7 @@
                     <td><input class="dr-control dr-vat" type="number" step="0.01" min="0" max="100" name="items[{{ $i }}][vat_percentage]" value="{{ $it['vat_percentage'] ?? '' }}" placeholder="0" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-total dr-total-input" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_total]" value="{{ $it['estimated_total'] ?? '' }}" oninput="drCalcGrand()"></td>
                     <td>
-                        <input class="dr-control dr-file" type="file" name="items[{{ $i }}][files][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.7rem">
+                        <input class="dr-control dr-file" type="file" name="items[{{ $i }}][files][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.7rem">
                         @if(!empty($it['files']) && count($it['files']))<div style="margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.25rem">@foreach($it['files'] as $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="font-size:.62rem;color:var(--primary-purple)"><i class="fas fa-paperclip"></i></a>@endforeach</div>@endif
                     </td>
                     <td><button class="dr-rm" type="button" onclick="drRemoveRow(this)" title="Remove"><i class="fas fa-trash"></i></button></td>
@@ -132,7 +132,8 @@
 
         <div class="dr-field" style="margin-top:1rem">
             <label><i class="fas fa-paperclip"></i> Attachments (optional)</label>
-            <input class="dr-control" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.5rem">
+            <input class="dr-control" type="file" name="files[]" multiple data-max="10" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.5rem">
+            <div class="dr-hint" style="font-size:.68rem;color:#94a3b8;margin-top:.25rem">Max 10 files · 20MB each</div>
             @if($isEdit && $demandRequest->attachments->count())
                 <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.4rem">
                     @foreach($demandRequest->attachments as $att)
@@ -214,5 +215,16 @@ function drRemoveRow(btn){
 }
 drRenumber();
 drCalcGrand();
+// Enforce max file count on any [data-max] file input (incl. cloned rows).
+document.addEventListener('change', function(e){
+    var el = e.target;
+    if (el && el.type === 'file' && el.dataset && el.dataset.max){
+        var max = parseInt(el.dataset.max, 10) || 0;
+        if (max > 0 && el.files.length > max){
+            alert('Maximum ' + max + ' files allowed here. Please select fewer.');
+            el.value = '';
+        }
+    }
+});
 </script>
 @endsection
