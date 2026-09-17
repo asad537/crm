@@ -10,7 +10,7 @@ class DemandRequestItem extends Model
         'demand_request_id', 'position', 'category', 'job_no', 'description', 'specification',
         'qty', 'gsm', 'estimated_price', 'vat_percentage', 'estimated_total',
         'received', 'received_at', 'actual_price', 'actual_total',
-        'paid_by', 'paid_amount', 'outstanding', 'vendor_name', 'extra',
+        'paid_by', 'paid_amount', 'outstanding', 'vendor_name', 'vendor_invoice_no', 'extra',
     ];
 
     protected $casts = [

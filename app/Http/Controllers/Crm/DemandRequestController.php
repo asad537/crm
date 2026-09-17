@@ -100,7 +100,7 @@ class DemandRequestController extends Controller
             'items' => $demandRequest->items->map(function ($it) {
                 return [
                     'category' => $it->category, 'job_no' => $it->job_no, 'description' => $it->description,
-                    'specification' => $it->specification, 'gsm' => $it->gsm, 'vendor_name' => $it->vendor_name,
+                    'specification' => $it->specification, 'gsm' => $it->gsm, 'vendor_name' => $it->vendor_name, 'vendor_invoice_no' => $it->vendor_invoice_no,
                     'qty' => $it->qty, 'estimated_price' => $it->estimated_price, 'vat_percentage' => $it->vat_percentage, 'estimated_total' => $it->estimated_total,
                     'files' => $it->files,
                 ];
@@ -140,33 +140,38 @@ class DemandRequestController extends Controller
     /** Save per-item uploaded files, matching each created item to its original row index. */
     private function saveItemFiles(Request $request, array $items, $created): void
     {
-        $dir = public_path('uploads/demand-requests');
         foreach ($created as $idx => $item) {
-            $key = $items[$idx]['__key'] ?? null;
-            if ($key === null) {
+            $this->saveOneItemFiles($request, $item, $items[$idx]['__key'] ?? null);
+        }
+    }
+
+    /** Store any newly-uploaded files for a single item row (keeps existing files intact). */
+    private function saveOneItemFiles(Request $request, $item, $key): void
+    {
+        if ($key === null) {
+            return;
+        }
+        $files = $request->file("items.$key.files");
+        if (!$files) {
+            return;
+        }
+        $dir = public_path('uploads/demand-requests');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        foreach ((array) $files as $file) {
+            if (!$file) {
                 continue;
             }
-            $files = $request->file("items.$key.files");
-            if (!$files) {
-                continue;
-            }
-            if (!is_dir($dir)) {
-                mkdir($dir, 0755, true);
-            }
-            foreach ((array) $files as $file) {
-                if (!$file) {
-                    continue;
-                }
-                $ext = strtolower($file->getClientOriginalExtension());
-                $fname = 'dri_' . uniqid('', true) . ($ext ? '.' . $ext : '');
-                $file->move($dir, $fname);
-                $item->files()->create([
-                    'path' => 'uploads/demand-requests/' . $fname,
-                    'name' => $file->getClientOriginalName(),
-                    'mime' => $file->getClientMimeType(),
-                    'size' => @filesize($dir . '/' . $fname) ?: null,
-                ]);
-            }
+            $ext = strtolower($file->getClientOriginalExtension());
+            $fname = 'dri_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+            $file->move($dir, $fname);
+            $item->files()->create([
+                'path' => 'uploads/demand-requests/' . $fname,
+                'name' => $file->getClientOriginalName(),
+                'mime' => $file->getClientMimeType(),
+                'size' => @filesize($dir . '/' . $fname) ?: null,
+            ]);
         }
     }
 
@@ -216,10 +221,26 @@ class DemandRequestController extends Controller
             'estimated_total' => collect($items)->sum('estimated_total'),
             'vat_percentage' => $validated['vat_percentage'] ?? 0,
         ]);
-        \App\DemandRequestItemFile::whereIn('item_id', $demand->items()->pluck('id'))->delete();
-        $demand->items()->delete();
-        $created = $demand->items()->createMany($items);
-        $this->saveItemFiles($request, $items, $created);
+        // Reconcile items in place (by position order) so existing per-item files survive edits.
+        $existing = $demand->items()->orderBy('position')->orderBy('id')->get()->values();
+        $keptIds = [];
+        foreach ($items as $idx => $data) {
+            $key = $data['__key'] ?? null;
+            $fields = \Illuminate\Support\Arr::except($data, '__key');
+            if (isset($existing[$idx])) {
+                $item = $existing[$idx];
+                $item->update($fields);
+            } else {
+                $item = $demand->items()->create($fields);
+            }
+            $keptIds[] = $item->id;
+            $this->saveOneItemFiles($request, $item, $key);
+        }
+        $removed = $existing->pluck('id')->diff($keptIds);
+        if ($removed->isNotEmpty()) {
+            \App\DemandRequestItemFile::whereIn('item_id', $removed)->delete();
+            $demand->items()->whereIn('id', $removed)->delete();
+        }
         $this->saveDemandAttachments($request, $demand);
 
         return redirect()->route('crm.demand_requests.index')
@@ -633,6 +654,7 @@ class DemandRequestController extends Controller
             'items.*.qty' => 'nullable|string|max:60',
             'items.*.estimated_price' => 'nullable|numeric|min:0',
             'items.*.vat_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.vendor_invoice_no' => 'nullable|string|max:120',
             'items.*.estimated_total' => 'nullable|numeric|min:0',
             'items.*.files' => 'nullable|array',
             'items.*.files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
@@ -645,7 +667,7 @@ class DemandRequestController extends Controller
         $pos = 1;
         foreach ($items as $__key => $item) {
             // skip fully-empty rows
-            $hasContent = collect(['category', 'job_no', 'description', 'specification', 'gsm', 'vendor_name', 'qty', 'estimated_price', 'vat_percentage', 'estimated_total'])
+            $hasContent = collect(['category', 'job_no', 'description', 'specification', 'gsm', 'vendor_name', 'vendor_invoice_no', 'qty', 'estimated_price', 'vat_percentage', 'estimated_total'])
                 ->contains(fn($k) => trim((string) ($item[$k] ?? '')) !== '');
             if (!$hasContent) {
                 continue;
@@ -667,6 +689,7 @@ class DemandRequestController extends Controller
                 'specification' => $item['specification'] ?? null,
                 'gsm' => $item['gsm'] ?? null,
                 'vendor_name' => $item['vendor_name'] ?? null,
+                'vendor_invoice_no' => $item['vendor_invoice_no'] ?? null,
                 'qty' => $item['qty'] ?? null,
                 'estimated_price' => $price,
                 'vat_percentage' => $vat,

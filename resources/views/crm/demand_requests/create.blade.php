@@ -39,7 +39,7 @@
 .dr-actions{display:flex;gap:.6rem}
 .dr-errors{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem}
 .dr-table-wrap{overflow-x:auto}
-@media(max-width:900px){.dr-head{grid-template-columns:repeat(2,1fr)}.dr-items{min-width:1200px}}
+@media(max-width:900px){.dr-head{grid-template-columns:repeat(2,1fr)}.dr-items{min-width:1340px}}
 </style>
 <div class="dr-wrap">
     @if($errors->any())
@@ -85,6 +85,7 @@
                 <th style="min-width:200px">Item / Material Description</th>
                 <th style="min-width:140px">Specification</th>
                 <th style="min-width:130px">Vendor Name <span style="color:#94a3b8;font-weight:600">(opt)</span></th>
+                <th style="min-width:130px">Vendor Invoice No <span style="color:#94a3b8;font-weight:600">(opt)</span></th>
                 <th style="min-width:90px">Qty</th>
                 <th style="min-width:110px">Per Unit Price</th>
                 <th style="min-width:80px">VAT %</th>
@@ -107,6 +108,7 @@
                     <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][description]" value="{{ $it['description'] ?? '' }}"></td>
                     <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][specification]" value="{{ $it['specification'] ?? '' }}"></td>
                     <td><input class="dr-control" list="drVendorNames" autocomplete="off" name="items[{{ $i }}][vendor_name]" value="{{ $it['vendor_name'] ?? '' }}" placeholder="Vendor"></td>
+                    <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][vendor_invoice_no]" value="{{ $it['vendor_invoice_no'] ?? '' }}" placeholder="Invoice #"></td>
                     <td><input class="dr-control dr-qty" autocomplete="off" name="items[{{ $i }}][qty]" value="{{ $it['qty'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-price" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_price]" value="{{ $it['estimated_price'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-vat" type="number" step="0.01" min="0" max="100" name="items[{{ $i }}][vat_percentage]" value="{{ $it['vat_percentage'] ?? '' }}" placeholder="0" oninput="drCalcRow(this)"></td>
