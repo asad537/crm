@@ -150,7 +150,7 @@
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][note]" placeholder="Optional"></td>
-                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proof]" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>
+                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"><div style="font-size:.6rem;color:#94a3b8;margin-top:.15rem">Ek ya zyada files</div></td>
                     </tr>
                     @endif
                 @endforeach
@@ -194,7 +194,7 @@
                     <td>@if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@else<span class="dr-tag dr-tag-gen">General</span>@endif</td>
                     <td>{{ $pmt->paid_to ?: '—' }}</td>
                     <td>{{ $pmt->note ?: '—' }}</td>
-                    <td>@if($pmt->attachment_path)<a href="{{ $pmt->attachment_url }}" target="_blank" title="{{ $pmt->attachment_name }}" style="color:var(--primary-purple)"><i class="fas fa-paperclip"></i></a>@else<span style="color:#cbd5e1">—</span>@endif</td>
+                    <td>@php($__proofs = $pmt->allProofs())@if(count($__proofs))<span style="display:inline-flex;gap:.35rem;flex-wrap:wrap">@foreach($__proofs as $__k => $__pf)<a href="{{ $__pf['url'] }}" target="_blank" title="{{ $__pf['name'] }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i>{{ count($__proofs)>1 ? ($__k+1) : '' }}</a>@endforeach</span>@else<span style="color:#cbd5e1">—</span>@endif</td>
                     <td>
                         <form method="POST" action="{{ route('crm.demand_requests.delete_payment',[$dr->id,$pmt->id]) }}" onsubmit="return confirm('Remove this payment?');">
                             {{ csrf_field() }} {{ method_field('DELETE') }}

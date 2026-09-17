@@ -30,4 +30,27 @@ class DemandRequestPayment extends Model
     {
         return $this->belongsTo(DemandRequestItem::class, 'item_id');
     }
+
+    public function files()
+    {
+        return $this->hasMany(DemandRequestPaymentFile::class, 'payment_id');
+    }
+
+    /** All proof files: the new multi-file rows, plus any legacy single attachment. */
+    public function allProofs(): array
+    {
+        $out = [];
+        foreach ($this->files as $f) {
+            $out[] = ['url' => $f->url, 'name' => $f->name ?: 'file', 'is_image' => $f->is_image];
+        }
+        if ($this->attachment_path) {
+            $out[] = [
+                'url' => asset(ltrim($this->attachment_path, '/')),
+                'name' => $this->attachment_name ?: 'file',
+                'is_image' => (bool) preg_match('/\.(jpe?g|png|webp|gif)$/i', $this->attachment_path),
+            ];
+        }
+
+        return $out;
+    }
 }

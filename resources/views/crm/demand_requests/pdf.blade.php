@@ -30,6 +30,8 @@
     /* Header band */
     .head { width: 100%; border-collapse: collapse; border-radius: 10px; overflow: hidden; }
     .head td { vertical-align: middle; }
+    .logo { background: #fff; width: 108px; padding: 10px 14px; text-align: center; border: 1px solid #e4e8ef; border-right: 0; }
+    .logo img { width: 84px; height: auto; }
     .brand { background: #14213d; padding: 16px 20px; }
     .brand .t { color: #fff; font-size: 20px; font-weight: bold; letter-spacing: 1.5px; }
     .brand .c2 { color: #aeb9d0; font-size: 9.5px; margin-top: 3px; }
@@ -85,6 +87,7 @@
     {{-- Header --}}
     <table class="head">
         <tr>
+            @if($company['logo_path'])<td class="logo"><img src="{{ $company['logo_path'] }}"></td>@endif
             <td class="brand">
                 <div class="t">DEMAND REQUEST</div>
                 <div class="c2">{{ $company['name'] }}</div>

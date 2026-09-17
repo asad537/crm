@@ -166,7 +166,7 @@ class DemandRequestController extends Controller
     public function show($id)
     {
         $this->authorizeAccess();
-        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments', 'attachments'])->findOrFail($id);
+        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments.files', 'attachments'])->findOrFail($id);
 
         return view('crm.demand_requests.show', [
             'dr' => $dr,
@@ -257,16 +257,34 @@ class DemandRequestController extends Controller
         }
         $rows = (array) $request->input('rows', []);
 
-        // Proof attachment is mandatory for every row that carries an amount.
+        // Collect one-or-more proof files per row (new multi-file `proofs[]` + legacy `proof`).
+        $filesFor = function ($i) use ($request) {
+            $out = [];
+            $multi = $request->file("rows.$i.proofs");
+            if ($multi) {
+                foreach ((array) $multi as $f) {
+                    if ($f) {
+                        $out[] = $f;
+                    }
+                }
+            }
+            if ($single = $request->file("rows.$i.proof")) {
+                $out[] = $single;
+            }
+
+            return $out;
+        };
+
+        // At least one proof attachment is mandatory for every row that carries an amount.
         $missing = [];
         foreach ($rows as $i => $row) {
-            if (round((float) ($row['amount'] ?? 0), 2) > 0 && !$request->file("rows.$i.proof")) {
+            if (round((float) ($row['amount'] ?? 0), 2) > 0 && empty($filesFor($i))) {
                 $missing[] = trim(($row['note'] ?? '') !== '' ? $row['note'] : 'row #' . ((int) $i + 1));
             }
         }
         if (!empty($missing)) {
             return back()->withInput()->withErrors([
-                'proof' => 'Proof attachment is required for every payment you enter. Missing proof for: ' . implode(', ', $missing) . '.',
+                'proof' => 'At least one proof attachment is required for every payment you enter. Missing proof for: ' . implode(', ', $missing) . '.',
             ]);
         }
 
@@ -281,18 +299,7 @@ class DemandRequestController extends Controller
             if (!empty($row['item_id']) && $dr->items->firstWhere('id', (int) $row['item_id'])) {
                 $itemId = (int) $row['item_id'];
             }
-            $proof = ['attachment_path' => null, 'attachment_name' => null, 'attachment_mime' => null];
-            $file = $request->file("rows.$i.proof");
-            if ($file) {
-                if (!is_dir($dir)) {
-                    mkdir($dir, 0755, true);
-                }
-                $ext = strtolower($file->getClientOriginalExtension());
-                $fname = 'drp_' . uniqid('', true) . ($ext ? '.' . $ext : '');
-                $proof = ['attachment_path' => 'uploads/demand-requests/' . $fname, 'attachment_name' => $file->getClientOriginalName(), 'attachment_mime' => $file->getClientMimeType()];
-                $file->move($dir, $fname);
-            }
-            $dr->payments()->create(array_merge([
+            $payment = $dr->payments()->create([
                 'item_id' => $itemId,
                 'pay_type' => (($row['pay_type'] ?? 'Account') === 'Direct') ? 'Direct' : 'Account',
                 'amount' => $amount,
@@ -301,7 +308,21 @@ class DemandRequestController extends Controller
                 'note' => $row['note'] ?? null,
                 'paid_at' => now()->toDateString(),
                 'created_by' => \Auth::guard('crm')->id(),
-            ], $proof));
+            ]);
+            foreach ($filesFor($i) as $file) {
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                $ext = strtolower($file->getClientOriginalExtension());
+                $fname = 'drp_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+                $file->move($dir, $fname);
+                $payment->files()->create([
+                    'path' => 'uploads/demand-requests/' . $fname,
+                    'name' => $file->getClientOriginalName(),
+                    'mime' => $file->getClientMimeType(),
+                    'size' => @filesize($dir . '/' . $fname) ?: null,
+                ]);
+            }
             $count++;
         }
         $this->recomputeStatus($dr);
@@ -313,10 +334,16 @@ class DemandRequestController extends Controller
     {
         $this->authorizeAccess();
         $dr = DemandRequest::findOrFail($id);
-        $pmt = $dr->payments()->where('id', $paymentId)->first();
+        $pmt = $dr->payments()->with('files')->where('id', $paymentId)->first();
         if ($pmt) {
             if ($pmt->attachment_path && is_file(public_path($pmt->attachment_path))) {
                 @unlink(public_path($pmt->attachment_path));
+            }
+            foreach ($pmt->files as $f) {
+                if ($f->path && is_file(public_path($f->path))) {
+                    @unlink(public_path($f->path));
+                }
+                $f->delete();
             }
             $pmt->delete();
         }
@@ -351,7 +378,7 @@ class DemandRequestController extends Controller
     public function pdf($id)
     {
         $this->authorizeAccess();
-        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments'])->findOrFail($id);
+        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments.files'])->findOrFail($id);
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.demand_requests.pdf', [
             'dr' => $dr,
             'company' => $this->companyInfo(),
@@ -380,8 +407,8 @@ class DemandRequestController extends Controller
     {
         $wsId = CrmWorkspaceContext::id();
         $map = [
-            1 => ['name' => 'The Custom Boxes (TCB)', 'address' => '', 'logo' => 'tcb-crm-logo.png'],
-            2 => ['name' => 'ALMASSA AL MALAKIYA BOXES & PACKAGING IND. LLC', 'address' => 'Shed 4, Al Diyar Building 33, Fourth Industrial St, Industrial Area 12, Sharjah UAE  |  Contact: +971 56 682 0097', 'logo' => null],
+            1 => ['name' => 'The Custom Boxes (TCB)', 'address' => '', 'logo' => 'my-box-printing-logo-pdf.jpg'],
+            2 => ['name' => 'ALMASSA AL MALAKIYA BOXES & PACKAGING IND. LLC', 'address' => 'Shed 4, Al Diyar Building 33, Fourth Industrial St, Industrial Area 12, Sharjah UAE  |  Contact: +971 56 682 0097', 'logo' => 'al-massa-packaging-logo-pdf.jpg'],
         ];
         $info = $map[$wsId] ?? ['name' => 'Company', 'address' => '', 'logo' => null];
         $info['logo_path'] = ($info['logo'] && file_exists(public_path($info['logo']))) ? public_path($info['logo']) : null;
