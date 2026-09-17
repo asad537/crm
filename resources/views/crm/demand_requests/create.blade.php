@@ -75,7 +75,6 @@
         </div>
 
         <div class="dr-section"><i class="fas fa-list-ul"></i> Items / Materials</div>
-        <datalist id="drCats">@foreach($categories as $c)<option value="{{ $c }}">@endforeach</datalist>
         <div class="dr-table-wrap">
         <table class="dr-items" id="drItems">
             <thead><tr>
@@ -93,7 +92,13 @@
             @foreach($items as $i => $it)
                 <tr class="dr-row">
                     <td class="dr-sr"><span class="dr-srno">{{ $i + 1 }}</span></td>
-                    <td><input class="dr-control" list="drCats" name="items[{{ $i }}][category]" value="{{ $it['category'] ?? '' }}"></td>
+                    <td>
+                        <select class="dr-control dr-cat" name="items[{{ $i }}][category]">
+                            <option value="">— Select —</option>
+                            @foreach($categories as $c)<option value="{{ $c }}" {{ ($it['category'] ?? '')===$c ? 'selected' : '' }}>{{ $c }}</option>@endforeach
+                            @if(!empty($it['category']) && !in_array($it['category'], $categories))<option value="{{ $it['category'] }}" selected>{{ $it['category'] }}</option>@endif
+                        </select>
+                    </td>
                     <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][job_no]" value="{{ $it['job_no'] ?? '' }}" placeholder="If against job"></td>
                     <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][description]" value="{{ $it['description'] ?? '' }}"></td>
                     <td><input class="dr-control" autocomplete="off" name="items[{{ $i }}][specification]" value="{{ $it['specification'] ?? '' }}"></td>
@@ -151,8 +156,9 @@ function drAddRow(){
     var body = document.querySelector('#drItems tbody');
     var first = body.querySelector('.dr-row');
     var row = first.cloneNode(true);
-    row.querySelectorAll('input, textarea').forEach(function(inp){
+    row.querySelectorAll('input, textarea, select').forEach(function(inp){
         inp.value = '';
+        if (inp.tagName === 'SELECT') { inp.selectedIndex = 0; }
         inp.name = inp.name.replace(/items\[\d+\]/, 'items[' + drIndex + ']');
     });
     body.appendChild(row);

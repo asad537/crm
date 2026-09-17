@@ -134,6 +134,7 @@
         <form method="POST" action="{{ route('crm.demand_requests.add_payments',$dr->id) }}" enctype="multipart/form-data" onsubmit="return drCheckProof(this)">
             {{ csrf_field() }}
             <datalist id="drPayers">@foreach($payers as $p)<option value="{{ $p }}">@endforeach<option value="Direct Payment"></datalist>
+            <datalist id="drVendors">@foreach($vendors as $v)<option value="{{ $v }}">@endforeach</datalist>
             <div class="dr-table-wrap">
             <table class="dr-table dr-pay-table">
                 <thead><tr><th style="min-width:160px">Item</th><th style="min-width:100px">Amount</th><th style="min-width:130px">Pay By</th><th style="min-width:120px">Source</th><th style="min-width:120px">Paid To</th><th style="min-width:110px">Note</th><th style="min-width:120px">Proof <span style="color:#e11d48">*</span></th></tr></thead>
@@ -148,19 +149,43 @@
                         <td><input class="dr-control" type="number" step="0.01" min="0" name="rows[{{ $i }}][amount]" placeholder="0.00"></td>
                         <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
-                        <td><input class="dr-control" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
+                        <td><input class="dr-control" list="drVendors" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][note]" placeholder="Optional"></td>
                         <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"><div style="font-size:.6rem;color:#94a3b8;margin-top:.15rem">Ek ya zyada files</div></td>
                     </tr>
                     @endif
                 @endforeach
-                @if(!$__anyOpen)<tr><td colspan="7"><div class="dr-empty" style="padding:1.2rem;color:#159447;font-weight:700">All items settled ✔ — nothing left to pay.</div></td></tr>@endif
+                @if(!$__anyOpen)<tr id="drNoOpen"><td colspan="7"><div class="dr-empty" style="padding:1rem;color:#159447;font-weight:700">All items settled ✔ — use “Add breakdown row” below to log any extra expense.</div></td></tr>@endif
                 </tbody>
             </table>
+            </div>
+            <div style="margin-top:.7rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+                <button type="button" class="dr-btn dr-btn-light" onclick="drAddPayRow()" style="border:1px dashed #c7b8f5;color:var(--primary-purple);background:var(--primary-soft)"><i class="fas fa-plus"></i> Add breakdown row</button>
+                <span style="color:#94a3b8;font-size:.72rem">Ek expense ko todna ho (e.g. 2100 ke andar kai cheezein) to rows add karo</span>
             </div>
             <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button> <span style="color:#94a3b8;font-size:.74rem;margin-left:.5rem">Amount wali har row ka proof zaroori hai <span style="color:#e11d48">*</span></span></div>
         </form>
         <script>
+        var drItems = [@foreach($dr->items as $it){id:{{ $it->id }},label:"{{ addslashes($loop->iteration.'. '.\Illuminate\Support\Str::limit($it->description ?: $it->category, 24)) }}"},@endforeach];
+        var drNewIdx = 500000;
+        function drAddPayRow(){
+            var no = document.getElementById('drNoOpen'); if (no) no.remove();
+            var tb = document.querySelector('table.dr-pay-table tbody');
+            var i = drNewIdx++;
+            var opts = '<option value="">General / Advance</option>';
+            for (var k=0;k<drItems.length;k++){ opts += '<option value="'+drItems[k].id+'">'+drItems[k].label+'</option>'; }
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><select class="dr-control" name="rows['+i+'][item_id]">'+opts+'</select>'+
+                '<button type="button" class="dr-btn dr-btn-light" onclick="this.closest(\'tr\').remove()" style="margin-top:.25rem;padding:.2rem .5rem;min-height:0;font-size:.66rem;color:#e11d48;background:#fff1f2"><i class="fas fa-trash"></i> Remove</button></td>'+
+                '<td><input class="dr-control" type="number" step="0.01" min="0" name="rows['+i+'][amount]" placeholder="0.00"></td>'+
+                '<td><select class="dr-control" name="rows['+i+'][pay_type]"><option value="Account">By Account</option><option value="Direct">Direct (Company)</option></select></td>'+
+                '<td><input class="dr-control" list="drPayers" name="rows['+i+'][method]" placeholder="Cash / Bank"></td>'+
+                '<td><input class="dr-control" list="drVendors" name="rows['+i+'][paid_to]" placeholder="Vendor / person"></td>'+
+                '<td><input class="dr-control" name="rows['+i+'][note]" placeholder="Optional"></td>'+
+                '<td><input class="dr-control" type="file" name="rows['+i+'][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>';
+            tb.appendChild(tr);
+        }
         function drCheckProof(form){
             var rows = form.querySelectorAll('table.dr-pay-table tbody tr');
             for (var r=0; r<rows.length; r++){

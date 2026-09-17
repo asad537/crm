@@ -79,7 +79,7 @@ class DemandRequestController extends Controller
             'priorities' => self::PRIORITIES,
             'defaultRequestedBy' => $user ? $user->name : '',
             'demandRequest' => null,
-            'items' => [['category' => 'Consumable', 'qty' => '', 'estimated_price' => '', 'estimated_total' => '']],
+            'items' => [['category' => '', 'qty' => '', 'estimated_price' => '', 'estimated_total' => '']],
         ]);
     }
 
@@ -174,6 +174,7 @@ class DemandRequestController extends Controller
             'company' => $this->companyInfo(),
             'payerSummary' => $this->payerSummary($dr),
             'payers' => self::PAYERS,
+            'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
         ]);
     }
 
