@@ -239,7 +239,7 @@ class DemandRequestController extends Controller
     public function show($id)
     {
         $this->authorizeAccess();
-        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments.files', 'attachments'])->findOrFail($id);
+        $dr = DemandRequest::with(['items.files', 'creator', 'approver', 'payments.files', 'attachments'])->findOrFail($id);
 
         return view('crm.demand_requests.show', [
             'dr' => $dr,

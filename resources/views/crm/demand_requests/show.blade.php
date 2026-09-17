@@ -107,7 +107,7 @@
         <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th></tr></thead>
+            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Files</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
                 @php($ip = $dr->paidForItem($it->id))
@@ -122,6 +122,7 @@
                     <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
                     <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}</td>
                     <td class="dr-num" style="font-weight:800;color:{{ $inet < -0.009 ? '#e11d48' : '#159447' }}">{{ $inet < -0.009 ? '− '.number_format(abs($inet),2) : ($inet > 0.009 ? '+ '.number_format($inet,2) : '✔') }}</td>
+                    <td>@if($it->files->count())<span style="display:inline-flex;gap:.3rem;flex-wrap:wrap">@foreach($it->files as $__k => $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i>{{ $it->files->count()>1 ? ($__k+1) : '' }}</a>@endforeach</span>@else<span style="color:#cbd5e1">—</span>@endif</td>
                 </tr>
             @endforeach
             </tbody>
