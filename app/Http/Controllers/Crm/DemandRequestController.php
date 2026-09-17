@@ -380,14 +380,28 @@ class DemandRequestController extends Controller
     {
         $this->authorizeAccess();
         $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments.files'])->findOrFail($id);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.demand_requests.pdf', [
+        $company = $this->companyInfo();
+        $isAlMassa = CrmWorkspaceContext::id() == 2;
+        $brand = [
+            'is_al_massa' => $isAlMassa,
+            'primary' => $isAlMassa ? '#0b2a62' : '#6c5ce7',
+            'accent'  => $isAlMassa ? '#d69a00' : '#6c5ce7',
+            'row'     => $isAlMassa ? '#b8d9ec' : '#e4e0ff',
+            'arabic'  => $isAlMassa ? 'الماسة الملكية لصناعة العلب و التغليف ذ.م.م' : '',
+            'tagline' => $isAlMassa ? 'All Cosmetics & Perfumes Hard, Soft Boxes and Paper Bags' : 'Custom Packaging Boxes with Logo',
+            'phone'   => $isAlMassa ? '+971 6 579 6994, +971 56 997 0652, +971 54 793 4286' : '',
+            'email'   => $isAlMassa ? 'info@almassapackaging.com' : '',
+            'signatory' => $isAlMassa ? 'AMIR BASHIR' : ($company['name'] ?? ''),
+            'logo'    => asset($isAlMassa ? 'al-massa-invoice-email-logo.png' : 'my-box-printing-logo.svg'),
+        ];
+
+        return view('crm.demand_requests.pdf', [
             'dr' => $dr,
-            'company' => $this->companyInfo(),
+            'company' => $company,
+            'brand' => $brand,
             'paid' => $dr->paidTotal(),
             'outstanding' => $dr->outstandingTotal(),
         ]);
-
-        return $pdf->stream('demand-request-' . str_pad($dr->request_no, 3, '0', STR_PAD_LEFT) . '.pdf');
     }
 
     private function canApprove(): bool
