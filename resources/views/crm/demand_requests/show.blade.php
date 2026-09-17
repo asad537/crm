@@ -151,7 +151,7 @@
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
                         <td><input class="dr-control" list="drVendors" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][note]" placeholder="Optional"></td>
-                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"><div style="font-size:.6rem;color:#94a3b8;margin-top:.15rem">Ek ya zyada files</div></td>
+                        <td><input class="dr-control" type="file" name="rows[{{ $i }}][proofs][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"></td>
                     </tr>
                     @endif
                 @endforeach
