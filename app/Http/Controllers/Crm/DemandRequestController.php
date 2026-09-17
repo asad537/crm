@@ -123,6 +123,7 @@ class DemandRequestController extends Controller
             'status' => $status,
             'notes' => $validated['notes'] ?? null,
             'estimated_total' => collect($items)->sum('estimated_total'),
+            'vat_percentage' => $validated['vat_percentage'] ?? 0,
             'created_by' => \Auth::guard('crm')->id(),
         ]);
         $demand->items()->createMany($items);
@@ -147,6 +148,7 @@ class DemandRequestController extends Controller
             'status' => $status,
             'notes' => $validated['notes'] ?? null,
             'estimated_total' => collect($items)->sum('estimated_total'),
+            'vat_percentage' => $validated['vat_percentage'] ?? 0,
         ]);
         $demand->items()->delete();
         $demand->items()->createMany($items);
@@ -546,6 +548,7 @@ class DemandRequestController extends Controller
             'request_date' => 'required|date',
             'requested_by' => 'nullable|string|max:150',
             'priority' => 'nullable|in:Normal,Urgent',
+            'vat_percentage' => 'nullable|numeric|min:0|max:100',
             'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1',
             'items.*.category' => 'nullable|string|max:120',

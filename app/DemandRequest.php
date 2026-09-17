@@ -9,7 +9,7 @@ class DemandRequest extends Model
     protected $fillable = [
         'workspace_id', 'created_by', 'request_no', 'request_date', 'requested_by',
         'priority', 'status', 'force_completed', 'approved_by', 'approved_at', 'rejection_reason', 'notes',
-        'estimated_total', 'actual_total',
+        'estimated_total', 'vat_percentage', 'actual_total',
     ];
 
     protected $casts = [
@@ -17,8 +17,21 @@ class DemandRequest extends Model
         'approved_at' => 'datetime',
         'force_completed' => 'boolean',
         'estimated_total' => 'decimal:2',
+        'vat_percentage' => 'decimal:2',
         'actual_total' => 'decimal:2',
     ];
+
+    /** VAT amount on the estimated subtotal. */
+    public function vatAmount(): float
+    {
+        return round((float) $this->estimated_total * (float) $this->vat_percentage / 100, 2);
+    }
+
+    /** Estimated subtotal + VAT. */
+    public function grandTotal(): float
+    {
+        return round((float) $this->estimated_total + $this->vatAmount(), 2);
+    }
 
     protected static function boot()
     {

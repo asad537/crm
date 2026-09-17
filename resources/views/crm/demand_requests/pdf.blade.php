@@ -158,10 +158,25 @@
                     <td class="right">{{ $money($it->estimated_total) }}</td>
                 </tr>
             @endforeach
+                @if((float) $dr->vat_percentage > 0)
+                <tr>
+                    <td colspan="7" class="right" style="background:#fff;font-weight:700">Subtotal</td>
+                    <td class="right" style="background:#fff;font-weight:700">{{ $money($dr->estimated_total) }}</td>
+                </tr>
+                <tr>
+                    <td colspan="7" class="right" style="background:#fff">VAT ({{ rtrim(rtrim(number_format($dr->vat_percentage,2,'.',''),'0'),'.') }}%)</td>
+                    <td class="right" style="background:#fff">{{ $money($dr->vatAmount()) }}</td>
+                </tr>
+                <tr class="total-bar">
+                    <td colspan="7" class="right">GRAND TOTAL</td>
+                    <td class="right">{{ $money($dr->grandTotal()) }}</td>
+                </tr>
+                @else
                 <tr class="total-bar">
                     <td colspan="7" class="right">ESTIMATED TOTAL</td>
                     <td class="right">{{ $money($dr->estimated_total) }}</td>
                 </tr>
+                @endif
             </tbody>
         </table>
 

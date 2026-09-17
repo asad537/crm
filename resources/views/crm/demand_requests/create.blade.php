@@ -72,6 +72,10 @@
                     @endforeach
                 </select>
             </div>
+            <div class="dr-field">
+                <label>VAT %</label>
+                <input class="dr-control" type="number" step="0.01" min="0" max="100" id="drVat" name="vat_percentage" value="{{ old('vat_percentage', $isEdit ? rtrim(rtrim(number_format($demandRequest->vat_percentage,2,'.',''), '0'),'.') : '0') }}" oninput="drCalcGrand()" placeholder="0">
+            </div>
         </div>
 
         <div class="dr-section"><i class="fas fa-list-ul"></i> Items / Materials</div>
@@ -124,7 +128,11 @@
         </div>
 
         <div class="dr-foot">
-            <div class="dr-grand">Estimated Total: <strong id="drGrand">0.00</strong></div>
+            <div class="dr-grand" style="display:flex;flex-direction:column;gap:.15rem;align-items:flex-start">
+                <span style="font-size:.72rem;color:#8a8099">Subtotal: <strong id="drSub" style="color:#475569;font-size:.95rem">0.00</strong></span>
+                <span style="font-size:.72rem;color:#8a8099">VAT (<span id="drVatPct">0</span>%): <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
+                <span>Grand Total: <strong id="drGrand">0.00</strong></span>
+            </div>
             <div class="dr-actions">
                 <button class="dr-btn dr-btn-light" type="submit" name="action" value="draft"><i class="fas fa-save"></i> Save as Draft</button>
                 <button class="dr-btn dr-btn-primary" type="submit" name="action" value="submit"><i class="fas fa-paper-plane"></i> {{ $isEdit ? 'Save' : 'Submit for Approval' }}</button>
@@ -149,7 +157,14 @@ function drCalcRow(el){
 function drCalcGrand(){
     var sum = 0;
     document.querySelectorAll('#drItems .dr-total').forEach(function(t){ sum += parseFloat(t.value) || 0; });
-    document.getElementById('drGrand').textContent = sum.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+    var vat = parseFloat((document.getElementById('drVat')||{}).value) || 0;
+    var vatAmt = sum * vat / 100;
+    var grand = sum + vatAmt;
+    var fmt = function(n){ return n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    var s = document.getElementById('drSub'); if (s) s.textContent = fmt(sum);
+    var vp = document.getElementById('drVatPct'); if (vp) vp.textContent = (vat || 0);
+    var va = document.getElementById('drVatAmt'); if (va) va.textContent = fmt(vatAmt);
+    document.getElementById('drGrand').textContent = fmt(grand);
 }
 function drRenumber(){
     document.querySelectorAll('#drItems .dr-row').forEach(function(row, i){

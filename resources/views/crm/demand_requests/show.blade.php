@@ -97,6 +97,9 @@
         </div>
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
         <div class="dr-prog-txt">{{ $pct }}% covered @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif @if($writeOff>0)· <span style="color:#15803d">{{ number_format($writeOff,2) }} settled directly by company</span>@endif</div>
+        @if((float) $dr->vat_percentage > 0)
+        <div style="margin-top:.6rem;font-size:.78rem;color:#475569">Subtotal <strong>{{ number_format($dr->estimated_total,2) }}</strong> &nbsp;·&nbsp; VAT ({{ rtrim(rtrim(number_format($dr->vat_percentage,2,'.',''),'0'),'.') }}%) <strong>{{ number_format($dr->vatAmount(),2) }}</strong> &nbsp;·&nbsp; Grand Total <strong style="color:var(--primary-purple)">{{ number_format($dr->grandTotal(),2) }}</strong></div>
+        @endif
     </div>
 
     {{-- Items with per-item paid / remaining --}}
