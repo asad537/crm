@@ -69,7 +69,7 @@
         <div style="overflow-x:auto">
         <table class="dr-table">
             <thead><tr>
-                <th>No.</th><th>Date</th><th>Requested By</th><th>Priority</th><th>Items</th><th class="dr-num2">Est. Total</th><th class="dr-num2">Paid</th><th class="dr-num2">Remaining</th><th class="dr-num2">Acc. Out.</th><th class="dr-num2">Co. Out.</th><th>Status</th><th>Actions</th>
+                <th>No.</th><th>Date</th><th>Requested By</th><th>Priority</th><th>Items</th><th class="dr-num2">Est. Total</th><th class="dr-num2">Paid</th><th class="dr-num2">Acc. Out.</th><th class="dr-num2">Co. Out.</th><th>Status</th><th>Actions</th>
             </tr></thead>
             <tbody>
             @forelse($requests as $dr)
@@ -81,12 +81,12 @@
                     <td>{{ $dr->items->count() }}</td>
                     <td class="dr-num2"><strong>{{ number_format($dr->estimated_total, 2) }}</strong></td>
                     <td class="dr-num2" style="color:#159447;font-weight:750">{{ number_format($dr->paidTotal(), 2) }}</td>
-                    @php($__bal = round($dr->paidTotal() + $dr->writeOffTotal() - (float)$dr->estimated_total, 2))
+                    <!-- @php($__bal = round($dr->paidTotal() + $dr->writeOffTotal() - (float)$dr->estimated_total, 2))
                     <td class="dr-num2">
                         @if($__bal < -0.009)<span style="color:#e11d48;font-weight:850" title="Short / still to pay">&minus; {{ number_format(abs($__bal),2) }}</span>
                         @elseif($__bal > 0.009)<span style="color:#159447;font-weight:850" title="Overpaid">+ {{ number_format($__bal,2) }}</span>
                         @else<span style="color:#159447;font-weight:850" title="Fully settled">&#10004;</span>@endif
-                    </td>
+                    </td> -->
                     @php($__ao = $dr->accountOutstanding())
                     @php($__co = $dr->companyOutstanding())
                     <td class="dr-num2" style="font-weight:800;color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}" title="Account balance (paid − requested)">{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔') }}</td>
