@@ -51,6 +51,36 @@
         {{ csrf_field() }}
         @if($isEdit) {{ method_field('PUT') }} @endif
 
+        @if($isEdit && isset($cashInHand))
+        @php($__cih = (float) $cashInHand)
+        @php($__ownUsed = (float) $demandRequest->cash_in_hand_used)
+        @php($__avail = round($__cih + $__ownUsed, 2))
+        <div style="padding:.95rem 1.15rem;margin-bottom:1rem;border-radius:14px;border:1px solid #bbf7d0;background:#ecfdf3">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.7rem">
+                <span style="display:flex;align-items:center;gap:.55rem;font-size:.72rem;font-weight:850;text-transform:uppercase;letter-spacing:.05em;color:#64748b"><i class="fas fa-wallet" style="color:#159447"></i> Cash in Hand available</span>
+                <strong style="font-size:1.3rem;font-weight:850;color:#159447">{{ number_format($__avail, 2) }}</strong>
+            </div>
+            <div style="display:grid;grid-template-columns:180px 1fr;gap:.75rem;align-items:end">
+                <div class="dr-field" style="margin:0">
+                    <label style="font-size:.72rem">Use from Cash in Hand</label>
+                    <input class="dr-control" type="number" step="0.01" min="0" max="{{ $__avail }}" name="cash_in_hand_used"
+                           value="{{ old('cash_in_hand_used', $__ownUsed > 0 ? number_format($__ownUsed,2,'.','') : '') }}"
+                           placeholder="0.00" title="Max {{ number_format($__avail,2) }}">
+                </div>
+                <div class="dr-field" style="margin:0">
+                    <label style="font-size:.72rem">Cash in Hand note (optional)</label>
+                    <input class="dr-control" name="cash_in_hand_note" maxlength="500"
+                           value="{{ old('cash_in_hand_note', $isEdit ? $demandRequest->cash_in_hand_note : '') }}"
+                           placeholder="e.g. adjusted 50 from cash, rest paid by bank">
+                </div>
+            </div>
+            <div style="margin-top:.5rem;font-size:.72rem;color:#64748b">
+                <i class="fas fa-info-circle" style="color:#159447"></i>
+                Yeh raqam is demand ko settle karegi aur Cash in Hand se minus ho jayegi. Baaki amount normal payment se pay karein. Approve ke baad yeh note dikhega.
+            </div>
+        </div>
+        @endif
+
         <div class="dr-section"><i class="fas fa-file-signature"></i> Request Details</div>
         <div class="dr-head">
             <div class="dr-field">

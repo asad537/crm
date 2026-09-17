@@ -100,6 +100,11 @@
         @if($dr->vatAmount() > 0.009)
         <div style="margin-top:.6rem;font-size:.78rem;color:#475569">Subtotal <strong>{{ number_format($dr->subtotalExVat(),2) }}</strong> &nbsp;·&nbsp; VAT <strong>{{ number_format($dr->vatAmount(),2) }}</strong> &nbsp;·&nbsp; Grand Total <strong style="color:var(--primary-purple)">{{ number_format($dr->grandTotal(),2) }}</strong></div>
         @endif
+        @if((float) $dr->cash_in_hand_used > 0.009)
+        <div style="margin-top:.6rem;display:inline-flex;align-items:center;gap:.5rem;padding:.4rem .8rem;border-radius:9px;background:#ecfdf3;border:1px solid #bbf7d0;font-size:.78rem;color:#166534">
+            <i class="fas fa-wallet"></i> Adjusted from Cash in Hand: <strong>{{ number_format((float) $dr->cash_in_hand_used, 2) }}</strong>{{ $dr->cash_in_hand_note ? ' — '.$dr->cash_in_hand_note : '' }}
+        </div>
+        @endif
     </div>
 
     {{-- Items with per-item paid / remaining --}}
@@ -138,6 +143,15 @@
     @if(in_array($dr->status,['Approved','Partially Paid']))
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record Payments @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
+        @if((float) $dr->cash_in_hand_used > 0.009)
+        <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;padding:.6rem .9rem;margin-bottom:.85rem;border-radius:11px;border:1px solid #bbf7d0;background:#ecfdf3;font-size:.78rem">
+            <i class="fas fa-wallet" style="color:#159447"></i>
+            <span style="font-weight:800;color:#475569">Adjusted from Cash in Hand:</span>
+            <strong style="color:#159447;font-size:.95rem">{{ number_format((float) $dr->cash_in_hand_used, 2) }}</strong>
+            @if($dr->cash_in_hand_note)<span style="color:#8290a3">— {{ $dr->cash_in_hand_note }}</span>@endif
+            <span style="color:#8290a3">· record the remaining amount below.</span>
+        </div>
+        @endif
         @if($errors->has('proof'))<div style="margin-bottom:.8rem;padding:.7rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem;font-weight:700"><i class="fas fa-exclamation-triangle"></i> {{ $errors->first('proof') }}</div>@endif
         <form method="POST" action="{{ route('crm.demand_requests.add_payments',$dr->id) }}" enctype="multipart/form-data" onsubmit="return drCheckProof(this)">
             {{ csrf_field() }}

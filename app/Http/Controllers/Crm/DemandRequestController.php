@@ -63,7 +63,7 @@ class DemandRequestController extends Controller
             // Account Outstanding excludes Completed demands — those are shown separately as "Cash in Hand".
             'account_out' => round((float) $all->where('status', '!=', 'Completed')->sum(fn($d) => $d->accountOutstanding()), 2),
             'company_out' => round((float) $all->sum(fn($d) => $d->companyOutstanding()), 2),
-            'cash_in_hand' => round((float) $all->where('status', 'Completed')->sum(fn($d) => $d->accountOutstanding()), 2),
+            'cash_in_hand' => $this->cashInHand(),
         ];
 
         return view('crm.demand_requests.index', [
@@ -71,6 +71,30 @@ class DemandRequestController extends Controller
             'summary' => $summary,
             'priorities' => self::PRIORITIES,
         ]);
+    }
+
+    /**
+     * Cash in Hand pool = account credit accumulated from Completed demands
+     * MINUS everything already drawn back out via "Cash in Hand" payments on any demand.
+     * Recording such a payment removes from the pool; deleting it restores the pool.
+     */
+    private function cashInHand()
+    {
+        $demands = DemandRequest::with(['items', 'payments'])->get();
+        // Pool gains: unspent (leftover) cash from Completed demands = requested − paid − cashUsed.
+        // Pool draws: every demand's cash_in_hand_used (money taken from the pool to settle it).
+        // accountOutstanding() already includes cash_in_hand_used, so leftover never double-counts.
+        $leftover = (float) $demands->where('status', 'Completed')
+            ->sum(fn($d) => max(0, -$d->accountOutstanding()));
+        $used = (float) $demands->sum(fn($d) => (float) $d->cash_in_hand_used);
+
+        return round(max(0, $leftover - $used), 2);
+    }
+
+    /** Cash in Hand a given demand may draw = current pool + whatever it already holds. */
+    private function cashInHandAvailableFor(?DemandRequest $demand = null): float
+    {
+        return round($this->cashInHand() + ($demand ? (float) $demand->cash_in_hand_used : 0), 2);
     }
 
     public function create()
@@ -83,6 +107,7 @@ class DemandRequestController extends Controller
             'priorities' => self::PRIORITIES,
             'defaultRequestedBy' => $user ? $user->name : '',
             'demandRequest' => null,
+            'cashInHand' => $this->cashInHand(),
             'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
             'items' => [['category' => '', 'qty' => '', 'estimated_price' => '', 'estimated_total' => '']],
         ]);
@@ -99,6 +124,7 @@ class DemandRequestController extends Controller
             'defaultRequestedBy' => $demandRequest->requested_by,
             'demandRequest' => $demandRequest,
             'canApprove' => $this->canApprove(),
+            'cashInHand' => $this->cashInHand(),
             'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
             'items' => $demandRequest->items->map(function ($it) {
                 return [
@@ -121,6 +147,9 @@ class DemandRequestController extends Controller
         $ws = CrmWorkspaceContext::id();
         $nextNo = (int) DemandRequest::withoutGlobalScopes()->where('workspace_id', $ws)->max('request_no') + 1;
 
+        // Cash in Hand drawn against this demand — never more than the pool holds.
+        $cashUsed = min(max(0, (float) $request->input('cash_in_hand_used', 0)), $this->cashInHandAvailableFor());
+
         $demand = DemandRequest::create([
             'request_no' => $nextNo,
             'request_date' => $validated['request_date'],
@@ -130,6 +159,8 @@ class DemandRequestController extends Controller
             'notes' => $validated['notes'] ?? null,
             'estimated_total' => collect($items)->sum('estimated_total'),
             'vat_percentage' => $validated['vat_percentage'] ?? 0,
+            'cash_in_hand_used' => round($cashUsed, 2),
+            'cash_in_hand_note' => trim((string) $request->input('cash_in_hand_note')) ?: null,
             'created_by' => \Auth::guard('crm')->id(),
         ]);
         $created = $demand->items()->createMany($items);
@@ -215,6 +246,9 @@ class DemandRequestController extends Controller
         $items = $this->normalizeItems($validated['items']);
         $status = $request->input('action') === 'draft' ? 'Draft' : ($demand->status === 'Draft' ? 'Submitted' : $demand->status);
 
+        // Cash in Hand drawn against this demand — capped at the pool + what it already holds.
+        $cashUsed = min(max(0, (float) $request->input('cash_in_hand_used', 0)), $this->cashInHandAvailableFor($demand));
+
         $demand->update([
             'request_date' => $validated['request_date'],
             'requested_by' => $validated['requested_by'] ?? null,
@@ -223,6 +257,8 @@ class DemandRequestController extends Controller
             'notes' => $validated['notes'] ?? null,
             'estimated_total' => collect($items)->sum('estimated_total'),
             'vat_percentage' => $validated['vat_percentage'] ?? 0,
+            'cash_in_hand_used' => round($cashUsed, 2),
+            'cash_in_hand_note' => trim((string) $request->input('cash_in_hand_note')) ?: null,
         ]);
         // Reconcile items in place (by position order) so existing per-item files survive edits.
         $existing = $demand->items()->orderBy('position')->orderBy('id')->get()->values();
@@ -289,6 +325,7 @@ class DemandRequestController extends Controller
             'canApprove' => $this->canApprove(),
             'company' => $this->companyInfo(),
             'payerSummary' => $this->payerSummary($dr),
+            'cashInHand' => $this->cashInHand(),
             'payers' => self::PAYERS,
             'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
             'categories' => self::CATEGORIES,

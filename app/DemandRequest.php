@@ -9,7 +9,7 @@ class DemandRequest extends Model
     protected $fillable = [
         'workspace_id', 'created_by', 'request_no', 'request_date', 'requested_by',
         'priority', 'status', 'force_completed', 'approved_by', 'approved_at', 'rejection_reason', 'notes',
-        'estimated_total', 'vat_percentage', 'actual_total',
+        'estimated_total', 'vat_percentage', 'actual_total', 'cash_in_hand_used', 'cash_in_hand_note',
     ];
 
     protected $casts = [
@@ -19,6 +19,7 @@ class DemandRequest extends Model
         'estimated_total' => 'decimal:2',
         'vat_percentage' => 'decimal:2',
         'actual_total' => 'decimal:2',
+        'cash_in_hand_used' => 'decimal:2',
     ];
 
     /** Base (ex-VAT) amount for one item. */
@@ -175,6 +176,8 @@ class DemandRequest extends Model
             }
         }
         $total += $this->generalPaid();
+        // Cash in Hand drawn against this demand settles it like account money.
+        $total += (float) $this->cash_in_hand_used;
 
         return round($total, 2);
     }
