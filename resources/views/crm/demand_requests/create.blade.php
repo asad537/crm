@@ -37,6 +37,22 @@
 .dr-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.3rem;padding:1rem 1.1rem;border-radius:14px;background:linear-gradient(135deg,var(--primary-soft),#fff 75%);border:1px solid #ece9ff}
 .dr-grand{font-size:.74rem;color:#8a8099;font-weight:800;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:baseline;gap:.6rem}
 .dr-grand strong{font-size:1.5rem;color:var(--primary-purple);margin-left:.5rem}
+/* Cash in Hand adjust card (approve only) */
+.dr-cih{margin-top:.85rem;width:min(420px,100%);background:#fff;border:1px solid #d6f0dd;border-radius:14px;box-shadow:0 6px 20px rgba(21,148,71,.08);overflow:hidden;text-transform:none;letter-spacing:normal}
+.dr-cih-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem .9rem;background:linear-gradient(135deg,#ecfdf3,#f6fffa);border-bottom:1px solid #e3f5e9}
+.dr-cih-badge{display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:850;color:#159447;text-transform:uppercase;letter-spacing:.04em}
+.dr-cih-avail{font-size:1.1rem;font-weight:850;color:#0f7a3d}
+.dr-cih-avail small{font-size:.62rem;font-weight:750;color:#8aa598;text-transform:uppercase;letter-spacing:.05em;margin-left:.15rem}
+.dr-cih-fields{display:flex;gap:.6rem;align-items:flex-end;padding:.8rem .9rem .55rem}
+.dr-cih-field{display:flex;flex-direction:column;gap:.3rem;flex:0 0 130px}
+.dr-cih-field.grow{flex:1 1 auto}
+.dr-cih-field label{font-size:.66rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.03em}
+.dr-cih-field label span{font-weight:600;color:#a9b4c2;text-transform:none;letter-spacing:normal}
+.dr-cih-field .dr-control{min-height:42px}
+.dr-cih-remaining{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem .9rem;background:#fafbff;border-top:1px dashed #dbe7e0}
+.dr-cih-remaining span{font-size:.74rem;font-weight:800;color:#475569}
+.dr-cih-remaining span em{font-style:normal;font-weight:600;color:#94a3b8}
+.dr-cih-remaining strong{font-size:1.2rem;font-weight:850;color:var(--primary-purple)}
 .dr-actions{display:flex;gap:.6rem}
 .dr-errors{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem}
 .dr-table-wrap{overflow-x:auto}
@@ -50,36 +66,6 @@
     <form class="dr-card" autocomplete="off" method="POST" enctype="multipart/form-data" action="{{ $isEdit ? route('crm.demand_requests.update', $demandRequest->id) : route('crm.demand_requests.store') }}">
         {{ csrf_field() }}
         @if($isEdit) {{ method_field('PUT') }} @endif
-
-        @if($isEdit && isset($cashInHand))
-        @php($__cih = (float) $cashInHand)
-        @php($__ownUsed = (float) $demandRequest->cash_in_hand_used)
-        @php($__avail = round($__cih + $__ownUsed, 2))
-        <div style="padding:.95rem 1.15rem;margin-bottom:1rem;border-radius:14px;border:1px solid #bbf7d0;background:#ecfdf3">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.7rem">
-                <span style="display:flex;align-items:center;gap:.55rem;font-size:.72rem;font-weight:850;text-transform:uppercase;letter-spacing:.05em;color:#64748b"><i class="fas fa-wallet" style="color:#159447"></i> Cash in Hand available</span>
-                <strong style="font-size:1.3rem;font-weight:850;color:#159447">{{ number_format($__avail, 2) }}</strong>
-            </div>
-            <div style="display:grid;grid-template-columns:180px 1fr;gap:.75rem;align-items:end">
-                <div class="dr-field" style="margin:0">
-                    <label style="font-size:.72rem">Use from Cash in Hand</label>
-                    <input class="dr-control" type="number" step="0.01" min="0" max="{{ $__avail }}" name="cash_in_hand_used"
-                           value="{{ old('cash_in_hand_used', $__ownUsed > 0 ? number_format($__ownUsed,2,'.','') : '') }}"
-                           placeholder="0.00" title="Max {{ number_format($__avail,2) }}">
-                </div>
-                <div class="dr-field" style="margin:0">
-                    <label style="font-size:.72rem">Cash in Hand note (optional)</label>
-                    <input class="dr-control" name="cash_in_hand_note" maxlength="500"
-                           value="{{ old('cash_in_hand_note', $isEdit ? $demandRequest->cash_in_hand_note : '') }}"
-                           placeholder="e.g. adjusted 50 from cash, rest paid by bank">
-                </div>
-            </div>
-            <div style="margin-top:.5rem;font-size:.72rem;color:#64748b">
-                <i class="fas fa-info-circle" style="color:#159447"></i>
-                Yeh raqam is demand ko settle karegi aur Cash in Hand se minus ho jayegi. Baaki amount normal payment se pay karein. Approve ke baad yeh note dikhega.
-            </div>
-        </div>
-        @endif
 
         <div class="dr-section"><i class="fas fa-file-signature"></i> Request Details</div>
         <div class="dr-head">
@@ -175,10 +161,42 @@
         </div>
 
         <div class="dr-foot">
-            <div class="dr-grand" style="display:flex;flex-direction:column;gap:.15rem;align-items:flex-start">
-                <span style="font-size:.72rem;color:#8a8099">Subtotal: <strong id="drSub" style="color:#475569;font-size:.95rem">0.00</strong></span>
-                <span style="font-size:.72rem;color:#8a8099">VAT: <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
-                <span>Grand Total: <strong id="drGrand">0.00</strong></span>
+            <div style="display:flex;flex-direction:column;gap:.7rem;align-items:flex-start">
+                <div class="dr-grand" style="flex-wrap:wrap">
+                    <span style="font-size:.72rem;color:#8a8099">Subtotal: <strong id="drSub" style="color:#475569;font-size:.95rem">0.00</strong></span>
+                    <span style="font-size:.72rem;color:#8a8099">VAT: <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
+                    <span>Grand Total: <strong id="drGrand">0.00</strong></span>
+                </div>
+
+                @if($isEdit && isset($cashInHand))
+                @php($__cih = (float) $cashInHand)
+                @php($__ownUsed = (float) $demandRequest->cash_in_hand_used)
+                @php($__avail = round($__cih + $__ownUsed, 2))
+                <div class="dr-cih">
+                    <div class="dr-cih-head">
+                        <span class="dr-cih-badge"><i class="fas fa-wallet"></i> Cash in Hand</span>
+                        <span class="dr-cih-avail">{{ number_format($__avail, 2) }} <small>available</small></span>
+                    </div>
+                    <div class="dr-cih-fields">
+                        <div class="dr-cih-field">
+                            <label>Adjust from cash</label>
+                            <input class="dr-control" type="number" step="0.01" min="0" max="{{ $__avail }}" name="cash_in_hand_used" id="drCih"
+                                   value="{{ old('cash_in_hand_used', $__ownUsed > 0 ? number_format($__ownUsed,2,'.','') : '') }}"
+                                   placeholder="0.00" title="Max {{ number_format($__avail,2) }}" oninput="drCalcRemaining()" autocomplete="off">
+                        </div>
+                        <div class="dr-cih-field grow">
+                            <label>Note <span>(optional)</span></label>
+                            <input class="dr-control" name="cash_in_hand_note" maxlength="500"
+                                   value="{{ old('cash_in_hand_note', $demandRequest->cash_in_hand_note) }}"
+                                   placeholder="e.g. 400 from cash, rest by bank" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="dr-cih-remaining">
+                        <span>Company pays <em>(remaining)</em></span>
+                        <strong id="drRemaining">0.00</strong>
+                    </div>
+                </div>
+                @endif
             </div>
             <div class="dr-actions">
                 <button class="dr-btn dr-btn-light" type="submit" name="action" value="draft"><i class="fas fa-save"></i> Save as Draft</button>
@@ -230,6 +248,17 @@ function drCalcGrand(){
     var s = document.getElementById('drSub'); if (s) s.textContent = fmt(subtotal);
     var va = document.getElementById('drVatAmt'); if (va) va.textContent = fmt(vatAmt);
     document.getElementById('drGrand').textContent = fmt(grand);
+    drCalcRemaining();
+}
+// Company pays (remaining) = Grand Total − Cash in Hand adjusted.
+function drCalcRemaining(){
+    var remEl = document.getElementById('drRemaining');
+    if (!remEl) return;
+    var grand = parseFloat((document.getElementById('drGrand').textContent || '0').replace(/,/g,'')) || 0;
+    var cih = parseFloat((document.getElementById('drCih')||{}).value) || 0;
+    var rem = grand - cih;
+    if (rem < 0) rem = 0;
+    remEl.textContent = rem.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function drRenumber(){
     document.querySelectorAll('#drItems .dr-row').forEach(function(row, i){
