@@ -60,6 +60,8 @@ class DemandRequestController extends Controller
             'paid' => (float) $all->sum(fn($d) => $d->paidTotal()),
             'outstanding' => round((float) $all->sum(fn($d) => $d->outstandingTotal()), 2),
             'balance' => round((float) $all->sum(fn($d) => $d->paidTotal() + $d->writeOffTotal() - (float) $d->estimated_total), 2),
+            'account_out' => round((float) $all->sum(fn($d) => $d->accountOutstanding()), 2),
+            'company_out' => round((float) $all->sum(fn($d) => $d->companyOutstanding()), 2),
         ];
 
         return view('crm.demand_requests.index', [
