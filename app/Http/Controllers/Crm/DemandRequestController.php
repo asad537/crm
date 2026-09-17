@@ -60,7 +60,8 @@ class DemandRequestController extends Controller
             'paid' => (float) $all->sum(fn($d) => $d->paidTotal()),
             'outstanding' => round((float) $all->sum(fn($d) => $d->outstandingTotal()), 2),
             'balance' => round((float) $all->sum(fn($d) => $d->paidTotal() + $d->writeOffTotal() - (float) $d->estimated_total), 2),
-            'account_out' => round((float) $all->sum(fn($d) => $d->accountOutstanding()), 2),
+            // Account Outstanding excludes Completed demands — those are shown separately as "Cash in Hand".
+            'account_out' => round((float) $all->where('status', '!=', 'Completed')->sum(fn($d) => $d->accountOutstanding()), 2),
             'company_out' => round((float) $all->sum(fn($d) => $d->companyOutstanding()), 2),
             'cash_in_hand' => round((float) $all->where('status', 'Completed')->sum(fn($d) => $d->accountOutstanding()), 2),
         ];
@@ -276,6 +277,12 @@ class DemandRequestController extends Controller
     {
         $this->authorizeAccess();
         $dr = DemandRequest::with(['items.files', 'creator', 'approver', 'payments.files', 'attachments'])->findOrFail($id);
+
+        // When an approver opens a Submitted demand, the "approve page" IS the editable form
+        // (with a Save & Approve button) — no separate Edit click needed.
+        if ($this->canApprove() && $dr->status === 'Submitted') {
+            return $this->edit($id);
+        }
 
         return view('crm.demand_requests.show', [
             'dr' => $dr,

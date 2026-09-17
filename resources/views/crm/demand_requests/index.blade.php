@@ -5,7 +5,7 @@
 @endsection
 @section('content')
 <style>
-.dr-wrap{max-width:1320px;margin:0 auto}
+.dr-wrap{max-width:100%;margin:0}
 .dr-btn{display:inline-flex;align-items:center;gap:.45rem;min-height:40px;padding:.55rem 1rem;border:0;border-radius:10px;font-weight:800;text-decoration:none;cursor:pointer;font-size:.82rem}
 .dr-btn-primary{color:#fff;background:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}
 .dr-btn-light{color:#475569;background:#eef2f7}

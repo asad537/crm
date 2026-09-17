@@ -6,7 +6,7 @@
 @endsection
 @section('content')
 <style>
-.dr-wrap{max-width:1200px;margin:0 auto}
+.dr-wrap{max-width:100%;margin:0}
 .dr-btn{display:inline-flex;align-items:center;gap:.45rem;min-height:40px;padding:.55rem 1rem;border:0;border-radius:10px;font-weight:800;text-decoration:none;cursor:pointer;font-size:.82rem}
 .dr-btn-primary{color:#fff;background:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}
 .dr-btn-light{color:#475569;background:#eef2f7}
@@ -26,7 +26,8 @@
 .dr-items td{padding:.35rem .3rem;vertical-align:middle;border-top:1px solid #eef1f6;border-bottom:1px solid #eef1f6}
 .dr-items td:first-child{border-left:1px solid #eef1f6;border-radius:11px 0 0 11px}
 .dr-items td:nth-last-child(2){border-right:0}
-.dr-items td:last-child{border:0;background:transparent}
+.dr-items td:last-child,.dr-items th:last-child{position:sticky;right:0;background:#fff;z-index:2;box-shadow:-8px 0 10px -8px rgba(15,23,42,.12);text-align:center}
+.dr-items td:last-child{border:0}
 .dr-items .dr-control{min-height:40px;padding:.5rem .6rem;font-size:.8rem}
 .dr-sr{width:40px;text-align:center;border-radius:11px 0 0 11px}
 .dr-srno{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--primary-soft);color:var(--primary-purple);font-weight:850;font-size:.74rem}
@@ -91,7 +92,7 @@
                 <th style="min-width:80px">VAT %</th>
                 <th style="min-width:120px">Total</th>
                 <th style="min-width:130px">Attachment</th>
-                <th style="width:40px"></th>
+                <th style="width:48px;text-align:center">Del</th>
             </tr></thead>
             <tbody>
             @foreach($items as $i => $it)
@@ -158,6 +159,15 @@
             </div>
         </div>
     </form>
+
+    @if($isEdit)
+    <div class="dr-actions" style="margin-top:.8rem">
+        <form method="POST" action="{{ route('crm.demand_requests.destroy', $demandRequest->id) }}" style="display:inline" onsubmit="return confirm('Delete this demand request permanently?');">
+            {{ csrf_field() }}{{ method_field('DELETE') }}
+            <button class="dr-btn dr-btn-red" type="submit"><i class="fas fa-trash"></i> Delete</button>
+        </form>
+    </div>
+    @endif
 </div>
 
 <script>
@@ -194,7 +204,8 @@ function drCalcGrand(){
 function drRenumber(){
     document.querySelectorAll('#drItems .dr-row').forEach(function(row, i){
         row.querySelector('.dr-srno').textContent = i + 1;
-        row.querySelector('.dr-rm').style.visibility = document.querySelectorAll('#drItems .dr-row').length === 1 ? 'hidden' : 'visible';
+        // Delete button is always available (even on a single row).
+        row.querySelector('.dr-rm').style.visibility = 'visible';
     });
 }
 function drAddRow(){
@@ -211,8 +222,9 @@ function drAddRow(){
     drRenumber();
 }
 function drRemoveRow(btn){
-    if (document.querySelectorAll('#drItems .dr-row').length === 1) return;
     btn.closest('.dr-row').remove();
+    // A demand always needs at least one item row — re-add a blank one if the last was removed.
+    if (document.querySelectorAll('#drItems .dr-row').length === 0) { drAddRow(); }
     drRenumber();
     drCalcGrand();
 }
