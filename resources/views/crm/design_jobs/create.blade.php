@@ -94,6 +94,23 @@
                     <div class="djc-hint">Estimated date of delivery for this job.</div>
                 </div>
             </div>
+            <div class="djc-row">
+                <div class="djc-field">
+                    <label class="djc-mono">Receive Date</label>
+                    <input class="djc-in" type="date" name="receive_date" value="{{ old('receive_date') }}">
+                    <div class="djc-hint">Jab job receive hui.</div>
+                </div>
+                <div class="djc-field">
+                    <label class="djc-mono">Due Date</label>
+                    <input class="djc-in" type="date" name="due_date" value="{{ old('due_date') }}">
+                    <div class="djc-hint">Deadline — hit hone par red, 1 din orange, 2 din yellow.</div>
+                </div>
+            </div>
+            <div class="djc-field">
+                <label class="djc-mono">Client Approval Date</label>
+                <input class="djc-in" type="date" name="client_approval_date" value="{{ old('client_approval_date') }}">
+                <div class="djc-hint">Optional — client approve karne ke baad add karein.</div>
+            </div>
             <div class="djc-field">
                 <label class="djc-mono">Details (optional)</label>
                 <textarea class="djc-textarea" name="details" maxlength="3000" placeholder="Design brief, dieline notes, references...">{{ old('details') }}</textarea>

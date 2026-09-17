@@ -161,6 +161,7 @@
                 <th>Designer</th>
                 <th>Status</th>
                 <th>Delivery</th>
+                <th>Due</th>
                 <th></th>
             </tr></thead>
             <tbody>
@@ -205,10 +206,19 @@
                     <td class="dj-deliv">
                         @if($job->estimated_delivery_date){{ $job->estimated_delivery_date->format('d M Y') }}@else<span class="none">—</span>@endif
                     </td>
+                    <td class="dj-deliv">
+                        @php($__dm = $job->dueMeta())
+                        @if($job->due_date)
+                            <span style="display:inline-flex;flex-direction:column;gap:.1rem">
+                                <strong style="color:{{ $__dm['color'] }}">{{ $job->due_date->format('d M Y') }}</strong>
+                                <span style="font-size:.62rem;font-weight:800;padding:.1rem .4rem;border-radius:999px;color:{{ $__dm['color'] }};background:{{ $__dm['bg'] }};align-self:flex-start">{{ $__dm['label'] }}</span>
+                            </span>
+                        @else<span class="none">—</span>@endif
+                    </td>
                     <td><a class="dj-track" href="{{ route('crm.design_jobs.show', $job->id) }}"><i class="fas fa-stream"></i> Track</a></td>
                 </tr>
             @empty
-                <tr><td colspan="7"><div class="dj-empty">No design jobs yet.@if($canCreate) Create the first one against an estimate ticket.@endif</div></td></tr>
+                <tr><td colspan="8"><div class="dj-empty">No design jobs yet.@if($canCreate) Create the first one against an estimate ticket.@endif</div></td></tr>
             @endforelse
             </tbody>
         </table>

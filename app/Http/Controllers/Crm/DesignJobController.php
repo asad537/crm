@@ -63,6 +63,9 @@ class DesignJobController extends Controller
             'details' => 'nullable|string|max:3000',
             'status' => 'nullable|in:' . implode(',', array_keys(DesignJob::STATUSES)),
             'estimated_delivery_date' => 'nullable|date',
+            'receive_date' => 'nullable|date',
+            'client_approval_date' => 'nullable|date',
+            'due_date' => 'nullable|date',
         ]);
 
         // Estimate link is optional: either pick a ticket or type an estimate number.
@@ -97,6 +100,9 @@ class DesignJobController extends Controller
             'status' => $data['status'] ?? 'designing',
             'status_updated_at' => now(),
             'estimated_delivery_date' => $data['estimated_delivery_date'] ?? null,
+            'receive_date' => $data['receive_date'] ?? null,
+            'client_approval_date' => $data['client_approval_date'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
         ]);
 
         $ref = $ticket ? $ticket->ticket_number : ($data['estimate_number'] ?? '');
