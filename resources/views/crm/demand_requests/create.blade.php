@@ -39,7 +39,7 @@
 .dr-actions{display:flex;gap:.6rem}
 .dr-errors{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem}
 .dr-table-wrap{overflow-x:auto}
-@media(max-width:900px){.dr-head{grid-template-columns:repeat(2,1fr)}.dr-items{min-width:1040px}}
+@media(max-width:900px){.dr-head{grid-template-columns:repeat(2,1fr)}.dr-items{min-width:1200px}}
 </style>
 <div class="dr-wrap">
     @if($errors->any())
@@ -89,6 +89,7 @@
                 <th style="min-width:110px">Per Unit Price</th>
                 <th style="min-width:80px">VAT %</th>
                 <th style="min-width:120px">Total</th>
+                <th style="min-width:130px">Attachment</th>
                 <th style="width:40px"></th>
             </tr></thead>
             <tbody>
@@ -110,6 +111,10 @@
                     <td><input class="dr-control dr-price" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_price]" value="{{ $it['estimated_price'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-vat" type="number" step="0.01" min="0" max="100" name="items[{{ $i }}][vat_percentage]" value="{{ $it['vat_percentage'] ?? '' }}" placeholder="0" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-total dr-total-input" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_total]" value="{{ $it['estimated_total'] ?? '' }}" oninput="drCalcGrand()"></td>
+                    <td>
+                        <input class="dr-control dr-file" type="file" name="items[{{ $i }}][files][]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.7rem">
+                        @if(!empty($it['files']) && count($it['files']))<div style="margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.25rem">@foreach($it['files'] as $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="font-size:.62rem;color:var(--primary-purple)"><i class="fas fa-paperclip"></i></a>@endforeach</div>@endif
+                    </td>
                     <td><button class="dr-rm" type="button" onclick="drRemoveRow(this)" title="Remove"><i class="fas fa-trash"></i></button></td>
                 </tr>
             @endforeach

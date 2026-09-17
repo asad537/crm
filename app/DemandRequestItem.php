@@ -29,4 +29,9 @@ class DemandRequestItem extends Model
     {
         return $this->belongsTo(DemandRequest::class, 'demand_request_id');
     }
+
+    public function files()
+    {
+        return $this->hasMany(DemandRequestItemFile::class, 'item_id');
+    }
 }
