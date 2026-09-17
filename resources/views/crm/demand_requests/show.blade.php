@@ -161,9 +161,8 @@
             </div>
             <div style="margin-top:.7rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
                 <button type="button" class="dr-btn dr-btn-light" onclick="drAddPayRow()" style="border:1px dashed #c7b8f5;color:var(--primary-purple);background:var(--primary-soft)"><i class="fas fa-plus"></i> Add breakdown row</button>
-                <span style="color:#94a3b8;font-size:.72rem">Ek expense ko todna ho (e.g. 2100 ke andar kai cheezein) to rows add karo</span>
             </div>
-            <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button> <span style="color:#94a3b8;font-size:.74rem;margin-left:.5rem">Amount wali har row ka proof zaroori hai <span style="color:#e11d48">*</span></span></div>
+            <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button></div>
         </form>
         <script>
         var drItems = [@foreach($dr->items as $it){id:{{ $it->id }},label:"{{ addslashes($loop->iteration.'. '.\Illuminate\Support\Str::limit($it->description ?: $it->category, 24)) }}"},@endforeach];
