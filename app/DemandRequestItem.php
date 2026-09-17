@@ -8,7 +8,7 @@ class DemandRequestItem extends Model
 {
     protected $fillable = [
         'demand_request_id', 'position', 'category', 'job_no', 'description', 'specification',
-        'qty', 'estimated_price', 'estimated_total',
+        'qty', 'gsm', 'estimated_price', 'estimated_total',
         'received', 'received_at', 'actual_price', 'actual_total',
         'paid_by', 'paid_amount', 'outstanding', 'vendor_name', 'extra',
     ];

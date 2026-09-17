@@ -79,6 +79,7 @@ class DemandRequestController extends Controller
             'priorities' => self::PRIORITIES,
             'defaultRequestedBy' => $user ? $user->name : '',
             'demandRequest' => null,
+            'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
             'items' => [['category' => '', 'qty' => '', 'estimated_price' => '', 'estimated_total' => '']],
         ]);
     }
@@ -93,11 +94,12 @@ class DemandRequestController extends Controller
             'priorities' => self::PRIORITIES,
             'defaultRequestedBy' => $demandRequest->requested_by,
             'demandRequest' => $demandRequest,
+            'vendors' => \App\Vendor::orderBy('name')->pluck('name')->filter()->values(),
             'items' => $demandRequest->items->map(function ($it) {
                 return [
                     'category' => $it->category, 'job_no' => $it->job_no, 'description' => $it->description,
-                    'specification' => $it->specification, 'qty' => $it->qty,
-                    'estimated_price' => $it->estimated_price, 'estimated_total' => $it->estimated_total,
+                    'specification' => $it->specification, 'gsm' => $it->gsm, 'vendor_name' => $it->vendor_name,
+                    'qty' => $it->qty, 'estimated_price' => $it->estimated_price, 'estimated_total' => $it->estimated_total,
                 ];
             })->all(),
         ]);
@@ -550,6 +552,8 @@ class DemandRequestController extends Controller
             'items.*.job_no' => 'nullable|string|max:80',
             'items.*.description' => 'nullable|string|max:255',
             'items.*.specification' => 'nullable|string|max:255',
+            'items.*.gsm' => 'nullable|string|max:60',
+            'items.*.vendor_name' => 'nullable|string|max:150',
             'items.*.qty' => 'nullable|string|max:60',
             'items.*.estimated_price' => 'nullable|numeric|min:0',
             'items.*.estimated_total' => 'nullable|numeric|min:0',
@@ -562,7 +566,7 @@ class DemandRequestController extends Controller
         $pos = 1;
         foreach ($items as $item) {
             // skip fully-empty rows
-            $hasContent = collect(['category', 'job_no', 'description', 'specification', 'qty', 'estimated_price', 'estimated_total'])
+            $hasContent = collect(['category', 'job_no', 'description', 'specification', 'gsm', 'vendor_name', 'qty', 'estimated_price', 'estimated_total'])
                 ->contains(fn($k) => trim((string) ($item[$k] ?? '')) !== '');
             if (!$hasContent) {
                 continue;
@@ -579,6 +583,8 @@ class DemandRequestController extends Controller
                 'job_no' => $item['job_no'] ?? null,
                 'description' => $item['description'] ?? null,
                 'specification' => $item['specification'] ?? null,
+                'gsm' => $item['gsm'] ?? null,
+                'vendor_name' => $item['vendor_name'] ?? null,
                 'qty' => $item['qty'] ?? null,
                 'estimated_price' => $price,
                 'estimated_total' => $total,
