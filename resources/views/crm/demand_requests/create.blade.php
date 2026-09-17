@@ -46,7 +46,7 @@
         <div class="dr-errors"><strong>Please check the form:</strong><ul style="margin:.4rem 0 0 1rem">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     @endif
 
-    <form class="dr-card" autocomplete="off" method="POST" action="{{ $isEdit ? route('crm.demand_requests.update', $demandRequest->id) : route('crm.demand_requests.store') }}">
+    <form class="dr-card" autocomplete="off" method="POST" enctype="multipart/form-data" action="{{ $isEdit ? route('crm.demand_requests.update', $demandRequest->id) : route('crm.demand_requests.store') }}">
         {{ csrf_field() }}
         @if($isEdit) {{ method_field('PUT') }} @endif
 
@@ -71,10 +71,6 @@
                         <option value="{{ $pr }}" {{ old('priority', $isEdit ? $demandRequest->priority : 'Normal')===$pr?'selected':'' }}>{{ $pr }}</option>
                     @endforeach
                 </select>
-            </div>
-            <div class="dr-field">
-                <label>VAT %</label>
-                <input class="dr-control" type="number" step="0.01" min="0" max="100" id="drVat" name="vat_percentage" value="{{ old('vat_percentage', $isEdit ? rtrim(rtrim(number_format($demandRequest->vat_percentage,2,'.',''), '0'),'.') : '0') }}" oninput="drCalcGrand()" placeholder="0">
             </div>
         </div>
 
@@ -125,10 +121,24 @@
             <textarea class="dr-control" name="notes" rows="2" style="min-height:60px">{{ old('notes', $isEdit ? $demandRequest->notes : '') }}</textarea>
         </div>
 
+        <div class="dr-field" style="margin-top:1rem">
+            <label><i class="fas fa-paperclip"></i> Attachments (optional)</label>
+            <input class="dr-control" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.5rem">
+            @if($isEdit && $demandRequest->attachments->count())
+                <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.4rem">
+                    @foreach($demandRequest->attachments as $att)
+                        <a href="{{ $att->url }}" target="_blank" style="font-size:.72rem;color:var(--primary-purple);background:var(--primary-soft);padding:.25rem .6rem;border-radius:999px;text-decoration:none"><i class="fas fa-file"></i> {{ \Illuminate\Support\Str::limit($att->name ?: 'file', 24) }}</a>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
         <div class="dr-foot">
-            <div class="dr-grand" style="display:flex;flex-direction:column;gap:.15rem;align-items:flex-start">
+            <div class="dr-grand" style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-start">
                 <span style="font-size:.72rem;color:#8a8099">Subtotal: <strong id="drSub" style="color:#475569;font-size:.95rem">0.00</strong></span>
-                <span style="font-size:.72rem;color:#8a8099">VAT (<span id="drVatPct">0</span>%): <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
+                <span style="font-size:.72rem;color:#8a8099;display:inline-flex;align-items:center;gap:.4rem">VAT
+                    <input class="dr-control" type="number" step="0.01" min="0" max="100" id="drVat" name="vat_percentage" value="{{ old('vat_percentage', $isEdit ? rtrim(rtrim(number_format($demandRequest->vat_percentage,2,'.',''), '0'),'.') : '0') }}" oninput="drCalcGrand()" placeholder="0" style="width:72px;min-height:34px;padding:.3rem .5rem;text-align:right">%
+                    = <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
                 <span>Grand Total: <strong id="drGrand">0.00</strong></span>
             </div>
             <div class="dr-actions">

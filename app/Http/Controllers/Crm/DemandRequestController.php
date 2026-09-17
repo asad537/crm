@@ -87,7 +87,7 @@ class DemandRequestController extends Controller
     public function edit($id)
     {
         $this->authorizeAccess();
-        $demandRequest = DemandRequest::with('items')->findOrFail($id);
+        $demandRequest = DemandRequest::with('items', 'attachments')->findOrFail($id);
 
         return view('crm.demand_requests.create', [
             'categories' => self::CATEGORIES,
@@ -127,9 +127,38 @@ class DemandRequestController extends Controller
             'created_by' => \Auth::guard('crm')->id(),
         ]);
         $demand->items()->createMany($items);
+        $this->saveDemandAttachments($request, $demand);
 
         return redirect()->route('crm.demand_requests.index')
             ->with('status', 'Demand Request #' . $demand->request_no . ' saved (' . $status . ').');
+    }
+
+    /** Store any files uploaded from the create/edit form as demand attachments. */
+    private function saveDemandAttachments(Request $request, DemandRequest $dr): void
+    {
+        $files = $request->file('files');
+        if (!$files) {
+            return;
+        }
+        $dir = public_path('uploads/demand-requests');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        foreach ((array) $files as $file) {
+            if (!$file) {
+                continue;
+            }
+            $ext = strtolower($file->getClientOriginalExtension());
+            $fname = 'dr_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+            $dr->attachments()->create([
+                'path' => 'uploads/demand-requests/' . $fname,
+                'name' => $file->getClientOriginalName(),
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'created_by' => \Auth::guard('crm')->id(),
+            ]);
+            $file->move($dir, $fname);
+        }
     }
 
     public function update(Request $request, $id)
@@ -152,6 +181,7 @@ class DemandRequestController extends Controller
         ]);
         $demand->items()->delete();
         $demand->items()->createMany($items);
+        $this->saveDemandAttachments($request, $demand);
 
         return redirect()->route('crm.demand_requests.index')
             ->with('status', 'Demand Request #' . $demand->request_no . ' updated.');
@@ -549,6 +579,8 @@ class DemandRequestController extends Controller
             'requested_by' => 'nullable|string|max:150',
             'priority' => 'nullable|in:Normal,Urgent',
             'vat_percentage' => 'nullable|numeric|min:0|max:100',
+            'files' => 'nullable|array',
+            'files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
             'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1',
             'items.*.category' => 'nullable|string|max:120',
