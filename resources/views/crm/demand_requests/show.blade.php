@@ -107,7 +107,7 @@
         <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Files</th></tr></thead>
+            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Files</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
                 @php($ip = $dr->paidForItem($it->id))
@@ -121,6 +121,8 @@
                     <td>{{ $it->description ?: '—' }}</td>
                     <td>{{ $it->specification ?: '—' }}</td>
                     <td>{{ $it->qty ?: '—' }}</td>
+                    <td class="dr-num">{{ $it->estimated_price !== null ? number_format($it->estimated_price,2) : '—' }}</td>
+                    <td class="dr-num">{{ (float)$it->vat_percentage > 0 ? rtrim(rtrim(number_format($it->vat_percentage,2,'.',''),'0'),'.').'%' : '—' }}</td>
                     <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
                     <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}</td>
                     <td class="dr-num" style="font-weight:800;color:{{ $inet < -0.009 ? '#e11d48' : '#159447' }}">{{ $inet < -0.009 ? '− '.number_format(abs($inet),2) : ($inet > 0.009 ? '+ '.number_format($inet,2) : '✔') }}</td>
@@ -286,9 +288,8 @@
     {{-- Actions --}}
     <div class="dr-card">
         <div class="dr-actbar">
-            @if(in_array($dr->status,['Draft','Submitted']))
-                <a class="dr-btn dr-btn-outline" href="{{ route('crm.demand_requests.edit',$dr->id) }}"><i class="fas fa-pen"></i> Edit</a>
-            @endif
+            <a class="dr-btn dr-btn-outline" href="{{ route('crm.demand_requests.edit',$dr->id) }}"><i class="fas fa-pen"></i> Edit</a>
+            <form method="POST" action="{{ route('crm.demand_requests.destroy',$dr->id) }}" style="display:inline" onsubmit="return confirm('Delete this demand request permanently?');">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="dr-btn dr-btn-red" type="submit"><i class="fas fa-trash"></i> Delete</button></form>
             @if($canApprove && $dr->status==='Submitted')
                 <form method="POST" action="{{ route('crm.demand_requests.approve',$dr->id) }}" style="display:inline">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-check"></i> Approve</button></form>
                 <button class="dr-btn dr-btn-red" type="button" onclick="document.getElementById('drReject').style.display='block'"><i class="fas fa-times"></i> Reject</button>
@@ -296,9 +297,6 @@
             <a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.pdf',$dr->id) }}" target="_blank"><i class="fas fa-file-pdf"></i> Print PDF</a>
             @if(in_array($dr->status,['Approved','Partially Paid']) && !$dr->force_completed)
                 <form method="POST" action="{{ route('crm.demand_requests.complete',$dr->id) }}" style="display:inline" onsubmit="return confirm('Mark this demand complete (close it)?');">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-flag-checkered"></i> Mark Complete</button></form>
-            @endif
-            @if($dr->status === 'Completed')
-                <form method="POST" action="{{ route('crm.demand_requests.reopen',$dr->id) }}" style="display:inline">{{ csrf_field() }}<button class="dr-btn dr-btn-outline" type="submit"><i class="fas fa-undo"></i> Reopen</button></form>
             @endif
         </div>
         @if($canApprove && $dr->status==='Submitted')
