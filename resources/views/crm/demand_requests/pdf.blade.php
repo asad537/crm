@@ -158,13 +158,13 @@
                     <td class="right">{{ $money($it->estimated_total) }}</td>
                 </tr>
             @endforeach
-                @if((float) $dr->vat_percentage > 0)
+                @if($dr->vatAmount() > 0.009)
                 <tr>
                     <td colspan="7" class="right" style="background:#fff;font-weight:700">Subtotal</td>
-                    <td class="right" style="background:#fff;font-weight:700">{{ $money($dr->estimated_total) }}</td>
+                    <td class="right" style="background:#fff;font-weight:700">{{ $money($dr->subtotalExVat()) }}</td>
                 </tr>
                 <tr>
-                    <td colspan="7" class="right" style="background:#fff">VAT ({{ rtrim(rtrim(number_format($dr->vat_percentage,2,'.',''),'0'),'.') }}%)</td>
+                    <td colspan="7" class="right" style="background:#fff">VAT</td>
                     <td class="right" style="background:#fff">{{ $money($dr->vatAmount()) }}</td>
                 </tr>
                 <tr class="total-bar">

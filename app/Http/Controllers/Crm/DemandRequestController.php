@@ -99,7 +99,7 @@ class DemandRequestController extends Controller
                 return [
                     'category' => $it->category, 'job_no' => $it->job_no, 'description' => $it->description,
                     'specification' => $it->specification, 'gsm' => $it->gsm, 'vendor_name' => $it->vendor_name,
-                    'qty' => $it->qty, 'estimated_price' => $it->estimated_price, 'estimated_total' => $it->estimated_total,
+                    'qty' => $it->qty, 'estimated_price' => $it->estimated_price, 'vat_percentage' => $it->vat_percentage, 'estimated_total' => $it->estimated_total,
                 ];
             })->all(),
         ]);
@@ -591,6 +591,7 @@ class DemandRequestController extends Controller
             'items.*.vendor_name' => 'nullable|string|max:150',
             'items.*.qty' => 'nullable|string|max:60',
             'items.*.estimated_price' => 'nullable|numeric|min:0',
+            'items.*.vat_percentage' => 'nullable|numeric|min:0|max:100',
             'items.*.estimated_total' => 'nullable|numeric|min:0',
         ]);
     }
@@ -601,16 +602,18 @@ class DemandRequestController extends Controller
         $pos = 1;
         foreach ($items as $item) {
             // skip fully-empty rows
-            $hasContent = collect(['category', 'job_no', 'description', 'specification', 'gsm', 'vendor_name', 'qty', 'estimated_price', 'estimated_total'])
+            $hasContent = collect(['category', 'job_no', 'description', 'specification', 'gsm', 'vendor_name', 'qty', 'estimated_price', 'vat_percentage', 'estimated_total'])
                 ->contains(fn($k) => trim((string) ($item[$k] ?? '')) !== '');
             if (!$hasContent) {
                 continue;
             }
             $price = $item['estimated_price'] !== null && $item['estimated_price'] !== '' ? round((float) $item['estimated_price'], 2) : null;
+            $vat = $item['vat_percentage'] !== null && $item['vat_percentage'] !== '' ? round((float) $item['vat_percentage'], 2) : 0;
             $total = $item['estimated_total'] !== null && $item['estimated_total'] !== '' ? round((float) $item['estimated_total'], 2) : 0;
-            // auto: if total not given but qty is a plain number and price present
+            // auto: if total not given but qty is a plain number and price present (VAT included)
             if ($total == 0 && $price !== null && is_numeric(trim((string) ($item['qty'] ?? '')))) {
-                $total = round((float) $item['qty'] * $price, 2);
+                $base = (float) $item['qty'] * $price;
+                $total = round($base + $base * $vat / 100, 2);
             }
             $out[] = [
                 'position' => $pos++,
@@ -622,6 +625,7 @@ class DemandRequestController extends Controller
                 'vendor_name' => $item['vendor_name'] ?? null,
                 'qty' => $item['qty'] ?? null,
                 'estimated_price' => $price,
+                'vat_percentage' => $vat,
                 'estimated_total' => $total,
             ];
         }

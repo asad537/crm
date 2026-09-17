@@ -87,6 +87,7 @@
                 <th style="min-width:130px">Vendor Name <span style="color:#94a3b8;font-weight:600">(opt)</span></th>
                 <th style="min-width:90px">Qty</th>
                 <th style="min-width:110px">Per Unit Price</th>
+                <th style="min-width:80px">VAT %</th>
                 <th style="min-width:120px">Total</th>
                 <th style="width:40px"></th>
             </tr></thead>
@@ -107,6 +108,7 @@
                     <td><input class="dr-control" list="drVendorNames" autocomplete="off" name="items[{{ $i }}][vendor_name]" value="{{ $it['vendor_name'] ?? '' }}" placeholder="Vendor"></td>
                     <td><input class="dr-control dr-qty" autocomplete="off" name="items[{{ $i }}][qty]" value="{{ $it['qty'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-price" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_price]" value="{{ $it['estimated_price'] ?? '' }}" oninput="drCalcRow(this)"></td>
+                    <td><input class="dr-control dr-vat" type="number" step="0.01" min="0" max="100" name="items[{{ $i }}][vat_percentage]" value="{{ $it['vat_percentage'] ?? '' }}" placeholder="0" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-total dr-total-input" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_total]" value="{{ $it['estimated_total'] ?? '' }}" oninput="drCalcGrand()"></td>
                     <td><button class="dr-rm" type="button" onclick="drRemoveRow(this)" title="Remove"><i class="fas fa-trash"></i></button></td>
                 </tr>
@@ -134,11 +136,9 @@
         </div>
 
         <div class="dr-foot">
-            <div class="dr-grand" style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-start">
+            <div class="dr-grand" style="display:flex;flex-direction:column;gap:.15rem;align-items:flex-start">
                 <span style="font-size:.72rem;color:#8a8099">Subtotal: <strong id="drSub" style="color:#475569;font-size:.95rem">0.00</strong></span>
-                <span style="font-size:.72rem;color:#8a8099;display:inline-flex;align-items:center;gap:.4rem">VAT
-                    <input class="dr-control" type="number" step="0.01" min="0" max="100" id="drVat" name="vat_percentage" value="{{ old('vat_percentage', $isEdit ? rtrim(rtrim(number_format($demandRequest->vat_percentage,2,'.',''), '0'),'.') : '0') }}" oninput="drCalcGrand()" placeholder="0" style="width:72px;min-height:34px;padding:.3rem .5rem;text-align:right">%
-                    = <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
+                <span style="font-size:.72rem;color:#8a8099">VAT: <strong id="drVatAmt" style="color:#475569;font-size:.95rem">0.00</strong></span>
                 <span>Grand Total: <strong id="drGrand">0.00</strong></span>
             </div>
             <div class="dr-actions">
@@ -155,22 +155,28 @@ function drCalcRow(el){
     var row = el.closest('.dr-row');
     var qty = (row.querySelector('.dr-qty').value || '').trim();
     var price = parseFloat(row.querySelector('.dr-price').value);
+    var vat = parseFloat((row.querySelector('.dr-vat')||{}).value) || 0;
     var totalEl = row.querySelector('.dr-total');
-    // auto-fill total only when qty is a plain number and price is set
+    // auto-fill total (incl VAT) only when qty is a plain number and price is set
     if (qty !== '' && !isNaN(qty) && !isNaN(price)) {
-        totalEl.value = (parseFloat(qty) * price).toFixed(2);
+        var base = parseFloat(qty) * price;
+        totalEl.value = (base + base * vat / 100).toFixed(2);
     }
     drCalcGrand();
 }
 function drCalcGrand(){
-    var sum = 0;
-    document.querySelectorAll('#drItems .dr-total').forEach(function(t){ sum += parseFloat(t.value) || 0; });
-    var vat = parseFloat((document.getElementById('drVat')||{}).value) || 0;
-    var vatAmt = sum * vat / 100;
-    var grand = sum + vatAmt;
+    var subtotal = 0, grand = 0;
+    document.querySelectorAll('#drItems .dr-row').forEach(function(row){
+        var qty = parseFloat((row.querySelector('.dr-qty')||{}).value) || 0;
+        var price = parseFloat((row.querySelector('.dr-price')||{}).value) || 0;
+        var total = parseFloat((row.querySelector('.dr-total')||{}).value) || 0;
+        subtotal += qty * price;
+        grand += total;
+    });
+    var vatAmt = grand - subtotal;
+    if (vatAmt < 0) vatAmt = 0;
     var fmt = function(n){ return n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); };
-    var s = document.getElementById('drSub'); if (s) s.textContent = fmt(sum);
-    var vp = document.getElementById('drVatPct'); if (vp) vp.textContent = (vat || 0);
+    var s = document.getElementById('drSub'); if (s) s.textContent = fmt(subtotal);
     var va = document.getElementById('drVatAmt'); if (va) va.textContent = fmt(vatAmt);
     document.getElementById('drGrand').textContent = fmt(grand);
 }

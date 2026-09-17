@@ -21,16 +21,38 @@ class DemandRequest extends Model
         'actual_total' => 'decimal:2',
     ];
 
-    /** VAT amount on the estimated subtotal. */
-    public function vatAmount(): float
+    /** Base (ex-VAT) amount for one item. */
+    protected function itemBase($it): float
     {
-        return round((float) $this->estimated_total * (float) $this->vat_percentage / 100, 2);
+        $qty = is_numeric(trim((string) $it->qty)) ? (float) $it->qty : null;
+        if ($qty !== null && $it->estimated_price !== null) {
+            return round($qty * (float) $it->estimated_price, 2);
+        }
+
+        return (float) $it->estimated_total; // no VAT split possible
     }
 
-    /** Estimated subtotal + VAT. */
+    /** Total VAT across all items (each item total already includes its VAT). */
+    public function vatAmount(): float
+    {
+        $v = 0;
+        foreach ($this->items as $it) {
+            $v += max(0, (float) $it->estimated_total - $this->itemBase($it));
+        }
+
+        return round($v, 2);
+    }
+
+    /** Sum of item totals (VAT included) — same as estimated_total. */
     public function grandTotal(): float
     {
-        return round((float) $this->estimated_total + $this->vatAmount(), 2);
+        return round((float) $this->estimated_total, 2);
+    }
+
+    /** Grand total minus VAT. */
+    public function subtotalExVat(): float
+    {
+        return round($this->grandTotal() - $this->vatAmount(), 2);
     }
 
     protected static function boot()
