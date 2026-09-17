@@ -107,7 +107,7 @@
         <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor / Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Files</th></tr></thead>
+            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Files</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
                 @php($ip = $dr->paidForItem($it->id))
@@ -116,7 +116,8 @@
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $it->category ?: '—' }}</td>
                     <td>{{ $it->job_no ?: '—' }}</td>
-                    <td>@if($it->vendor_name || $it->vendor_invoice_no)<div style="font-weight:650">{{ $it->vendor_name ?: '—' }}</div>@if($it->vendor_invoice_no)<div style="font-size:.7rem;color:#64748b">Inv# {{ $it->vendor_invoice_no }}</div>@endif @else<span style="color:#cbd5e1">—</span>@endif</td>
+                    <td>{{ $it->vendor_name ?: '—' }}</td>
+                    <td>{{ $it->vendor_invoice_no ?: '—' }}</td>
                     <td>{{ $it->description ?: '—' }}</td>
                     <td>{{ $it->specification ?: '—' }}</td>
                     <td>{{ $it->qty ?: '—' }}</td>
