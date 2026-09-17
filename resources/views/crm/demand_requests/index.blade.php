@@ -9,7 +9,7 @@
 .dr-btn{display:inline-flex;align-items:center;gap:.45rem;min-height:40px;padding:.55rem 1rem;border:0;border-radius:10px;font-weight:800;text-decoration:none;cursor:pointer;font-size:.82rem}
 .dr-btn-primary{color:#fff;background:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}
 .dr-btn-light{color:#475569;background:#eef2f7}
-.dr-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:.8rem;margin-bottom:1rem}
+.dr-cards{display:grid;grid-template-columns:repeat(6,1fr);gap:.8rem;margin-bottom:1rem}
 .dr-card{padding:1rem 1.1rem;background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
 .dr-card span{display:block;color:#8a99ae;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .dr-card strong{display:block;margin-top:.3rem;color:#172033;font-size:1.4rem}
@@ -45,6 +45,8 @@
         @php($__co = $summary['company_out'] ?? 0)
         <div class="dr-card"><span>Account Outstanding</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         <div class="dr-card"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
+        @php($__cih = $summary['cash_in_hand'] ?? 0)
+        <div class="dr-card"><span>Cash in Hand</span><strong style="color:{{ $__cih < -0.009 ? '#e11d48' : '#159447' }}" title="Account outstanding of completed demands">@if($__cih < -0.009)&minus; {{ number_format(abs($__cih),2) }}@elseif($__cih > 0.009)+ {{ number_format($__cih,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
     </div>
 
     <div class="dr-panel">
