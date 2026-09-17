@@ -158,7 +158,8 @@
                             <a class="iq-dropdown-item" href="{{ route('crm.emails.show',$inquiry->id) }}?followup=1#chat-composer"><i class="fas fa-paper-plane"></i> Follow Up @if((int)$inquiry->follow_up_count > 0)<span class="iq-followup-count">{{ (int)$inquiry->follow_up_count }}</span>@endif</a>
                             @php $__rowProposal = $__proposalMap->get($inquiry->id); @endphp
                             @if($__rowProposal && $__rowProposal->status === 'completed')
-                                <a class="iq-dropdown-item" href="{{ route('crm.orders.create',['inquiry'=>$inquiry->id]) }}"><i class="fas fa-cart-plus"></i> Create Order</a>
+                                @php $__ordCreate = (isset($activeCrmWorkspace) && $activeCrmWorkspace->slug === 'mybox-packaging-app') ? route('crm.orders.create') : route('crm.orders.manual.create',['inquiry'=>$inquiry->id]); @endphp
+                                <a class="iq-dropdown-item" href="{{ $__ordCreate }}"><i class="fas fa-cart-plus"></i> Create Order</a>
                             @else
                                 <form method="POST" action="{{ route('crm.proposals.request_from_inquiry',$inquiry->id) }}">
                                     {{ csrf_field() }}

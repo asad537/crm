@@ -40,6 +40,25 @@ class GeneralLedgerController extends Controller
             'count' => $receivableAll->count(),
         ];
 
+        // Party dropdown options: customers (receivable) and/or vendors (payable),
+        // built from the names that actually appear in the ledger for this tab.
+        $vendorNames = $payableTotals ? VendorPurchase::get()
+                ->map(fn ($p) => $p->vendor_name ?: optional($p->vendor)->name)
+                ->filter()->unique()->sort()->values() : collect();
+        $customerNames = $receivableAll
+                ->map(fn ($r) => $r->lead->client_name ?? null)
+                ->filter()->unique()->sort()->values();
+        if ($tab === 'payable') {
+            $partyOptions = $vendorNames;
+            $partyLabel = 'Vendor';
+        } elseif ($tab === 'receivable') {
+            $partyOptions = $customerNames;
+            $partyLabel = 'Customer';
+        } else {
+            $partyOptions = $customerNames->concat($vendorNames)->unique()->sort()->values();
+            $partyLabel = 'Customer / Vendor';
+        }
+
         $allEntries = $this->entriesFor($tab, $filters);
         $perPage = 20;
         $page = \Illuminate\Pagination\Paginator::resolveCurrentPage();
@@ -51,11 +70,12 @@ class GeneralLedgerController extends Controller
             ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]
         );
 
-        return view('crm.general_ledger.index', array_merge(compact('tab', 'entries', 'payableTotals', 'receivableTotals'), [
+        return view('crm.general_ledger.index', array_merge(compact('tab', 'entries', 'payableTotals', 'receivableTotals', 'partyOptions', 'partyLabel'), [
             'search' => $filters['search'],
             'dateFrom' => $filters['date_from'],
             'dateTo' => $filters['date_to'],
             'status' => $filters['status'],
+            'party' => $filters['party'],
         ]));
     }
 
@@ -113,6 +133,8 @@ class GeneralLedgerController extends Controller
             'date_from' => $request->input('date_from') ?: null,
             'date_to' => $request->input('date_to') ?: null,
             'status' => $request->input('status') ?: 'all',
+            // Specific customer (receivable) or vendor (payable), matched by party name.
+            'party' => $request->input('party') ? trim((string) $request->input('party')) : null,
         ];
     }
 
@@ -214,6 +236,12 @@ class GeneralLedgerController extends Controller
             } else {
                 $entries = $entries->where('status', $filters['status']);
             }
+        }
+        if (!empty($filters['party'])) {
+            $party = $filters['party'];
+            $entries = $entries->filter(function ($entry) use ($party) {
+                return (string) $entry->party === $party;
+            });
         }
         if ($filters['search'] !== '') {
             $search = $filters['search'];

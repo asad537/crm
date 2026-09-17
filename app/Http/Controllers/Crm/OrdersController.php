@@ -17,7 +17,10 @@ class OrdersController extends Controller
             return redirect()->route('crm.orders.index')->with('error', 'Unauthorized to create orders.');
         }
 
-        return view('crm.orders.create');
+        // Saved customers for the "select customer" dropdown (auto-fills the form).
+        $savedCustomers = \App\CrmCustomer::orderBy('name')->get();
+
+        return view('crm.orders.create', compact('savedCustomers'));
     }
 
     public function store(Request $request)
@@ -133,6 +136,13 @@ class OrdersController extends Controller
         $currentUser = \Auth::guard('crm')->user();
         if (!$currentUser) {
             return redirect()->back()->with('error', 'Unauthorized access.');
+        }
+
+        // The full branded invoice tab is the Al Massa workspace only. Every other workspace
+        // (e.g. TCB / my-box-printing) keeps its own manual-orders module.
+        $__ws = view()->shared('activeCrmWorkspace');
+        if (!$__ws || $__ws->slug !== 'mybox-packaging-app') {
+            return app(\App\Http\Controllers\Crm\OrderController::class)->index();
         }
 
         // Accounts (accountant) sees the full invoice list read-only, like admin/sales manager.

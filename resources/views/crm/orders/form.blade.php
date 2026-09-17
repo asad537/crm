@@ -44,10 +44,10 @@
 </style>
 
 <div class="od-wrap">
-    <div class="od-top"><a href="{{ route('crm.orders.index') }}" class="od-back"><i class="fas fa-arrow-left"></i> Back to Orders</a></div>
+    <div class="od-top"><a href="{{ route('crm.orders.manual.index') }}" class="od-back"><i class="fas fa-arrow-left"></i> Back to Orders</a></div>
     @if($errors->any())<div class="od-err">{{ $errors->first() }}</div>@endif
 
-    <form method="POST" action="{{ $o ? route('crm.orders.update',$o->id) : route('crm.orders.store') }}" id="orderForm">
+    <form method="POST" action="{{ $o ? route('crm.orders.manual.update',$o->id) : route('crm.orders.manual.store') }}" id="orderForm">
         {{ csrf_field() }}
         <input type="hidden" name="crm_email_id" value="{{ $val('crm_email_id') }}">
         <input type="hidden" name="_action" id="orderAction" value="save">

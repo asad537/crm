@@ -27,7 +27,7 @@ class OrderController extends Controller
         if ($user->isSales()) {
             $query->where('created_by', $user->id);
         }
-        return view('crm.orders.index', ['orders' => $query->get()]);
+        return view('crm.orders.manual_index', ['orders' => $query->get()]);
     }
 
     public function create(Request $request)
@@ -67,9 +67,9 @@ class OrderController extends Controller
         $order->save();
 
         if ($request->input('_action') === 'save_send') {
-            return redirect()->route('crm.orders.index')->with('success', 'Order saved. (Email sending can be wired to your mail setup.)');
+            return redirect()->route('crm.orders.manual.index')->with('success', 'Order saved. (Email sending can be wired to your mail setup.)');
         }
-        return redirect()->route('crm.orders.index')->with('success', 'Order created successfully.');
+        return redirect()->route('crm.orders.manual.index')->with('success', 'Order created successfully.');
     }
 
     public function update(Request $request, $id)
@@ -79,14 +79,14 @@ class OrderController extends Controller
         $this->fillFromRequest($order, $request, $user);
         $order->save();
 
-        return redirect()->route('crm.orders.index')->with('success', 'Order updated.');
+        return redirect()->route('crm.orders.manual.index')->with('success', 'Order updated.');
     }
 
     public function destroy($id)
     {
         $this->guard();
         CrmManualOrder::findOrFail($id)->delete();
-        return redirect()->route('crm.orders.index')->with('success', 'Order deleted.');
+        return redirect()->route('crm.orders.manual.index')->with('success', 'Order deleted.');
     }
 
     public function pdf($id)

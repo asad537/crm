@@ -61,6 +61,25 @@
             @endif
 
             <div class="section-title"><i class="fas fa-user"></i> Customer Information</div>
+            @if(isset($savedCustomers) && $savedCustomers->count())
+            <div class="form-group" style="margin-bottom:1rem">
+                <label class="form-label"><i class="fas fa-address-book" style="opacity:.7"></i> Select Saved Customer</label>
+                <select class="form-select" id="savedCustomerPicker" onchange="fillFromSavedCustomer(this)">
+                    <option value="">— Type manually or pick a saved customer —</option>
+                    @foreach($savedCustomers as $c)
+                    <option value="{{ $c->id }}"
+                        data-name="{{ $c->name }}"
+                        data-email="{{ $c->email }}"
+                        data-phone="{{ $c->phone }}"
+                        data-trn="{{ $c->tax_number }}"
+                        data-currency="{{ $c->currency }}"
+                        data-billing="{{ $c->billing_address }}"
+                        data-shipping="{{ $c->shipping_address }}">{{ $c->name }}{{ $c->company_name ? ' — '.$c->company_name : '' }}</option>
+                    @endforeach
+                </select>
+                <div style="font-size:.75rem;color:#94a3b8;margin-top:.35rem">Picking a customer auto-fills the fields below. You can still edit them.</div>
+            </div>
+            @endif
             <div class="form-grid">
                 <div class="form-group"><label class="form-label">Client Name *</label><input class="form-input" name="client_name" value="{{ old('client_name') }}" required></div>
                 <div class="form-group"><label class="form-label">Client Email *</label><input type="email" class="form-input" name="client_email" value="{{ old('client_email') }}" required></div>
@@ -113,6 +132,27 @@
 </div>
 
 <script>
+    // Auto-fill customer fields from a saved customer selection.
+    function fillFromSavedCustomer(sel) {
+        var opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return;
+        var set = function (name, val) {
+            var el = document.querySelector('[name="' + name + '"]');
+            if (el && val != null && val !== '') el.value = val;
+        };
+        set('client_name', opt.getAttribute('data-name'));
+        set('client_email', opt.getAttribute('data-email'));
+        set('client_phone', opt.getAttribute('data-phone'));
+        set('customer_trn', opt.getAttribute('data-trn'));
+        set('billing_address', opt.getAttribute('data-billing'));
+        set('shipping_address', opt.getAttribute('data-shipping'));
+        var cur = opt.getAttribute('data-currency');
+        if (cur) {
+            var curSel = document.querySelector('[name="invoice_currency"]');
+            if (curSel) curSel.value = cur;
+        }
+    }
+
     var oiIndex = 0;
     var oiOld = @json(old('products', []));
 

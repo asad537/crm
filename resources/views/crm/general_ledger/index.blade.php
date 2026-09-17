@@ -19,6 +19,7 @@
     $exportParams = array_filter([
         'tab' => $tab, 'search' => $search, 'date_from' => $dateFrom, 'date_to' => $dateTo,
         'status' => $status !== 'all' ? $status : null,
+        'party' => $party ?: null,
     ]);
 @endphp
 
@@ -248,8 +249,18 @@
                     @endforeach
                 </select>
             </div>
+            @if($partyOptions->count())
+            <div class="gl-field"><label>{{ $partyLabel }}</label>
+                <select name="party" onchange="document.getElementById('glFilterForm').submit()">
+                    <option value="">All {{ $partyLabel }}s</option>
+                    @foreach($partyOptions as $name)
+                        <option value="{{ $name }}" {{ $party === $name ? 'selected' : '' }}>{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
             <div class="gl-field"><label>Search</label><input name="search" id="glSearchInput" value="{{ $search }}" placeholder="Type to search live..." autocomplete="off"></div>
-            @if($search || $dateFrom || $dateTo || $status !== 'all')
+            @if($search || $dateFrom || $dateTo || $status !== 'all' || $party)
                 <a class="gl-reset" href="{{ route('crm.general_ledger.index', ['tab' => $tab]) }}">Reset</a>
             @endif
         </form>

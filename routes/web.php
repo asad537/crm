@@ -256,14 +256,17 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('sales-orders', 'SalesOrderController@index')->name('crm.sales_orders.index');
         Route::post('sales-orders', 'SalesOrderController@store')->name('crm.sales_orders.store');
 
-        // Manual Orders / Invoices (dedicated Order module)
-        Route::get('orders', 'OrderController@index')->name('crm.orders.index');
-        Route::get('orders/create', 'OrderController@create')->name('crm.orders.create');
-        Route::post('orders', 'OrderController@store')->name('crm.orders.store');
-        Route::get('orders/{id}/edit', 'OrderController@edit')->name('crm.orders.edit');
-        Route::post('orders/{id}', 'OrderController@update')->name('crm.orders.update');
-        Route::get('orders/{id}/pdf', 'OrderController@pdf')->name('crm.orders.pdf');
-        Route::delete('orders/{id}', 'OrderController@destroy')->name('crm.orders.destroy');
+        // Manual Orders (TCB / my-box-printing workspace only). The Orders tab entry point
+        // is crm.orders.index (OrdersController@index), which delegates to OrderController
+        // for non-Al-Massa workspaces. These manual.* routes have distinct URLs/names so they
+        // never shadow the Al Massa invoice system's crm.orders.* names.
+        Route::get('orders/manual', 'OrderController@index')->name('crm.orders.manual.index');
+        Route::get('orders/manual/create', 'OrderController@create')->name('crm.orders.manual.create');
+        Route::post('orders/manual', 'OrderController@store')->name('crm.orders.manual.store');
+        Route::get('orders/manual/{id}/edit', 'OrderController@edit')->name('crm.orders.manual.edit');
+        Route::post('orders/manual/{id}', 'OrderController@update')->name('crm.orders.manual.update');
+        Route::get('orders/manual/{id}/pdf', 'OrderController@pdf')->name('crm.orders.manual.pdf');
+        Route::delete('orders/manual/{id}', 'OrderController@destroy')->name('crm.orders.manual.destroy');
         Route::patch('sales-orders/{id}/payment-status', 'SalesOrderController@updatePaymentStatus')->name('crm.sales_orders.update_payment_status');
         Route::post('sales-orders/{id}/upload-artwork', 'SalesOrderController@uploadArtwork')->name('crm.sales_orders.upload_artwork');
         Route::post('sales-orders/{id}/approve-proof', 'SalesOrderController@approveProof')->name('crm.sales_orders.approve_proof');
