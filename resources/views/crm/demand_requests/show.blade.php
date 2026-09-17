@@ -218,7 +218,7 @@
 
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>Date</th><th class="dr-num">Amount</th><th>Type / Source</th><th>Against</th><th>Paid To</th><th>Note</th><th>Proof</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th class="dr-num">Amount</th><th>Type / Source</th><th>Against</th><th>Paid To</th><th>Vendor Inv#</th><th>Note</th><th>Proof</th><th></th></tr></thead>
             <tbody>
             @forelse($dr->payments as $pmt)
                 <tr>
@@ -229,7 +229,8 @@
                         @if($pmt->category)<span class="dr-tag" style="background:#eef2ff;color:#4338ca">{{ $pmt->category }}</span> @endif
                         @if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@elseif(!$pmt->category)<span class="dr-tag dr-tag-gen">—</span>@endif
                     </td>
-                    <td>{{ $pmt->paid_to ?: '—' }}@if($pmt->vendor_invoice_no)<div style="font-size:.68rem;color:#64748b">Inv# {{ $pmt->vendor_invoice_no }}</div>@endif</td>
+                    <td>{{ $pmt->paid_to ?: '—' }}</td>
+                    <td>{{ $pmt->vendor_invoice_no ?: '—' }}</td>
                     <td>{{ $pmt->note ?: '—' }}</td>
                     <td>@php($__proofs = $pmt->allProofs())@if(count($__proofs))<span style="display:inline-flex;gap:.35rem;flex-wrap:wrap">@foreach($__proofs as $__k => $__pf)<a href="{{ $__pf['url'] }}" target="_blank" title="{{ $__pf['name'] }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i>{{ count($__proofs)>1 ? ($__k+1) : '' }}</a>@endforeach</span>@else<span style="color:#cbd5e1">—</span>@endif</td>
                     <td>
@@ -240,7 +241,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="8"><div class="dr-empty">No payments recorded yet.</div></td></tr>
+                <tr><td colspan="9"><div class="dr-empty">No payments recorded yet.</div></td></tr>
             @endforelse
             </tbody>
         </table>
