@@ -28,6 +28,15 @@ class DemandRequestController extends Controller
         }
     }
 
+    /** Only Admin / Owner (Super Admin) may add or remove demand attachments. */
+    private function authorizeManageFiles()
+    {
+        $user = \Auth::guard('crm')->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) {
+            abort(403, 'Only admins can manage attachments.');
+        }
+    }
+
     public function index(Request $request)
     {
         $this->authorizeAccess();
@@ -634,6 +643,7 @@ class DemandRequestController extends Controller
     public function addAttachment(Request $request, $id)
     {
         $this->authorizeAccess();
+        $this->authorizeManageFiles();
         $dr = DemandRequest::findOrFail($id);
         $request->validate([
             'files' => 'required|array|max:10',
@@ -662,6 +672,7 @@ class DemandRequestController extends Controller
     public function deleteAttachment($id, $attId)
     {
         $this->authorizeAccess();
+        $this->authorizeManageFiles();
         $dr = DemandRequest::findOrFail($id);
         $att = $dr->attachments()->where('id', $attId)->first();
         if ($att) {

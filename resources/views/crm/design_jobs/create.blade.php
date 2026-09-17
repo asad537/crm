@@ -109,7 +109,7 @@
             <div class="djc-field">
                 <label class="djc-mono">Client Approval Date</label>
                 <input class="djc-in" type="date" name="client_approval_date" value="{{ old('client_approval_date') }}">
-                <div class="djc-hint">Optional — client approve karne ke baad add karein.</div>
+                <div class="djc-hint">Optional — add after the client approves.</div>
             </div>
             <div class="djc-field">
                 <label class="djc-mono">Details (optional)</label>

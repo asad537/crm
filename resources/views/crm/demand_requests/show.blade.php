@@ -276,21 +276,27 @@
     </div>
 
     {{-- Attachments --}}
+    @php($__fileUser = Auth::guard('crm')->user())
+    @php($__canManageFiles = $__fileUser && ($__fileUser->isAdmin() || $__fileUser->isSuperAdmin()))
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-paperclip"></i> Attachments</div>
+        @if($__canManageFiles)
         <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
             {{ csrf_field() }}
             <input class="dr-control" type="file" name="files[]" multiple data-max="10" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:360px">
             <button class="dr-btn dr-btn-outline dr-btn-sm" type="submit"><i class="fas fa-upload"></i> Upload</button>
-            <span style="color:#94a3b8;font-size:.72rem">Quote / invoice / receipt — max 20 MB each</span>
+            <span style="color:#94a3b8;font-size:.72rem">Payment proof attach</span>
         </form>
+        @endif
         @if($dr->attachments->count())
             <div style="display:flex;flex-wrap:wrap;gap:.6rem">
                 @foreach($dr->attachments as $att)
                     <div class="dr-att">
                         <i class="fas {{ $att->is_image ? 'fa-image' : 'fa-file-alt' }}"></i>
                         <a href="{{ $att->url }}" target="_blank">{{ \Illuminate\Support\Str::limit($att->name ?: 'file', 28) }}</a>
+                        @if($__canManageFiles)
                         <form method="POST" action="{{ route('crm.demand_requests.delete_attachment',[$dr->id,$att->id]) }}" onsubmit="return confirm('Remove attachment?');" style="display:inline">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="dr-att-x" type="submit"><i class="fas fa-times"></i></button></form>
+                        @endif
                     </div>
                 @endforeach
             </div>

@@ -249,7 +249,7 @@
            @if(in_array($st->status,['estimated','completed']))<i class="fas fa-check-circle" style="margin-left:.3rem;{{ $st->id === $ticket->id ? '' : 'color:#16a34a' }}"></i>@endif
         </a>
     @endforeach
-    <span style="color:#94a3b8;font-size:.68rem;margin-left:.4rem">Har product ki alag estimation — tab pe click karke estimate karein</span>
+    <span style="color:#94a3b8;font-size:.68rem;margin-left:.4rem">Separate estimation per product — click a tab to estimate</span>
 </div>
 @endif
 <div class="es-progress" aria-label="Estimate progress">
