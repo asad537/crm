@@ -40,7 +40,7 @@
 .dr-secttl{display:flex;align-items:center;gap:.5rem;margin:.1rem 0 .85rem;color:#8a99ae;font-size:.7rem;font-weight:850;text-transform:uppercase}.dr-secttl:after{content:'';flex:1;height:1px;background:#e8edf3}
 .dr-table{width:100%;border-collapse:collapse;font-size:.8rem}
 .dr-table th{padding:.5rem .6rem;text-align:left;color:#8a99ae;font-size:.62rem;font-weight:850;text-transform:uppercase;border-bottom:1px solid #eef2f7;white-space:nowrap}
-.dr-table td{padding:.55rem .6rem;border-bottom:1px solid #f2f5f9;color:#334155}
+.dr-table td{padding:.55rem .6rem;border-bottom:1px solid #f2f5f9;color:#334155;vertical-align:middle}
 .dr-num{text-align:right;font-variant-numeric:tabular-nums}
 .dr-pay-grid{display:flex;flex-wrap:wrap;gap:.6rem;align-items:end}.dr-pay-grid>.dr-field{flex:1 1 140px;min-width:0}.dr-pay-grid>.dr-field.dr-f-btn{flex:0 0 auto}
 .dr-field label{display:block;margin-bottom:.28rem;color:#425168;font-size:.68rem;font-weight:780}
@@ -122,7 +122,7 @@
                     <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
                     <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}</td>
                     <td class="dr-num" style="font-weight:800;color:{{ $inet < -0.009 ? '#e11d48' : '#159447' }}">{{ $inet < -0.009 ? '− '.number_format(abs($inet),2) : ($inet > 0.009 ? '+ '.number_format($inet,2) : '✔') }}</td>
-                    <td>@if($it->files->count())<span style="display:inline-flex;gap:.3rem;flex-wrap:wrap">@foreach($it->files as $__k => $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i>{{ $it->files->count()>1 ? ($__k+1) : '' }}</a>@endforeach</span>@else<span style="color:#cbd5e1">—</span>@endif</td>
+                    <td style="vertical-align:middle;white-space:nowrap">@if($it->files->count())@foreach($it->files as $__k => $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="color:var(--primary-purple);text-decoration:none;margin-right:.4rem"><i class="fas fa-paperclip"></i>{{ $it->files->count()>1 ? ($__k+1) : '' }}</a>@endforeach@else<span style="color:#cbd5e1">—</span>@endif</td>
                 </tr>
             @endforeach
             </tbody>
