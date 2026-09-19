@@ -139,11 +139,11 @@
 
         <table class="items">
             <colgroup>
-                <col style="width:7%"><col style="width:14%"><col style="width:9%"><col style="width:24%">
-                <col style="width:14%"><col style="width:7%"><col style="width:12%"><col style="width:13%">
+                <col style="width:6%"><col style="width:12%"><col style="width:8%"><col style="width:12%"><col style="width:18%">
+                <col style="width:12%"><col style="width:6%"><col style="width:12%"><col style="width:14%">
             </colgroup>
             <thead><tr>
-                <th>NO</th><th>CATEGORY</th><th>JOB</th><th>DESCRIPTION</th><th>SPECIFICATION</th><th>QTY</th><th>UNIT PRICE</th><th>TOTAL</th>
+                <th>NO</th><th>CATEGORY</th><th>JOB</th><th>VENDOR</th><th>DESCRIPTION</th><th>SPECIFICATION</th><th>QTY</th><th>UNIT PRICE</th><th>TOTAL</th>
             </tr></thead>
             <tbody>
             @foreach($dr->items as $it)
@@ -151,6 +151,7 @@
                     <td class="center">{{ $loop->iteration }}</td>
                     <td>{{ $it->category ?: '—' }}</td>
                     <td class="center">{{ $it->job_no ?: '—' }}</td>
+                    <td>{{ $it->vendor_name ?: '—' }}</td>
                     <td>{{ $it->description ?: '—' }}</td>
                     <td>{{ $it->specification ?: '—' }}</td>
                     <td class="center">{{ $it->qty ?: '—' }}</td>
@@ -160,20 +161,20 @@
             @endforeach
                 @if($dr->vatAmount() > 0.009)
                 <tr>
-                    <td colspan="7" class="right" style="background:#fff;font-weight:700">Subtotal</td>
+                    <td colspan="8" class="right" style="background:#fff;font-weight:700">Subtotal</td>
                     <td class="right" style="background:#fff;font-weight:700">{{ $money($dr->subtotalExVat()) }}</td>
                 </tr>
                 <tr>
-                    <td colspan="7" class="right" style="background:#fff">VAT</td>
+                    <td colspan="8" class="right" style="background:#fff">VAT</td>
                     <td class="right" style="background:#fff">{{ $money($dr->vatAmount()) }}</td>
                 </tr>
                 <tr class="total-bar">
-                    <td colspan="7" class="right">GRAND TOTAL</td>
+                    <td colspan="8" class="right">GRAND TOTAL</td>
                     <td class="right">{{ $money($dr->grandTotal()) }}</td>
                 </tr>
                 @else
                 <tr class="total-bar">
-                    <td colspan="7" class="right">ESTIMATED TOTAL</td>
+                    <td colspan="8" class="right">ESTIMATED TOTAL</td>
                     <td class="right">{{ $money($dr->estimated_total) }}</td>
                 </tr>
                 @endif
