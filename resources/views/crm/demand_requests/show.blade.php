@@ -75,6 +75,10 @@
             <div style="text-align:right">
                 <div style="font-weight:850;color:#172033">Demand #{{ str_pad($dr->request_no,3,'0',STR_PAD_LEFT) }}</div>
                 <span class="dr-badge dr-st-{{ $stSlug }}">{{ $dr->status }}</span>
+                @php($__pay = $dr->paymentStatus())
+                @if($__pay)
+                <span style="display:inline-block;margin-left:.35rem;padding:.28rem .6rem;border-radius:999px;font-size:.66rem;font-weight:850;text-transform:uppercase;{{ $__pay === 'Paid' ? 'background:#dcfce7;color:#166534' : 'background:#fee2e2;color:#b91c1c' }}">{{ $__pay }}</span>
+                @endif
             </div>
         </div>
         <div class="dr-meta">
@@ -142,7 +146,10 @@
     {{-- Record payments: one row per item, submit all at once --}}
     @if(in_array($dr->status,['Approved','Partially Paid']))
     <div class="dr-card">
-        <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record Payments @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
+        <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record Payments
+            @php($__pay = $dr->paymentStatus())
+            @if($__pay)<span style="text-transform:none;margin-left:.4rem;padding:.2rem .55rem;border-radius:999px;font-size:.66rem;font-weight:850;{{ $__pay === 'Paid' ? 'background:#dcfce7;color:#166534' : 'background:#fee2e2;color:#b91c1c' }}">{{ $__pay }}</span>@endif
+            @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
         @if((float) $dr->cash_in_hand_used > 0.009)
         <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;padding:.6rem .9rem;margin-bottom:.85rem;border-radius:11px;border:1px solid #bbf7d0;background:#ecfdf3;font-size:.78rem">
             <i class="fas fa-wallet" style="color:#159447"></i>
@@ -317,6 +324,9 @@
             <a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.pdf',$dr->id) }}" target="_blank"><i class="fas fa-file-pdf"></i> Print PDF</a>
             @if(in_array($dr->status,['Approved','Partially Paid']) && !$dr->force_completed)
                 <form method="POST" action="{{ route('crm.demand_requests.complete',$dr->id) }}" style="display:inline" onsubmit="return confirm('Mark this demand complete (close it)?');">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-flag-checkered"></i> Mark Complete</button></form>
+            @endif
+            @if($dr->status==='Completed' || $dr->force_completed)
+                <form method="POST" action="{{ route('crm.demand_requests.reopen',$dr->id) }}" style="display:inline" onsubmit="return confirm('Reopen this demand so payments can resume?');">{{ csrf_field() }}<button class="dr-btn dr-btn-outline" type="submit"><i class="fas fa-undo"></i> Reopen</button></form>
             @endif
         </div>
         @if($canApprove && $dr->status==='Submitted')

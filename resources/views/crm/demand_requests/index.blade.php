@@ -27,6 +27,8 @@
 .dr-st-Draft{background:#eef2f7;color:#64748b}.dr-st-Submitted{background:#fff7ed;color:#c2620c}
 .dr-st-Approved{background:#e6f7e9;color:#159447}.dr-st-Rejected{background:#fff1f2;color:#e11d48}
 .dr-st-Approved-alt{}.dr-st-Partially-Paid{background:#fef3c7;color:#b45309}.dr-st-Completed{background:#e6f7e9;color:#159447}
+.dr-paybadge{display:inline-block;margin-left:.35rem;padding:.18rem .5rem;border-radius:999px;font-size:.6rem;font-weight:850;text-transform:uppercase;letter-spacing:.03em}
+.dr-paybadge.is-paid{background:#dcfce7;color:#166534}.dr-paybadge.is-unpaid{background:#fee2e2;color:#b91c1c}
 .dr-actions{display:flex;gap:.4rem}
 .dr-ico{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:9px;cursor:pointer;text-decoration:none}
 .dr-ico-edit{background:var(--primary-soft);color:var(--primary-purple)}.dr-ico-del{background:#fff1f2;color:#e11d48}
@@ -93,7 +95,13 @@
                     @php($__co = $dr->companyOutstanding())
                     <td class="dr-num2" style="font-weight:800;color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}" title="Account balance (paid − requested)">{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔') }}</td>
                     <td class="dr-num2" style="font-weight:800;color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}" title="Company balance (paid − requested)">{{ $__co < -0.009 ? '− '.number_format(abs($__co),2) : ($__co > 0.009 ? '+ '.number_format($__co,2) : '✔') }}</td>
-                    <td><span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span></td>
+                    <td>
+                        <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
+                        @php($__pay = $dr->paymentStatus())
+                        @if($__pay)
+                        <span class="dr-paybadge {{ $__pay === 'Paid' ? 'is-paid' : 'is-unpaid' }}">{{ $__pay }}</span>
+                        @endif
+                    </td>
                     <td>
                         <div class="dr-actions">
                             <a class="dr-ico dr-ico-edit" href="{{ route('crm.demand_requests.show', $dr->id) }}" title="Open"><i class="fas fa-eye"></i></a>

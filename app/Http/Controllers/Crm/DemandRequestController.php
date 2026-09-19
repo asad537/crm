@@ -41,28 +41,33 @@ class DemandRequestController extends Controller
     {
         $this->authorizeAccess();
 
-        $query = DemandRequest::with(['creator', 'items', 'payments'])->orderBy('request_date', 'desc')->orderBy('id', 'desc');
+        // Same filters drive both the table AND the summary cards above.
+        $applyFilters = function ($q) use ($request) {
+            if ($request->filled('status')) {
+                $q->where('status', $request->status);
+            }
+            if ($request->filled('priority')) {
+                $q->where('priority', $request->priority);
+            }
+            if ($request->filled('search')) {
+                $s = $request->search;
+                $q->where(function ($qq) use ($s) {
+                    $qq->where('requested_by', 'like', "%{$s}%")
+                        ->orWhere('request_no', 'like', "%{$s}%")
+                        ->orWhereHas('items', function ($iq) use ($s) {
+                            $iq->where('description', 'like', "%{$s}%")->orWhere('category', 'like', "%{$s}%")->orWhere('job_no', 'like', "%{$s}%");
+                        });
+                });
+            }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
-        }
-        if ($request->filled('search')) {
-            $s = $request->search;
-            $query->where(function ($q) use ($s) {
-                $q->where('requested_by', 'like', "%{$s}%")
-                    ->orWhere('request_no', 'like', "%{$s}%")
-                    ->orWhereHas('items', function ($iq) use ($s) {
-                        $iq->where('description', 'like', "%{$s}%")->orWhere('category', 'like', "%{$s}%")->orWhere('job_no', 'like', "%{$s}%");
-                    });
-            });
-        }
+            return $q;
+        };
 
+        $query = $applyFilters(DemandRequest::with(['creator', 'items', 'payments'])->orderBy('request_date', 'desc')->orderBy('id', 'desc'));
         $requests = $query->paginate(20)->appends($request->all());
 
-        $all = DemandRequest::with(['items', 'payments'])->get();
+        // Summary reflects the current filters (Cash in Hand stays the global pool figure).
+        $all = $applyFilters(DemandRequest::with(['items', 'payments']))->get();
         $summary = [
             'total' => $all->count(),
             'estimated' => (float) $all->sum('estimated_total'),

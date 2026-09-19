@@ -188,6 +188,19 @@ class DemandRequest extends Model
         return round($this->paidTotal() - (float) $this->estimated_total, 2);
     }
 
+    /**
+     * Simple money status once the demand is approved: Paid when nothing is outstanding,
+     * otherwise Unpaid. Returns '' before approval (no payment stage yet).
+     */
+    public function paymentStatus(): string
+    {
+        if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
+            return '';
+        }
+
+        return $this->owedTotal() <= 0.009 ? 'Paid' : 'Unpaid';
+    }
+
     /** What any side still owes (no cross-subsidy) — drives completion status. */
     public function owedTotal(): float
     {
