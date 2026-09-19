@@ -50,7 +50,8 @@
 
         .items { width: 100%; border-collapse: collapse; margin-top: 16px; table-layout: fixed; }
         .items th { background: {{ $primary }}; color: #fff; padding: 7px 6px; font-size: 11px; font-weight: 800; text-align: center; }
-        .items td { background: {{ $rowCol }}; border-right: 2px solid #fff; padding: 6px 8px; font-size: 11.5px; vertical-align: top; }
+        .items td { background: {{ $rowCol }}; border-right: 2px solid #fff; padding: 6px 8px; font-size: 11.5px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+        .items th { word-wrap: break-word; overflow-wrap: break-word; }
         .items td:last-child { border-right: 0; }
         .items .center { text-align: center; } .items .right { text-align: right; }
         .items tr.total-bar td { background: {{ $primary }}; color: #fff; font-weight: 800; font-size: 12.5px; border-right-color: {{ $primary }}; }
