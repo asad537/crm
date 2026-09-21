@@ -73,17 +73,19 @@ class VendorPurchaseController extends Controller
             'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
             'job_id' => 'nullable|string|max:100',
             'demand_id' => 'nullable|integer|exists:demand_requests,id',
-            'description' => 'nullable|string|max:255',
-            'paper_type' => 'nullable|string|max:255',
-            'gsm' => 'nullable|string|max:50',
-            'size' => 'nullable|string|max:100',
-            'unit' => 'nullable|string|max:40',
-            'colours' => 'nullable|string|max:100',
-            'up_imposition' => 'nullable|string|max:50',
             'gp_status' => 'nullable|string|max:40',
-            'quantity' => 'nullable|numeric|min:0',
-            'rate' => 'nullable|numeric|min:0',
-            'gst_percentage' => 'nullable|numeric|min:0|max:100',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
+            'items' => 'required|array|min:1',
+            'items.*.description' => 'nullable|string|max:255',
+            'items.*.paper_type' => 'nullable|string|max:255',
+            'items.*.gsm' => 'nullable|string|max:50',
+            'items.*.size' => 'nullable|string|max:100',
+            'items.*.unit' => 'nullable|string|max:40',
+            'items.*.colours' => 'nullable|string|max:100',
+            'items.*.up_imposition' => 'nullable|string|max:50',
+            'items.*.quantity' => 'nullable|numeric|min:0',
+            'items.*.rate' => 'nullable|numeric|min:0',
+            'items.*.gst_percentage' => 'nullable|numeric|min:0|max:100',
             'deduction' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:Cash,Bank Transfer,Card,Cheque,Credit',
@@ -91,13 +93,43 @@ class VendorPurchaseController extends Controller
         ]);
 
         $vendor = Vendor::findOrFail($data['vendor_id']);
-        $qty = (float) ($data['quantity'] ?? 1);
-        if ($qty <= 0) { $qty = 1; }
-        $rate = round((float) ($data['rate'] ?? 0), 2);
-        $subtotal = round($qty * $rate, 2);
-        $gstPct = round((float) ($data['gst_percentage'] ?? 0), 2);
-        $tax = round($subtotal * $gstPct / 100, 2);
-        $total = round($subtotal + $tax, 2);
+
+        // Build normalized line items and running totals.
+        $rows = [];
+        $subtotalSum = 0.0;
+        $taxSum = 0.0;
+        foreach ($data['items'] as $it) {
+            $qty = (float) ($it['quantity'] ?? 1);
+            if ($qty <= 0) { $qty = 1; }
+            $rate = round((float) ($it['rate'] ?? 0), 2);
+            $line = round($qty * $rate, 2);
+            $gstPct = round((float) ($it['gst_percentage'] ?? 0), 2);
+            $tax = round($line * $gstPct / 100, 2);
+            // Skip completely empty rows.
+            if ($line <= 0 && empty($it['description']) && empty($it['paper_type'])) { continue; }
+            $subtotalSum += $line;
+            $taxSum += $tax;
+            $rows[] = [
+                'description' => $it['description'] ?: ($it['paper_type'] ?? $vendor->typeLabel().' item'),
+                'paper_type' => $it['paper_type'] ?? null,
+                'gsm' => $it['gsm'] ?? null,
+                'size' => $it['size'] ?? null,
+                'unit' => $it['unit'] ?: 'Items',
+                'colours' => $it['colours'] ?? null,
+                'up_imposition' => $it['up_imposition'] ?? null,
+                'qty' => $qty,
+                'rate' => $rate,
+                'gst' => $gstPct,
+                'line' => $line,
+            ];
+        }
+        if (empty($rows)) {
+            return back()->withInput()->withErrors(['items' => 'Add at least one item with a rate.']);
+        }
+
+        $subtotalSum = round($subtotalSum, 2);
+        $taxSum = round($taxSum, 2);
+        $total = round($subtotalSum + $taxSum, 2);
         $deduction = round((float) ($data['deduction'] ?? 0), 2);
         $paid = min(round((float) ($data['paid_amount'] ?? 0), 2), $total);
 
@@ -107,10 +139,16 @@ class VendorPurchaseController extends Controller
             $demandNo = $dr ? '#'.str_pad($dr->request_no, 3, '0', STR_PAD_LEFT) : null;
         }
 
-        $description = $data['description'] ?: ($data['paper_type'] ?? $vendor->typeLabel().' purchase');
+        // Optional invoice/proof attachment on the purchase header.
+        $attach = ['attachment_path' => null, 'attachment_name' => null, 'attachment_mime' => null];
+        if ($request->hasFile('attachment')) {
+            $attach = $this->storeAttachment($request->file('attachment'));
+        }
 
-        DB::transaction(function () use ($data, $vendor, $qty, $rate, $subtotal, $gstPct, $tax, $total, $deduction, $paid, $demandNo, $description) {
-            $purchase = VendorPurchase::create([
+        $first = $rows[0];
+
+        DB::transaction(function () use ($data, $vendor, $rows, $first, $subtotalSum, $taxSum, $total, $deduction, $paid, $demandNo, $attach) {
+            $purchase = VendorPurchase::create(array_merge([
                 'vendor_id' => $vendor->id,
                 'vendor_name' => $vendor->name,
                 'vendor_phone' => $vendor->phone,
@@ -122,40 +160,43 @@ class VendorPurchaseController extends Controller
                 'demand_no' => $demandNo,
                 'category' => $vendor->typeLabel(),
                 'expense_type' => 'Production Expense',
-                'item_name' => $description,
-                'material' => $data['paper_type'] ?? null,
-                'size' => $data['size'] ?? null,
-                'gsm' => $data['gsm'] ?? null,
-                'up_imposition' => $data['up_imposition'] ?? null,
+                'item_name' => $first['description'],
+                'material' => $first['paper_type'],
+                'size' => $first['size'],
+                'gsm' => $first['gsm'],
+                'up_imposition' => $first['up_imposition'],
                 'gp_status' => $data['gp_status'] ?? null,
-                'color' => $data['colours'] ?? null,
-                'quantity' => $qty,
-                'unit' => $data['unit'] ?: 'Items',
-                'unit_price' => $rate,
-                'subtotal' => $subtotal,
-                'vat_percentage' => $gstPct,
-                'tax_amount' => $tax,
+                'color' => $first['colours'],
+                'quantity' => $first['qty'],
+                'unit' => $first['unit'],
+                'unit_price' => $first['rate'],
+                'subtotal' => $subtotalSum,
+                'vat_percentage' => $first['gst'],
+                'tax_amount' => $taxSum,
                 'shipping_cost' => 0,
                 'deduction' => $deduction,
                 'total_amount' => $total,
                 'currency' => $data['currency'],
                 'created_by' => \Auth::guard('crm')->id(),
-            ]);
-            $purchase->items()->create([
-                'category' => $vendor->typeLabel(),
-                'expense_type' => 'Production Expense',
-                'item_name' => $description,
-                'material' => $data['paper_type'] ?? null,
-                'size' => $data['size'] ?? null,
-                'gsm' => $data['gsm'] ?? null,
-                'color' => $data['colours'] ?? null,
-                'quantity' => $qty,
-                'unit' => $data['unit'] ?: 'Items',
-                'unit_price' => $rate,
-                'line_total' => $subtotal,
-                'vat_percentage' => $gstPct,
-                'position' => 0,
-            ]);
+            ], $attach));
+
+            foreach ($rows as $i => $r) {
+                $purchase->items()->create([
+                    'category' => $vendor->typeLabel(),
+                    'expense_type' => 'Production Expense',
+                    'item_name' => $r['description'],
+                    'material' => $r['paper_type'],
+                    'size' => $r['size'],
+                    'gsm' => $r['gsm'],
+                    'color' => $r['colours'],
+                    'quantity' => $r['qty'],
+                    'unit' => $r['unit'],
+                    'unit_price' => $r['rate'],
+                    'line_total' => $r['line'],
+                    'vat_percentage' => $r['gst'],
+                    'position' => $i,
+                ]);
+            }
             if ($paid > 0.009) {
                 $purchase->payments()->create([
                     'amount' => $paid,
