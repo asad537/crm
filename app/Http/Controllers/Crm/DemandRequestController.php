@@ -653,7 +653,11 @@ class DemandRequestController extends Controller
         $request->validate([
             'files' => 'required|array|max:10',
             'files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
+            'note' => 'nullable|string|max:255',
+            'amount' => 'nullable|numeric|min:0',
         ]);
+        $note = trim((string) $request->input('note')) ?: null;
+        $amount = $request->filled('amount') ? round((float) $request->input('amount'), 2) : null;
         $dir = public_path('uploads/demand-requests');
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
@@ -664,6 +668,8 @@ class DemandRequestController extends Controller
             $dr->attachments()->create([
                 'path' => 'uploads/demand-requests/' . $fname,
                 'name' => $file->getClientOriginalName(),
+                'note' => $note,
+                'amount' => $amount,
                 'mime' => $file->getClientMimeType(),
                 'size' => $file->getSize(),
                 'created_by' => \Auth::guard('crm')->id(),

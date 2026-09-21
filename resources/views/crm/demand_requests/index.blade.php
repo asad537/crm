@@ -28,7 +28,7 @@
 .dr-st-Approved{background:#e6f7e9;color:#159447}.dr-st-Rejected{background:#fff1f2;color:#e11d48}
 .dr-st-Approved-alt{}.dr-st-Partially-Paid{background:#fef3c7;color:#b45309}.dr-st-Completed{background:#e6f7e9;color:#159447}
 .dr-paybadge{display:inline-block;margin-left:.35rem;padding:.18rem .5rem;border-radius:999px;font-size:.6rem;font-weight:850;text-transform:uppercase;letter-spacing:.03em}
-.dr-paybadge.is-paid{background:#dcfce7;color:#166534}.dr-paybadge.is-unpaid{background:#fee2e2;color:#b91c1c}
+.dr-paybadge.is-paid{background:#dcfce7;color:#166534}.dr-paybadge.is-unpaid{background:#fee2e2;color:#b91c1c}.dr-paybadge.is-partial{background:#fef3c7;color:#b45309}
 .dr-actions{display:flex;gap:.4rem}
 .dr-ico{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:9px;cursor:pointer;text-decoration:none}
 .dr-ico-edit{background:var(--primary-soft);color:var(--primary-purple)}.dr-ico-del{background:#fff1f2;color:#e11d48}
@@ -99,7 +99,7 @@
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
                         @php($__pay = $dr->paymentStatus())
                         @if($__pay)
-                        <span class="dr-paybadge {{ $__pay === 'Paid' ? 'is-paid' : 'is-unpaid' }}">{{ $__pay }}</span>
+                        <span class="dr-paybadge {{ $__pay === 'Paid' ? 'is-paid' : ($__pay === 'Partial' ? 'is-partial' : 'is-unpaid') }}">{{ $__pay }}</span>
                         @endif
                     </td>
                     <td>

@@ -33,13 +33,143 @@ class VendorPurchaseController extends Controller
         }
     }
 
+    /** Demand Requests offered in the "link to demand" dropdowns. */
+    private function demandRequestOptions()
+    {
+        return \App\DemandRequest::whereIn('status', ['Approved', 'Partially Paid', 'Completed'])
+            ->orderByDesc('request_no')
+            ->get(['id', 'request_no', 'requested_by'])
+            ->map(fn ($d) => ['id' => $d->id, 'label' => '#'.str_pad($d->request_no, 3, '0', STR_PAD_LEFT).' — '.($d->requested_by ?: 'Demand')]);
+    }
+
     public function create(Request $request)
     {
         $this->authorizeAccess();
         $vendors = Vendor::orderBy('name')->get();
         $selectedVendorId = $request->filled('vendor_id') ? (int) $request->vendor_id : null;
+        $demandOptions = $this->demandRequestOptions();
 
-        return view('crm.vendor_purchases.create', compact('vendors', 'selectedVendorId'));
+        return view('crm.vendor_purchases.create', compact('vendors', 'selectedVendorId', 'demandOptions'));
+    }
+
+    /** Clean, vendor-type-specific "Add Purchase" form (only the columns that type uses). */
+    public function createTyped(Request $request)
+    {
+        $this->authorizeAccess();
+        $vendors = Vendor::orderBy('name')->get();
+        $selectedVendorId = $request->filled('vendor_id') ? (int) $request->vendor_id : null;
+        $demandOptions = $this->demandRequestOptions();
+
+        return view('crm.vendor_purchases.create_typed', compact('vendors', 'selectedVendorId', 'demandOptions'));
+    }
+
+    public function storeTyped(Request $request)
+    {
+        $this->authorizeAccess();
+        $request->merge(['invoice_number' => trim((string) $request->input('invoice_number')) ?: null]);
+        $data = $request->validate([
+            'vendor_id' => 'required|integer|exists:vendors,id',
+            'purchase_date' => 'required|date',
+            'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
+            'job_id' => 'nullable|string|max:100',
+            'demand_id' => 'nullable|integer|exists:demand_requests,id',
+            'description' => 'nullable|string|max:255',
+            'paper_type' => 'nullable|string|max:255',
+            'gsm' => 'nullable|string|max:50',
+            'size' => 'nullable|string|max:100',
+            'unit' => 'nullable|string|max:40',
+            'colours' => 'nullable|string|max:100',
+            'up_imposition' => 'nullable|string|max:50',
+            'gp_status' => 'nullable|string|max:40',
+            'quantity' => 'nullable|numeric|min:0',
+            'rate' => 'nullable|numeric|min:0',
+            'gst_percentage' => 'nullable|numeric|min:0|max:100',
+            'deduction' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|in:Cash,Bank Transfer,Card,Cheque,Credit',
+            'currency' => 'required|in:USD,AED,GBP,EUR,PKR',
+        ]);
+
+        $vendor = Vendor::findOrFail($data['vendor_id']);
+        $qty = (float) ($data['quantity'] ?? 1);
+        if ($qty <= 0) { $qty = 1; }
+        $rate = round((float) ($data['rate'] ?? 0), 2);
+        $subtotal = round($qty * $rate, 2);
+        $gstPct = round((float) ($data['gst_percentage'] ?? 0), 2);
+        $tax = round($subtotal * $gstPct / 100, 2);
+        $total = round($subtotal + $tax, 2);
+        $deduction = round((float) ($data['deduction'] ?? 0), 2);
+        $paid = min(round((float) ($data['paid_amount'] ?? 0), 2), $total);
+
+        $demandNo = null;
+        if (!empty($data['demand_id'])) {
+            $dr = \App\DemandRequest::find($data['demand_id']);
+            $demandNo = $dr ? '#'.str_pad($dr->request_no, 3, '0', STR_PAD_LEFT) : null;
+        }
+
+        $description = $data['description'] ?: ($data['paper_type'] ?? $vendor->typeLabel().' purchase');
+
+        DB::transaction(function () use ($data, $vendor, $qty, $rate, $subtotal, $gstPct, $tax, $total, $deduction, $paid, $demandNo, $description) {
+            $purchase = VendorPurchase::create([
+                'vendor_id' => $vendor->id,
+                'vendor_name' => $vendor->name,
+                'vendor_phone' => $vendor->phone,
+                'vendor_email' => $vendor->email,
+                'purchase_date' => $data['purchase_date'],
+                'invoice_number' => $data['invoice_number'] ?? null,
+                'job_id' => $data['job_id'] ?? null,
+                'demand_id' => $data['demand_id'] ?? null,
+                'demand_no' => $demandNo,
+                'category' => $vendor->typeLabel(),
+                'expense_type' => 'Production Expense',
+                'item_name' => $description,
+                'material' => $data['paper_type'] ?? null,
+                'size' => $data['size'] ?? null,
+                'gsm' => $data['gsm'] ?? null,
+                'up_imposition' => $data['up_imposition'] ?? null,
+                'gp_status' => $data['gp_status'] ?? null,
+                'color' => $data['colours'] ?? null,
+                'quantity' => $qty,
+                'unit' => $data['unit'] ?: 'Items',
+                'unit_price' => $rate,
+                'subtotal' => $subtotal,
+                'vat_percentage' => $gstPct,
+                'tax_amount' => $tax,
+                'shipping_cost' => 0,
+                'deduction' => $deduction,
+                'total_amount' => $total,
+                'currency' => $data['currency'],
+                'created_by' => \Auth::guard('crm')->id(),
+            ]);
+            $purchase->items()->create([
+                'category' => $vendor->typeLabel(),
+                'expense_type' => 'Production Expense',
+                'item_name' => $description,
+                'material' => $data['paper_type'] ?? null,
+                'size' => $data['size'] ?? null,
+                'gsm' => $data['gsm'] ?? null,
+                'color' => $data['colours'] ?? null,
+                'quantity' => $qty,
+                'unit' => $data['unit'] ?: 'Items',
+                'unit_price' => $rate,
+                'line_total' => $subtotal,
+                'vat_percentage' => $gstPct,
+                'position' => 0,
+            ]);
+            if ($paid > 0.009) {
+                $purchase->payments()->create([
+                    'amount' => $paid,
+                    'method' => $data['payment_method'] ?? null,
+                    'paid_at' => $data['purchase_date'],
+                    'note' => 'Initial payment',
+                    'created_by' => \Auth::guard('crm')->id(),
+                ]);
+            }
+            $purchase->recomputePayments();
+        });
+
+        return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $vendor->id])
+            ->with('success', 'Vendor purchase recorded successfully.');
     }
 
     public function edit($id)
@@ -70,7 +200,9 @@ class VendorPurchaseController extends Controller
             ];
         })->all();
 
-        return view('crm.vendor_purchases.create', compact('vendors', 'selectedVendorId', 'purchase', 'purchaseItems'));
+        $demandOptions = $this->demandRequestOptions();
+
+        return view('crm.vendor_purchases.create', compact('vendors', 'selectedVendorId', 'purchase', 'purchaseItems', 'demandOptions'));
     }
 
     public function index(Request $request)
@@ -136,7 +268,7 @@ class VendorPurchaseController extends Controller
 
         $vendors = $vendorsQuery->paginate(20)->appends($request->all());
 
-        $query = VendorPurchase::with(['creator', 'items'])->orderBy('purchase_date', 'desc')->orderBy('id', 'desc');
+        $query = VendorPurchase::with(['creator', 'items', 'payments'])->orderBy('purchase_date', 'desc')->orderBy('id', 'desc');
         if ($selectedVendor) $query->where('vendor_id', $selectedVendor->id);
 
         if ($request->filled('search')) {
@@ -192,7 +324,27 @@ class VendorPurchaseController extends Controller
         }
 
         $expenseCatGroups = self::EXPENSE_CATEGORY_GROUPS;
-        return view('crm.vendor_purchases.index', compact('purchases', 'summary', 'vendors', 'selectedVendor', 'directorySummary', 'jobSummary', 'expenseCatGroups'));
+        // Demand Requests for the payment "link to demand" dropdown (approved / in-payment).
+        $demandOptions = $this->demandRequestOptions();
+        $vendorType = $selectedVendor->vendor_type ?? null;
+        // Type-specific list columns [label, purchase-field, format]. Inserted after "Packaging Item".
+        $typeColumnMap = [
+            'paper' => [
+                ['Paper Type', 'material', 'text'], ['GSM', 'gsm', 'text'], ['Size', 'size', 'text'],
+                ['Unit', 'unit', 'text'], ['Sheet Qty', 'quantity', 'text'],
+                ['Rate', 'unit_price', 'money'], ['GST', 'tax_amount', 'money'],
+            ],
+            'ctp_plate' => [
+                ['Up', 'up_imposition', 'text'], ['Rate', 'unit_price', 'money'],
+            ],
+            'die_making' => [
+                ['Size', 'size', 'text'], ['Colours', 'color', 'text'], ['Rate', 'unit_price', 'money'],
+            ],
+            'general' => [],
+        ];
+        $typeCols = $typeColumnMap[$vendorType] ?? [];
+        $vpColspan = 14 + count($typeCols);
+        return view('crm.vendor_purchases.index', compact('purchases', 'summary', 'vendors', 'selectedVendor', 'directorySummary', 'jobSummary', 'expenseCatGroups', 'demandOptions', 'vendorType', 'typeCols', 'vpColspan'));
     }
 
     /**
@@ -309,6 +461,8 @@ class VendorPurchaseController extends Controller
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
             'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
             'job_id' => 'nullable|string|max:100',
+            'demand_id' => 'nullable|integer|exists:demand_requests,id',
+            'deduction' => 'nullable|numeric|min:0',
             'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items' => 'required|array|min:1',
             'items.*.category' => 'required|string|max:100',
@@ -375,13 +529,37 @@ class VendorPurchaseController extends Controller
         $validated['tax_amount'] = $tax;
         $validated['shipping_cost'] = $shipping;
         $validated['total_amount'] = $total;
+        // Deduction reduces the balance alongside payments.
+        $deduction = round((float) ($validated['deduction'] ?? 0), 2);
+        $validated['deduction'] = $deduction;
         $validated['paid_amount'] = $payment['paid'];
-        $validated['balance_amount'] = $payment['balance'];
-        $validated['payment_status'] = $payment['status'];
+        $validated['balance_amount'] = max(0, round($total - $payment['paid'] - $deduction, 2));
+        $validated['payment_status'] = ($payment['paid'] + $deduction) <= 0.009
+            ? 'Unpaid'
+            : ($validated['balance_amount'] > 0.009 ? 'Partial' : 'Paid');
+        // Link to a Demand Request (optional) and store its display number.
+        $validated['demand_id'] = $validated['demand_id'] ?? null;
+        if (!empty($validated['demand_id'])) {
+            $dr = \App\DemandRequest::find($validated['demand_id']);
+            $validated['demand_no'] = $dr ? '#'.str_pad($dr->request_no, 3, '0', STR_PAD_LEFT) : null;
+        }
+        $validated['up_imposition'] = trim((string) $request->input('up_imposition')) ?: null;
+        $validated['gp_status'] = trim((string) $request->input('gp_status')) ?: null;
         $validated['created_by'] = \Auth::guard('crm')->id();
-        DB::transaction(function () use ($validated, $items) {
+        DB::transaction(function () use ($validated, $items, $payment) {
             $purchase = VendorPurchase::create($validated);
             $purchase->items()->createMany($items);
+            // Any initial paid amount becomes the first payment record so payments stay the source of truth.
+            if (($payment['paid'] ?? 0) > 0.009) {
+                $purchase->payments()->create([
+                    'amount' => round((float) $payment['paid'], 2),
+                    'method' => $validated['payment_method'] ?? null,
+                    'paid_at' => $validated['purchase_date'] ?? now()->toDateString(),
+                    'note' => 'Initial payment',
+                    'created_by' => \Auth::guard('crm')->id(),
+                ]);
+            }
+            $purchase->recomputePayments();
         });
 
         return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $validated['vendor_id']])
@@ -391,9 +569,26 @@ class VendorPurchaseController extends Controller
     public function storeVendor(Request $request)
     {
         $this->authorizeAccess();
-        $data = $request->validate(['name'=>'required|string|max:255','category'=>'nullable|string|max:100','trn_number'=>'nullable|string|max:100','phone'=>'nullable|string|max:50','email'=>'nullable|email|max:255','address'=>'nullable|string','notes'=>'nullable|string']);
+        $data = $request->validate(['name'=>'required|string|max:255','category'=>'nullable|string|max:100','vendor_type'=>'nullable|in:'.implode(',', array_keys(Vendor::TYPES)),'trn_number'=>'nullable|string|max:100','phone'=>'nullable|string|max:50','email'=>'nullable|email|max:255','address'=>'nullable|string','notes'=>'nullable|string']);
+        $data['vendor_type'] = $data['vendor_type'] ?? 'general';
         Vendor::create($data);
         return redirect()->route('crm.vendor_purchases.index')->with('success','Vendor added successfully.');
+    }
+
+    public function updateVendor(Request $request, $id)
+    {
+        $this->authorizeAccess();
+        $vendor = Vendor::findOrFail($id);
+        $data = $request->validate(['name'=>'required|string|max:255','category'=>'nullable|string|max:100','vendor_type'=>'nullable|in:'.implode(',', array_keys(Vendor::TYPES)),'trn_number'=>'nullable|string|max:100','phone'=>'nullable|string|max:50','email'=>'nullable|email|max:255','address'=>'nullable|string','notes'=>'nullable|string']);
+        $data['vendor_type'] = $data['vendor_type'] ?? $vendor->vendor_type ?? 'general';
+        $vendor->update($data);
+        // Keep the denormalised vendor name/contact on existing purchases in sync.
+        VendorPurchase::where('vendor_id', $vendor->id)->update([
+            'vendor_name' => $vendor->name,
+            'vendor_phone' => $vendor->phone,
+            'vendor_email' => $vendor->email,
+        ]);
+        return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $vendor->id])->with('success','Vendor updated successfully.');
     }
 
     public function updatePayment(Request $request, $id)
@@ -417,6 +612,79 @@ class VendorPurchaseController extends Controller
         return redirect()->back()->with('success', 'Vendor payment updated successfully.');
     }
 
+    /** Record one payment against a purchase (optionally linked to a Demand Request), with receipt. */
+    public function addPayment(Request $request, $id)
+    {
+        $this->authorizeAccess();
+        $purchase = VendorPurchase::findOrFail($id);
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'demand_id' => 'nullable|integer|exists:demand_requests,id',
+            'method' => 'nullable|string|max:40',
+            'paid_at' => 'nullable|date',
+            'note' => 'nullable|string|max:500',
+            'receipt' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
+        ]);
+
+        $demandNo = null;
+        if (!empty($validated['demand_id'])) {
+            $dr = \App\DemandRequest::find($validated['demand_id']);
+            $demandNo = $dr ? '#'.str_pad($dr->request_no, 3, '0', STR_PAD_LEFT) : null;
+        }
+
+        $payload = [
+            'demand_id' => $validated['demand_id'] ?? null,
+            'demand_no' => $demandNo,
+            'amount' => round((float) $validated['amount'], 2),
+            'method' => $validated['method'] ?? null,
+            'paid_at' => $validated['paid_at'] ?? now()->toDateString(),
+            'note' => $validated['note'] ?? null,
+            'created_by' => \Auth::guard('crm')->id(),
+        ];
+        if ($request->hasFile('receipt')) {
+            $payload = array_merge($payload, $this->storeReceipt($request->file('receipt')));
+        }
+        $purchase->payments()->create($payload);
+        $purchase->recomputePayments();
+
+        return back()->with('success', 'Payment recorded. Balance updated.');
+    }
+
+    public function deletePayment($id, $paymentId)
+    {
+        $this->authorizeAccess();
+        $purchase = VendorPurchase::findOrFail($id);
+        $payment = $purchase->payments()->where('id', $paymentId)->first();
+        if ($payment) {
+            if ($payment->receipt_path && is_file(public_path($payment->receipt_path))) {
+                @unlink(public_path($payment->receipt_path));
+            }
+            $payment->delete();
+            $purchase->recomputePayments();
+        }
+
+        return back()->with('success', 'Payment removed. Balance updated.');
+    }
+
+    private function storeReceipt($file)
+    {
+        $dir = public_path('uploads/vendor-purchases/receipts');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $ext = strtolower($file->getClientOriginalExtension());
+        $fname = 'vp_receipt_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+        $name = $file->getClientOriginalName();
+        $mime = $file->getClientMimeType();
+        $file->move($dir, $fname);
+
+        return [
+            'receipt_path' => 'uploads/vendor-purchases/receipts/' . $fname,
+            'receipt_name' => $name,
+            'receipt_mime' => $mime,
+        ];
+    }
+
     public function update(Request $request, $id)
     {
         $this->authorizeAccess();
@@ -431,6 +699,8 @@ class VendorPurchaseController extends Controller
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
             'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->ignore($id)->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
             'job_id' => 'nullable|string|max:100',
+            'demand_id' => 'nullable|integer|exists:demand_requests,id',
+            'deduction' => 'nullable|numeric|min:0',
             'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'items' => 'required|array|min:1',
             'items.*.category' => 'required|string|max:100',
@@ -485,13 +755,34 @@ class VendorPurchaseController extends Controller
         $payment = $this->resolvePaymentAmounts($validated, $total);
         if ($payment instanceof \Illuminate\Http\RedirectResponse) return $payment;
         $validated['subtotal'] = $subtotal; $validated['total_amount'] = $total;
-        $validated['paid_amount'] = $payment['paid'];
-        $validated['balance_amount'] = $payment['balance'];
-        $validated['payment_status'] = $payment['status'];
-        DB::transaction(function () use ($purchase, $validated, $items) {
+        $validated['deduction'] = round((float) ($validated['deduction'] ?? 0), 2);
+        // Link demand.
+        $validated['demand_id'] = $validated['demand_id'] ?? null;
+        if (!empty($validated['demand_id'])) {
+            $dr = \App\DemandRequest::find($validated['demand_id']);
+            $validated['demand_no'] = $dr ? '#'.str_pad($dr->request_no, 3, '0', STR_PAD_LEFT) : null;
+        } else {
+            $validated['demand_no'] = null;
+        }
+        $validated['up_imposition'] = trim((string) $request->input('up_imposition')) ?: null;
+        $validated['gp_status'] = trim((string) $request->input('gp_status')) ?: null;
+        // Payments table is the source of truth; don't let the form paid_amount override recorded payments.
+        unset($validated['paid_amount']);
+        DB::transaction(function () use ($purchase, $validated, $items, $payment) {
             $purchase->update($validated);
             $purchase->items()->delete();
             $purchase->items()->createMany($items);
+            // First-time paid amount (no prior payment records) becomes an initial payment record.
+            if (!$purchase->payments()->exists() && ($payment['paid'] ?? 0) > 0.009) {
+                $purchase->payments()->create([
+                    'amount' => round((float) $payment['paid'], 2),
+                    'method' => $validated['payment_method'] ?? null,
+                    'paid_at' => $validated['purchase_date'] ?? now()->toDateString(),
+                    'note' => 'Initial payment',
+                    'created_by' => \Auth::guard('crm')->id(),
+                ]);
+            }
+            $purchase->recomputePayments();
         });
         return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $validated['vendor_id']])->with('success', 'Vendor purchase updated successfully.');
     }

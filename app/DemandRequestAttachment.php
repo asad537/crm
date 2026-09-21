@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class DemandRequestAttachment extends Model
 {
     protected $fillable = [
-        'demand_request_id', 'path', 'name', 'mime', 'size', 'created_by',
+        'demand_request_id', 'path', 'name', 'note', 'amount', 'mime', 'size', 'created_by',
     ];
 
     public function request()

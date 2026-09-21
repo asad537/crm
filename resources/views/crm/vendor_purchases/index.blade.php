@@ -10,7 +10,7 @@
 @section('header_actions')
     <a href="{{ route('crm.vendor_purchases.jobs') }}" class="vp-primary-btn" style="text-decoration:none;background:#fff;color:var(--primary-purple);border:1px solid var(--primary-purple);margin-right:.5rem;"><i class="fas fa-briefcase"></i> Job Expenses</a>
     <button type="button" class="vp-primary-btn vp-header-add" style="margin-right:.5rem;" onclick="openVendorModal()"><i class="fas fa-truck"></i> Add Vendor</button>
-    @if(isset($selectedVendor) && $selectedVendor)<a class="vp-primary-btn" style="text-decoration:none;" href="{{ route('crm.vendor_purchases.create',['vendor_id'=>$selectedVendor->id]) }}">
+    @if(isset($selectedVendor) && $selectedVendor)<a class="vp-primary-btn" style="text-decoration:none;" href="{{ route('crm.vendor_purchases.create_typed',['vendor_id'=>$selectedVendor->id]) }}">
         <i class="fas fa-plus"></i> Add Purchase
     </a>@endif
 @endsection
@@ -227,8 +227,8 @@
         <div class="vp-directory-stat"><span class="vp-directory-stat-icon" style="color:#059669;background:#e1f8ef"><i class="fas fa-check-circle"></i></span><div class="vp-directory-stat-copy"><span>Paid</span><strong>{{ number_format($directorySummary['paid'], 2) }}</strong><small>Total amount paid</small></div></div>
     </div>
     <div class="vp-card vp-filter-card" style="margin-bottom:1rem"><div class="vp-toolbar-row"><form method="GET" class="vp-toolbar"><div class="vp-search"><i class="fas fa-search"></i><input class="vp-control" name="search" id="vendorLiveSearch" autocomplete="off" value="{{ request('search') }}" placeholder="Search…" oninput="vpVendorLiveSearch(this.value)"><button class="vp-search-btn" type="submit" title="Search"><i class="fas fa-arrow-right"></i></button></div><select class="vp-control" name="expense_type" onchange="this.form.submit()"><option value="">All</option>@foreach(['Production Expense','Consumable Expense','Admin/General Expense'] as $type)<option value="{{ $type }}" {{ request('expense_type')===$type?'selected':'' }}>{{ $type }}</option>@endforeach</select><select class="vp-control" name="payment_status" onchange="this.form.submit()"><option value="">All payments</option>@foreach(['Paid','Partial','Unpaid'] as $status)<option value="{{ $status }}" {{ request('payment_status')===$status?'selected':'' }}>{{ $status }}</option>@endforeach</select><input type="hidden" name="date_from" value="{{ request('date_from') }}"><input type="hidden" name="date_to" value="{{ request('date_to') }}"><input class="vp-control vp-date-range" type="text" value="{{ request('date_from') && request('date_to') ? request('date_from').' - '.request('date_to') : '' }}" placeholder="Date range" title="Date range"></form><form method="POST" action="{{ route('crm.vendor_purchases.export') }}" class="vp-export-bar" id="vpExportForm">{{ csrf_field() }}<input type="hidden" name="search"><input type="hidden" name="expense_type"><input type="hidden" name="payment_status"><input type="hidden" name="date_from"><input type="hidden" name="date_to"><div class="vp-export-menu"><button class="vp-filter-btn vp-export-btn {{ isset($activeCrmWorkspace) && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'vp-al-massa' : '' }}" type="button" onclick="document.getElementById('vpExportOptions').classList.toggle('show')"><i class="fas fa-download"></i> Export <i class="fas fa-chevron-down"></i></button><div class="vp-export-options" id="vpExportOptions"><button name="format" value="excel" type="submit"><i class="fas fa-file-excel"></i> Excel</button><button name="format" value="pdf" type="submit"><i class="fas fa-file-pdf"></i> PDF</button></div></div></form></div></div>
-    <div class="vp-vendor-grid">@forelse($vendors as $vendor)<a class="vp-vendor-card" href="{{ route('crm.vendor_purchases.index',array_merge(request()->only('expense_type'), ['vendor_id'=>$vendor->id])) }}"><div class="vp-vendor-head"><div class="vp-vendor-avatar">{{ strtoupper(substr($vendor->name,0,1)) }}</div><div><h3>{{ $vendor->name }}</h3><div class="vp-muted">Vendor #{{ str_pad($vendor->id,4,'0',STR_PAD_LEFT) }}</div></div></div>@if($vendor->phone)<div class="vp-vendor-contact"><i class="fas fa-phone"></i>{{ $vendor->phone }}</div>@endif @if($vendor->email)<div class="vp-vendor-contact"><i class="fas fa-envelope"></i>{{ $vendor->email }}</div>@endif<div class="vp-vendor-metrics"><div class="vp-vendor-metric"><span>Purchases</span><strong>{{ $vendor->purchases_count }}</strong></div><div class="vp-vendor-metric"><span>Total</span><strong>{{ number_format($vendor->purchases->sum('total_amount'),2) }}</strong></div><div class="vp-vendor-metric"><span>Outstanding</span><strong>{{ number_format($vendor->purchases->sum('balance_amount'),2) }}</strong></div></div><div class="vp-vendor-open"><span>View Purchases</span><i class="fas fa-arrow-right"></i></div></a>@empty<div class="vp-card vp-empty" style="grid-column:1/-1"><i class="fas fa-truck" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendors yet. Click “Add Vendor” to create the first vendor.</div></div>@endforelse</div>
-    <table class="vp-directory-table" id="vendorDirectoryTable"><thead><tr><th>Vendor / Payee</th><th>Expense Type</th><th>Contact</th><th>Purchases</th><th>Total Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>@forelse($vendors as $vendor)@php($vendorBalance = (float) $vendor->purchases->sum('balance_amount'))
+    <div class="vp-vendor-grid">@forelse($vendors as $vendor)<a class="vp-vendor-card" href="{{ route('crm.vendor_purchases.index',array_merge(request()->only('expense_type'), ['vendor_id'=>$vendor->id])) }}"><div class="vp-vendor-head"><div class="vp-vendor-avatar">{{ strtoupper(substr($vendor->name,0,1)) }}</div><div><h3>{{ $vendor->name }}</h3><div class="vp-muted">Vendor #{{ str_pad($vendor->id,4,'0',STR_PAD_LEFT) }} · <span style="color:var(--primary-purple);font-weight:700">{{ $vendor->typeLabel() }}</span></div></div></div>@if($vendor->phone)<div class="vp-vendor-contact"><i class="fas fa-phone"></i>{{ $vendor->phone }}</div>@endif @if($vendor->email)<div class="vp-vendor-contact"><i class="fas fa-envelope"></i>{{ $vendor->email }}</div>@endif<div class="vp-vendor-metrics"><div class="vp-vendor-metric"><span>Purchases</span><strong>{{ $vendor->purchases_count }}</strong></div><div class="vp-vendor-metric"><span>Total</span><strong>{{ number_format($vendor->purchases->sum('total_amount'),2) }}</strong></div><div class="vp-vendor-metric"><span>Outstanding</span><strong>{{ number_format($vendor->purchases->sum('balance_amount'),2) }}</strong></div></div><div class="vp-vendor-open"><span>View Purchases</span><i class="fas fa-arrow-right"></i></div></a>@empty<div class="vp-card vp-empty" style="grid-column:1/-1"><i class="fas fa-truck" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendors yet. Click “Add Vendor” to create the first vendor.</div></div>@endforelse</div>
+    <table class="vp-directory-table" id="vendorDirectoryTable"><thead><tr><th>Vendor / Payee</th><th>Expense Type</th><th>Contact</th><th>Purchases</th><th>Balance Due</th><th>Status</th><th>Action</th></tr></thead><tbody>@forelse($vendors as $vendor)@php($vendorBalance = (float) $vendor->purchases->sum('balance_amount'))
 @php($vendorHasUnpaidPurchase = $vendor->purchases->contains(function ($purchase) { return in_array($purchase->payment_status, ['Unpaid', 'Partial'], true); }))
 @php($vendorHasPurchases = $vendor->purchases->isNotEmpty())
 @php($vendorIsUnpaid = $vendorBalance > 0 || $vendorHasUnpaidPurchase)
@@ -239,9 +239,9 @@
 @if($vendor->category)<span class="vp-expense-type {{ $vendor->category === 'Consumable Expense' ? 'personal' : '' }}">{{ $vendor->category }}</span>@else<span class="vp-muted">—</span>@endif</td><td>
 <span class="vp-directory-contact"><i class="fas fa-phone"></i>{{ $vendor->phone ?: '-' }}</span><span class="vp-directory-contact" style="margin-top:.28rem"><i class="fas fa-envelope"></i>{{ $vendor->email ?: '-' }}</span></td><td>
 <span class="vp-directory-number">{{ $vendor->purchases_count }}</span></td><td>
-<span class="vp-directory-number">{{ number_format($vendor->purchases->sum('total_amount'),2) }}</span>@if($vendorBalance > 0)<div class="vp-directory-sub">Balance {{ number_format($vendorBalance,2) }}</div>@endif</td><td>
+<span class="vp-directory-number" style="color:{{ $vendorBalance > 0.009 ? '#dc2626' : '#16a34a' }}">{{ number_format($vendorBalance,2) }}</span><div class="vp-directory-sub">of {{ number_format($vendor->purchases->sum('total_amount'),2) }} total</div></td><td>
 <span class="vp-directory-status {{ $vendorStatusClass }}">{{ $vendorStatus }}</span></td><td>
-<div class="vp-action-group"><a class="vp-back" href="{{ route('crm.vendor_purchases.index',array_merge(request()->only('expense_type'), ['vendor_id'=>$vendor->id])) }}" title="View vendor purchases"><i class="fas fa-eye"></i></a>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendors.destroy',$vendor->id) }}" data-delete-target="{{ $vendor->name }}" onsubmit="return openVendorDeleteDialog(this,'vendor',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-directory-delete" type="submit" title="Delete vendor"><i class="fas fa-trash"></i></button></form>@endif</div></td></tr>@empty<tr><td colspan="7" class="vp-empty">No vendors found. Click “Add Vendor” to create one.</td></tr>@endforelse</tbody></table>
+<div class="vp-action-group"><a class="vp-back" href="{{ route('crm.vendor_purchases.index',array_merge(request()->only('expense_type'), ['vendor_id'=>$vendor->id])) }}" title="View vendor purchases"><i class="fas fa-eye"></i></a><button type="button" class="vp-directory-delete" style="border-color:#c7b8f5;color:#6c5ce7;background:var(--primary-soft,#f3f0ff);margin-left:0" title="Edit vendor" data-vendor="{{ json_encode(['id'=>$vendor->id,'name'=>$vendor->name,'vendor_type'=>$vendor->vendor_type,'trn_number'=>$vendor->trn_number,'phone'=>$vendor->phone,'email'=>$vendor->email,'address'=>$vendor->address,'notes'=>$vendor->notes]) }}" onclick="openVendorEditModal(JSON.parse(this.dataset.vendor))"><i class="fas fa-pen"></i></button>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendors.destroy',$vendor->id) }}" data-delete-target="{{ $vendor->name }}" onsubmit="return openVendorDeleteDialog(this,'vendor',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-directory-delete" type="submit" title="Delete vendor"><i class="fas fa-trash"></i></button></form>@endif</div></td></tr>@empty<tr><td colspan="7" class="vp-empty">No vendors found. Click “Add Vendor” to create one.</td></tr>@endforelse</tbody></table>
     @if($vendors->hasPages())<div class="vp-pagination">{{ $vendors->links() }}</div>@endif
     @else
     <a class="vp-back" href="{{ route('crm.vendor_purchases.index') }}"><i class="fas fa-arrow-left"></i> All Vendors</a><h2 style="margin:0 0 1rem">{{ $selectedVendor->name }} Purchases</h2>
@@ -269,12 +269,14 @@
             <input type="hidden" name="date_from" value="{{ request('date_from') }}"><input type="hidden" name="date_to" value="{{ request('date_to') }}"><input class="vp-control vp-date-range" type="text" value="{{ request('date_from') && request('date_to') ? request('date_from').' - '.request('date_to') : '' }}" placeholder="Date range" title="Date range">
         </form>
         <form method="POST" action="{{ route('crm.vendor_purchases.export') }}" class="vp-export-bar" id="vpExportForm">{{ csrf_field() }}<input type="hidden" name="vendor_id" value="{{ $selectedVendor->id }}"><input type="hidden" name="search"><input type="hidden" name="category"><input type="hidden" name="payment_status"><input type="hidden" name="date_from"><input type="hidden" name="date_to"><div class="vp-export-menu"><button class="vp-filter-btn vp-export-btn {{ isset($activeCrmWorkspace) && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'vp-al-massa' : '' }}" type="button" onclick="document.getElementById('vpExportOptions').classList.toggle('show')"><i class="fas fa-download"></i> Export <i class="fas fa-chevron-down"></i></button><div class="vp-export-options" id="vpExportOptions"><button name="format" value="excel" type="submit"><i class="fas fa-file-excel"></i> Excel</button><button name="format" value="pdf" type="submit"><i class="fas fa-file-pdf"></i> PDF</button></div></div><span id="vpSelectedCount" class="vp-muted">0 selected</span></form></div>
-        <div class="vp-table-wrap"><table class="vp-table"><thead><tr><th>Date</th><th>Invoice</th><th>Vendor</th><th>Packaging Item</th><th>Expense Type</th><th>Qty</th><th>Total</th><th>Paid / Balance</th><th>Status</th><th>Attachment</th><th>Actions</th><th>Update Payment</th></tr></thead><tbody>
+        <div class="vp-table-wrap"><table class="vp-table"><thead><tr><th>Date</th><th>Invoice</th><th>Demand</th><th>Vendor</th><th>Packaging Item</th>@foreach(($typeCols ?? []) as $__c)<th>{{ $__c[0] }}</th>@endforeach<th>Expense Type</th><th>Qty</th><th>Total</th><th>Deduction</th><th>Paid / Balance</th><th>Status</th><th>Attachment</th><th>Actions</th><th>Payment</th></tr></thead><tbody>
             @forelse($purchases as $purchase)
             <tr class="vp-row-link" data-href="{{ route('crm.vendor_purchases.edit',$purchase->id) }}" data-purchase-search="{{ strtolower(trim($purchase->purchase_date->format('d M Y').' '.$purchase->invoice_number.' '.$purchase->job_id.' '.$purchase->vendor_name.' '.($purchase->items->pluck('item_name')->filter()->implode(' ') ?: $purchase->item_name).' '.$purchase->category.' '.$purchase->material.' '.$purchase->payment_status)) }}">
                 <td>{{ $purchase->purchase_date->format('d M Y') }}</td><td><div class="vp-muted">{{ $purchase->invoice_number ?: 'No invoice #' }}</div>@if($purchase->job_id)<div class="vp-muted" style="margin-top:.15rem;color:var(--primary-purple);font-weight:700"><i class="fas fa-briefcase" style="font-size:.62rem"></i> {{ $purchase->job_id }}</div>@endif</td>
+                <td>@if($purchase->demand_no)<span style="color:#6c5ce7;font-weight:800">{{ $purchase->demand_no }}</span>@else<span class="vp-muted">—</span>@endif</td>
                 <td><div class="vp-vendor">{{ $purchase->vendor_name }}</div><div class="vp-muted">{{ $purchase->vendor_phone ?: $purchase->vendor_email }}</div></td>
                 <td><div class="vp-vendor">{{ $purchase->items->pluck('item_name')->filter()->implode(', ') ?: $purchase->item_name }}</div><div class="vp-muted">{{ $purchase->items->count() > 1 ? $purchase->items->count().' products' : collect([$purchase->category,$purchase->material,$purchase->gsm ? $purchase->gsm.' GSM' : null])->filter()->implode(' · ') }}</div></td>
+                @foreach(($typeCols ?? []) as $__c)<td class="vp-muted" style="white-space:nowrap">{{ ($__c[2] ?? '')==='money' ? number_format((float)($purchase->{$__c[1]} ?? 0),2) : ($purchase->{$__c[1]} ?: '—') }}</td>@endforeach
                 @php($__petTypes = $purchase->items->pluck('expense_type')->filter()->unique()->values())
                 @php($__petTypes = $__petTypes->isEmpty() ? collect([$purchase->expense_type ?: 'Production Expense']) : $__petTypes)
                 <td>
@@ -292,20 +294,96 @@
                 </td>
                 <td>@if($purchase->items->count() > 1)<span class="vp-money">{{ $purchase->items->count() }}</span> products @else<span class="vp-money">{{ number_format($purchase->quantity,2) }}</span> {{ $purchase->unit }}@endif</td>
                 <td class="vp-money">{{ $purchase->currency }} {{ number_format($purchase->total_amount,2) }}</td>
+                <td class="vp-money">{{ (float)$purchase->deduction > 0.009 ? number_format($purchase->deduction,2) : '—' }}</td>
                 <td><div style="color:#059669;font-weight:750">{{ number_format($purchase->paid_amount,2) }}</div><div class="vp-muted">Balance {{ number_format($purchase->balance_amount,2) }}</div></td>
                 <td><span class="vp-status vp-status-{{ strtolower($purchase->payment_status) }}"><i class="fas fa-circle" style="font-size:.38rem"></i>{{ $purchase->payment_status }}</span></td>
                 <td>@if($purchase->attachment_path)<a class="vp-attachment" href="{{ asset(ltrim(preg_replace('#^public/#','',$purchase->attachment_path),'/')) }}" target="_blank" rel="noopener" title="{{ $purchase->attachment_name }}"><i class="fas fa-paperclip"></i> View File</a>@else<span class="vp-muted">—</span>@endif</td>
-                <td><div class="vp-action-group"><a class="vp-edit-btn" href="{{ route('crm.vendor_purchases.edit',$purchase->id) }}" title="Edit purchase" aria-label="Edit purchase"><i class="fas fa-pen"></i></a>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendor_purchases.destroy',$purchase->id) }}" data-delete-target="{{ $purchase->item_name }}" onsubmit="return openVendorDeleteDialog(this,'purchase',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-delete-btn" type="submit" title="Delete purchase"><i class="fas fa-trash"></i></button></form>@endif</div></td><td><form class="vp-pay-form" method="POST" action="{{ route('crm.vendor_purchases.update_payment',$purchase->id) }}">{{ csrf_field() }}{{ method_field('PATCH') }}<input class="vp-control" type="number" step="0.01" min="0" max="{{ $purchase->total_amount }}" name="paid_amount" value="{{ $purchase->paid_amount }}" aria-label="Paid amount"><button class="vp-pay-btn" title="Save payment"><i class="fas fa-save"></i></button></form></td>
+                <td><div class="vp-action-group"><a class="vp-edit-btn" href="{{ route('crm.vendor_purchases.edit',$purchase->id) }}" title="Edit purchase" aria-label="Edit purchase"><i class="fas fa-pen"></i></a>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendor_purchases.destroy',$purchase->id) }}" data-delete-target="{{ $purchase->item_name }}" onsubmit="return openVendorDeleteDialog(this,'purchase',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-delete-btn" type="submit" title="Delete purchase"><i class="fas fa-trash"></i></button></form>@endif</div></td><td>
+                    <div style="display:flex;flex-direction:column;gap:.3rem;min-width:150px">
+                        <div class="vp-muted" style="font-size:.68rem">Bal: <strong style="color:{{ (float)$purchase->balance_amount>0.009 ? '#dc2626':'#16a34a' }}">{{ number_format($purchase->balance_amount,2) }}</strong>{{ (float)$purchase->deduction>0.009 ? ' · Ded '.number_format($purchase->deduction,2) : '' }}</div>
+                        <button type="button" class="vp-pay-btn" style="width:100%;justify-content:center;gap:.35rem"
+                            data-pay="{{ json_encode([
+                                'id' => $purchase->id,
+                                'invoice' => $purchase->invoice_number ?: ('#'.$purchase->id),
+                                'total' => (float) $purchase->total_amount,
+                                'balance' => (float) $purchase->balance_amount,
+                                'payments' => $purchase->payments->map(fn($p) => ['amount' => (float) $p->amount, 'demand_no' => $p->demand_no, 'paid_at' => optional($p->paid_at)->format('d M Y'), 'method' => $p->method, 'note' => $p->note, 'receipt' => $p->receipt_url, 'del' => route('crm.vendor_purchases.delete_payment', [$purchase->id, $p->id])])->all(),
+                            ]) }}"
+                            onclick="openVpPayModal(JSON.parse(this.dataset.pay))">
+                            <i class="fas fa-hand-holding-usd"></i> Payment
+                        </button>
+                    </div>
+                </td>
             </tr>
             @empty
-            <tr><td colspan="13"><div class="vp-empty"><i class="fas fa-box-open" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendor purchases recorded yet.</div></div></td></tr>
+            <tr><td colspan="{{ $vpColspan ?? 14 }}"><div class="vp-empty"><i class="fas fa-box-open" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendor purchases recorded yet.</div></div></td></tr>
             @endforelse
-            <tr id="vpPurchaseNoMatch" style="display:none"><td colspan="13"><div class="vp-empty"><i class="fas fa-search" style="font-size:1.6rem;margin-bottom:.6rem"></i><div>No purchases match your search.</div></div></td></tr>
+            <tr id="vpPurchaseNoMatch" style="display:none"><td colspan="{{ $vpColspan ?? 14 }}"><div class="vp-empty"><i class="fas fa-search" style="font-size:1.6rem;margin-bottom:.6rem"></i><div>No purchases match your search.</div></div></td></tr>
         </tbody></table></div>
         @if($purchases->hasPages())<div class="vp-pagination">{{ $purchases->links() }}</div>@endif
     </div>
     @endif
 </div>
+
+{{-- Payment modal: record a payment against a purchase, link a Demand Request, attach receipt --}}
+<div id="vpPayModal" class="vp-modal-backdrop" onclick="if(event.target===this) closeVpPay()">
+    <div class="vp-modal" style="max-width:660px">
+        <div class="vp-modal-header">
+            <div class="vp-modal-heading"><span class="vp-modal-heading-icon"><i class="fas fa-hand-holding-usd"></i></span>
+                <div><h3>Record Payment</h3><p class="vp-modal-subtitle">Invoice <span id="vpPayInvoice"></span> · Balance <strong id="vpPayBal" style="color:#dc2626"></strong></p></div>
+            </div>
+            <button class="vp-close" type="button" onclick="closeVpPay()"><i class="fas fa-times"></i></button>
+        </div>
+        <form class="vp-form" id="vpPayForm" method="POST" enctype="multipart/form-data">{{ csrf_field() }}
+            <div class="vp-grid">
+                <div class="vp-field vp-field-4"><label>Amount <span class="vp-required">*</span></label><input class="vp-control" id="vpPayAmount" type="number" step="0.01" min="0.01" name="amount" required></div>
+                <div class="vp-field vp-field-4"><label>Date</label><input class="vp-control" type="date" name="paid_at" value="{{ now()->toDateString() }}"></div>
+                <div class="vp-field vp-field-4"><label>Method</label><select class="vp-control" name="method"><option value="">—</option>@foreach(['Cash','Bank Transfer','Card','Cheque','Credit'] as $m)<option value="{{ $m }}">{{ $m }}</option>@endforeach</select></div>
+                <div class="vp-field vp-field-6"><label>Link Demand Request</label><select class="vp-control" name="demand_id"><option value="">— none —</option>@foreach(($demandOptions ?? []) as $opt)<option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>@endforeach</select></div>
+                <div class="vp-field vp-field-6"><label>Payment Receipt</label><input class="vp-control" type="file" name="receipt" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv"></div>
+                <div class="vp-field vp-field-12"><label>Note</label><input class="vp-control" name="note" maxlength="500" placeholder="Optional"></div>
+            </div>
+            <div class="vp-modal-actions"><button class="vp-filter-btn" type="button" onclick="closeVpPay()">Cancel</button><button class="vp-primary-btn" type="submit"><i class="fas fa-check"></i> Save Payment</button></div>
+        </form>
+        <div style="padding:0 1.25rem 1.1rem">
+            <div class="vp-muted" style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin:.4rem 0 .5rem">Payment history</div>
+            <div id="vpPayHistory"></div>
+        </div>
+    </div>
+</div>
+<script>
+    window.__VP_CSRF = '{{ csrf_token() }}';
+    window.__VP_PAY_BASE = '{{ url('crm/vendor-purchases') }}';
+    function openVpPayModal(data){
+        var f=document.getElementById('vpPayForm');
+        f.action = window.__VP_PAY_BASE + '/' + data.id + '/payments';
+        document.getElementById('vpPayInvoice').textContent = data.invoice;
+        document.getElementById('vpPayBal').textContent = (data.balance||0).toFixed(2);
+        var amt=document.getElementById('vpPayAmount'); amt.value = data.balance>0 ? data.balance.toFixed(2) : '';
+        amt.setAttribute('max', (data.total||data.balance||0).toFixed(2));
+        var h=document.getElementById('vpPayHistory');
+        if(!data.payments || !data.payments.length){ h.innerHTML='<div class="vp-muted" style="padding:.4rem 0">No payments recorded yet.</div>'; }
+        else {
+            h.innerHTML = data.payments.map(function(p){
+                var bits=[ '<strong>'+(p.amount||0).toFixed(2)+'</strong>' ];
+                if(p.paid_at) bits.push(p.paid_at);
+                if(p.demand_no) bits.push('<span style="color:#6c5ce7;font-weight:700">'+p.demand_no+'</span>');
+                if(p.method) bits.push(p.method);
+                if(p.note) bits.push('<span class="vp-muted">'+p.note+'</span>');
+                if(p.receipt) bits.push('<a href="'+p.receipt+'" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> receipt</a>');
+                return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.5rem .1rem;border-bottom:1px solid #eef1f6;font-size:.8rem">'
+                    + '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'+bits.join(' · ')+'</div>'
+                    + '<form method="POST" action="'+p.del+'" onsubmit="return confirm(\'Remove this payment?\')" style="display:inline">'
+                    + '<input type="hidden" name="_token" value="'+window.__VP_CSRF+'"><input type="hidden" name="_method" value="DELETE">'
+                    + '<button type="submit" class="vp-delete-btn" title="Remove payment"><i class="fas fa-trash"></i></button></form>'
+                    + '</div>';
+            }).join('');
+        }
+        document.getElementById('vpPayModal').style.display='flex';
+        document.body.style.overflow='hidden';
+    }
+    function closeVpPay(){document.getElementById('vpPayModal').style.display='none';document.body.style.overflow='';}
+</script>
 
 @if(!$selectedVendor)
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -498,7 +576,7 @@ function vpVendorLiveSearch(term) {
 </script>
 @endif
 
-<div id="vendorMasterModal" class="vp-modal-backdrop" onclick="if(event.target===this) requestVendorClose('vendor')"><div class="vp-modal" style="max-width:560px"><div class="vp-modal-header"><div class="vp-modal-heading"><span class="vp-modal-heading-icon"><i class="fas fa-truck"></i></span><div><h3>Add Vendor</h3><p class="vp-modal-subtitle">Create vendor first, then add purchases against it.</p></div></div><button class="vp-close" type="button" onclick="requestVendorClose('vendor')"><i class="fas fa-times"></i></button></div><form class="vp-form" id="vendorMasterForm" method="POST" action="{{ route('crm.vendors.store') }}">{{ csrf_field() }}<div class="vp-grid"><div class="vp-field vp-field-6"><label>Vendor Name <span class="vp-required">*</span></label><input class="vp-control" name="name" required></div><div class="vp-field vp-field-6"><label>TRN Number</label><input class="vp-control" name="trn_number" maxlength="100"></div><div class="vp-field vp-field-6"><label>Phone</label><input class="vp-control" name="phone"></div><div class="vp-field vp-field-6"><label>Email</label><input class="vp-control" type="email" name="email"></div><div class="vp-field vp-field-12"><label>Address</label><input class="vp-control" name="address"></div><div class="vp-field vp-field-12"><label>Notes</label><textarea class="vp-control" name="notes"></textarea></div></div><div class="vp-modal-actions"><button class="vp-filter-btn" type="button" onclick="requestVendorClose('vendor')">Cancel</button><button class="vp-primary-btn" type="submit"><i class="fas fa-check"></i> Save Vendor</button></div></form></div></div>
+<div id="vendorMasterModal" class="vp-modal-backdrop" onclick="if(event.target===this) requestVendorClose('vendor')"><div class="vp-modal" style="max-width:560px"><div class="vp-modal-header"><div class="vp-modal-heading"><span class="vp-modal-heading-icon"><i class="fas fa-truck"></i></span><div><h3>Add Vendor</h3><p class="vp-modal-subtitle">Create vendor first, then add purchases against it.</p></div></div><button class="vp-close" type="button" onclick="requestVendorClose('vendor')"><i class="fas fa-times"></i></button></div><form class="vp-form" id="vendorMasterForm" method="POST" action="{{ route('crm.vendors.store') }}">{{ csrf_field() }}<input type="hidden" name="_method" id="vendorFormMethod" value=""><div class="vp-grid"><div class="vp-field vp-field-6"><label>Vendor Name <span class="vp-required">*</span></label><input class="vp-control" name="name" required></div><div class="vp-field vp-field-6"><label>Vendor Type <span class="vp-required">*</span></label><select class="vp-control" name="vendor_type" required>@foreach(\App\Vendor::TYPES as $__tv => $__tl)<option value="{{ $__tv }}" {{ $__tv==='general'?'selected':'' }}>{{ $__tl }}</option>@endforeach</select></div><div class="vp-field vp-field-6"><label>TRN Number</label><input class="vp-control" name="trn_number" maxlength="100"></div><div class="vp-field vp-field-6"><label>Phone</label><input class="vp-control" name="phone"></div><div class="vp-field vp-field-6"><label>Email</label><input class="vp-control" type="email" name="email"></div><div class="vp-field vp-field-12"><label>Address</label><input class="vp-control" name="address"></div><div class="vp-field vp-field-12"><label>Notes</label><textarea class="vp-control" name="notes"></textarea></div></div><div class="vp-modal-actions"><button class="vp-filter-btn" type="button" onclick="requestVendorClose('vendor')">Cancel</button><button class="vp-primary-btn" type="submit"><i class="fas fa-check"></i> Save Vendor</button></div></form></div></div>
 
 <div id="vendorPurchaseModal" class="vp-modal-backdrop" onclick="if(event.target===this) requestVendorClose('purchase')">
     <div class="vp-modal" role="dialog" aria-modal="true" aria-labelledby="vendorPurchaseTitle">
@@ -589,7 +667,8 @@ function vpVendorLiveSearch(term) {
     function vendorFormState(form){var values=[];Array.prototype.forEach.call(form.elements,function(field){if(!field.name||field.name==='_token'||field.name==='_method')return;if(field.type==='file'){values.push(field.name+':'+(field.files&&field.files[0]?field.files[0].name:''));return}if((field.type==='checkbox'||field.type==='radio')&&!field.checked)return;values.push(field.name+':'+field.value)});return values.join('|')}
     function rememberVendorForm(type){var form=document.getElementById(type==='vendor'?'vendorMasterForm':'vendorPurchaseForm');vendorFormSnapshots[type]=vendorFormState(form)}
     function vendorFormChanged(type){var form=document.getElementById(type==='vendor'?'vendorMasterForm':'vendorPurchaseForm');return vendorFormState(form)!==(vendorFormSnapshots[type]||'')}
-    function openVendorModal(){var form=document.getElementById('vendorMasterForm');form.reset();document.getElementById('vendorMasterModal').style.display='flex';document.body.style.overflow='hidden';rememberVendorForm('vendor')}
+    function openVendorModal(){var form=document.getElementById('vendorMasterForm');form.reset();form.action='{{ route('crm.vendors.store') }}';document.getElementById('vendorFormMethod').value='';var h=document.querySelector('#vendorMasterModal h3');if(h)h.textContent='Add Vendor';document.getElementById('vendorMasterModal').style.display='flex';document.body.style.overflow='hidden';rememberVendorForm('vendor')}
+    function openVendorEditModal(v){var form=document.getElementById('vendorMasterForm');form.reset();form.action='{{ url('crm/vendors') }}/'+v.id;document.getElementById('vendorFormMethod').value='PUT';var set=function(n,val){var el=form.querySelector('[name="'+n+'"]');if(el)el.value=val||'';};set('name',v.name);set('vendor_type',v.vendor_type||'general');set('trn_number',v.trn_number);set('phone',v.phone);set('email',v.email);set('address',v.address);set('notes',v.notes);var h=document.querySelector('#vendorMasterModal h3');if(h)h.textContent='Edit Vendor';document.getElementById('vendorMasterModal').style.display='flex';document.body.style.overflow='hidden';}
     function closeVendorModal(){document.getElementById('vendorMasterModal').style.display='none';document.body.style.overflow=''}
     function requestVendorClose(type){if(vendorFormChanged(type)){pendingVendorClose=type;document.getElementById('vendorUnsavedGuard').style.display='flex';return}forceCloseVendorForm(type)}
     function forceCloseVendorForm(type){if(type==='vendor')closeVendorModal();else closePurchaseModal();pendingVendorClose=null}

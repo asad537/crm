@@ -215,15 +215,20 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('vendor-purchases/jobs', 'VendorPurchaseController@jobs')->name('crm.vendor_purchases.jobs');
         Route::get('vendor-purchases/due-reminders', 'VendorPurchaseController@dueReminders')->name('crm.vendor_purchases.due_reminders');
         Route::get('vendor-purchases/create', 'VendorPurchaseController@create')->name('crm.vendor_purchases.create');
+        Route::get('vendor-purchases/new', 'VendorPurchaseController@createTyped')->name('crm.vendor_purchases.create_typed');
+        Route::post('vendor-purchases/typed', 'VendorPurchaseController@storeTyped')->name('crm.vendor_purchases.store_typed');
         Route::post('vendor-purchases/extract-invoice', 'VendorPurchaseController@extractInvoice')->name('crm.vendor_purchases.extract_invoice');
         Route::post('vendor-purchases/export', 'VendorPurchaseController@export')->name('crm.vendor_purchases.export');
         Route::post('vendor-purchases', 'VendorPurchaseController@store')->name('crm.vendor_purchases.store');
         Route::get('vendor-purchases/{id}/edit', 'VendorPurchaseController@edit')->name('crm.vendor_purchases.edit');
         Route::post('vendors', 'VendorPurchaseController@storeVendor')->name('crm.vendors.store');
+        Route::put('vendors/{id}', 'VendorPurchaseController@updateVendor')->name('crm.vendors.update');
         Route::put('vendor-purchases/{id}', 'VendorPurchaseController@update')->name('crm.vendor_purchases.update');
         Route::delete('vendor-purchases/{id}', 'VendorPurchaseController@destroy')->name('crm.vendor_purchases.destroy');
         Route::delete('vendors/{id}', 'VendorPurchaseController@destroyVendor')->name('crm.vendors.destroy');
         Route::patch('vendor-purchases/{id}/payment', 'VendorPurchaseController@updatePayment')->name('crm.vendor_purchases.update_payment');
+        Route::post('vendor-purchases/{id}/payments', 'VendorPurchaseController@addPayment')->name('crm.vendor_purchases.add_payment');
+        Route::delete('vendor-purchases/{id}/payments/{paymentId}', 'VendorPurchaseController@deletePayment')->name('crm.vendor_purchases.delete_payment');
 
         // Customer sales add-on
         Route::get('customer-sales', 'CustomerSaleController@index')->name('crm.customer_sales.index');

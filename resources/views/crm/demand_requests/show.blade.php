@@ -77,7 +77,7 @@
                 <span class="dr-badge dr-st-{{ $stSlug }}">{{ $dr->status }}</span>
                 @php($__pay = $dr->paymentStatus())
                 @if($__pay)
-                <span style="display:inline-block;margin-left:.35rem;padding:.28rem .6rem;border-radius:999px;font-size:.66rem;font-weight:850;text-transform:uppercase;{{ $__pay === 'Paid' ? 'background:#dcfce7;color:#166534' : 'background:#fee2e2;color:#b91c1c' }}">{{ $__pay }}</span>
+                <span style="display:inline-block;margin-left:.35rem;padding:.28rem .6rem;border-radius:999px;font-size:.66rem;font-weight:850;text-transform:uppercase;{{ $__pay === 'Paid' ? 'background:#dcfce7;color:#166534' : ($__pay === 'Partial' ? 'background:#fef3c7;color:#b45309' : 'background:#fee2e2;color:#b91c1c') }}">{{ $__pay }}</span>
                 @endif
             </div>
         </div>
@@ -148,7 +148,7 @@
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-plus-circle"></i> Record Payments
             @php($__pay = $dr->paymentStatus())
-            @if($__pay)<span style="text-transform:none;margin-left:.4rem;padding:.2rem .55rem;border-radius:999px;font-size:.66rem;font-weight:850;{{ $__pay === 'Paid' ? 'background:#dcfce7;color:#166534' : 'background:#fee2e2;color:#b91c1c' }}">{{ $__pay }}</span>@endif
+            @if($__pay)<span style="text-transform:none;margin-left:.4rem;padding:.2rem .55rem;border-radius:999px;font-size:.66rem;font-weight:850;{{ $__pay === 'Paid' ? 'background:#dcfce7;color:#166534' : ($__pay === 'Partial' ? 'background:#fef3c7;color:#b45309' : 'background:#fee2e2;color:#b91c1c') }}">{{ $__pay }}</span>@endif
             @if($outstanding>0)<span style="text-transform:none;color:#e11d48;font-weight:800">({{ number_format($outstanding,2) }} remaining)</span>@endif</div>
         @if((float) $dr->cash_in_hand_used > 0.009)
         <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;padding:.6rem .9rem;margin-bottom:.85rem;border-radius:11px;border:1px solid #bbf7d0;background:#ecfdf3;font-size:.78rem">
@@ -288,24 +288,38 @@
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-paperclip"></i> Attachments</div>
         @if($__canManageFiles)
-        <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
+        <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.8rem">
             {{ csrf_field() }}
-            <input class="dr-control" type="file" name="files[]" multiple data-max="10" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:360px">
+            <div style="display:flex;flex-direction:column;gap:.25rem;flex:1;min-width:180px"><label style="font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase">Note</label><input class="dr-control" name="note" maxlength="255" placeholder="e.g. cash paid to vendor"></div>
+            <div style="display:flex;flex-direction:column;gap:.25rem"><label style="font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase">Amount</label><input class="dr-control" type="number" step="0.01" min="0" name="amount" placeholder="0.00" style="width:130px"></div>
+            <div style="display:flex;flex-direction:column;gap:.25rem"><label style="font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase">File</label><input class="dr-control" type="file" name="files[]" multiple data-max="10" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:300px"></div>
             <button class="dr-btn dr-btn-outline dr-btn-sm" type="submit"><i class="fas fa-upload"></i> Upload</button>
-            <span style="color:#94a3b8;font-size:.72rem">Payment proof attach</span>
         </form>
         @endif
         @if($dr->attachments->count())
-            <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+            <div style="overflow-x:auto;border:1px solid #e5ebf2;border-radius:12px">
+            <table style="width:100%;border-collapse:collapse;min-width:560px;font-size:.83rem">
+                <thead><tr style="background:#f7f9fc;color:#94a3b8;font-size:.62rem;font-weight:850;text-transform:uppercase;letter-spacing:.04em;text-align:left">
+                    <th style="padding:.55rem .8rem">File</th>
+                    <th style="padding:.55rem .8rem">Note</th>
+                    <th style="padding:.55rem .8rem;text-align:right">Amount</th>
+                    <th style="padding:.55rem .8rem;text-align:right;width:60px">Action</th>
+                </tr></thead>
+                <tbody>
                 @foreach($dr->attachments as $att)
-                    <div class="dr-att">
-                        <i class="fas {{ $att->is_image ? 'fa-image' : 'fa-file-alt' }}"></i>
-                        <a href="{{ $att->url }}" target="_blank">{{ \Illuminate\Support\Str::limit($att->name ?: 'file', 28) }}</a>
-                        @if($__canManageFiles)
-                        <form method="POST" action="{{ route('crm.demand_requests.delete_attachment',[$dr->id,$att->id]) }}" onsubmit="return confirm('Remove attachment?');" style="display:inline">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="dr-att-x" type="submit"><i class="fas fa-times"></i></button></form>
-                        @endif
-                    </div>
+                    <tr style="border-top:1px solid #eef1f6">
+                        <td style="padding:.6rem .8rem"><a href="{{ $att->url }}" target="_blank" style="color:var(--primary-purple);font-weight:700"><i class="fas {{ $att->is_image ? 'fa-image' : 'fa-file-alt' }}"></i> {{ \Illuminate\Support\Str::limit($att->name ?: 'file', 34) }}</a></td>
+                        <td style="padding:.6rem .8rem;color:#334155">{{ $att->note ?: '—' }}</td>
+                        <td style="padding:.6rem .8rem;text-align:right;font-weight:800;color:{{ $att->amount !== null ? '#159447' : '#cbd5e1' }}">{{ $att->amount !== null ? number_format((float)$att->amount,2) : '—' }}</td>
+                        <td style="padding:.6rem .8rem;text-align:right">
+                            @if($__canManageFiles)
+                            <form method="POST" action="{{ route('crm.demand_requests.delete_attachment',[$dr->id,$att->id]) }}" onsubmit="return confirm('Remove attachment?');" style="display:inline;margin:0">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="dr-att-x" type="submit" title="Remove"><i class="fas fa-times"></i></button></form>
+                            @endif
+                        </td>
+                    </tr>
                 @endforeach
+                </tbody>
+            </table>
             </div>
         @else
             <div class="dr-empty">No attachments yet.</div>
