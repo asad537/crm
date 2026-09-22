@@ -128,7 +128,11 @@
         // summary/overview aggregates ITEMS by their own expense_type. Each purchase's paid/balance
         // is split across its items in proportion to their gross (Total + VAT). Always full totals
         // (filter buttons) so clicking one card does not zero the others.
-        $__wsP = \App\VendorPurchase::with(['items:id,vendor_purchase_id,expense_type,line_total,vat_percentage'])->get(['id','total_amount','paid_amount','balance_amount','expense_type','purchase_date']);
+        // Date range narrows the summary cards too (type/status card-buttons stay full within the range).
+        $__wsP = \App\VendorPurchase::with(['items:id,vendor_purchase_id,expense_type,line_total,vat_percentage'])
+            ->when(request('date_from'), fn($q) => $q->whereDate('purchase_date', '>=', request('date_from')))
+            ->when(request('date_to'), fn($q) => $q->whereDate('purchase_date', '<=', request('date_to')))
+            ->get(['id','total_amount','paid_amount','balance_amount','expense_type','purchase_date']);
         $expensePurchases = $__wsP->flatMap(function ($p) {
             // A purchase with no line items still counts as a whole under its header type.
             if ($p->items->isEmpty()) {
