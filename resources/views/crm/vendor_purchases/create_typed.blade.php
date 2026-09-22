@@ -57,6 +57,13 @@
             <div class="vt-f s6"><label>Demand Request <span class="vt-opt">(opt)</span></label>
                 <select class="vt-control" name="demand_id"><option value="">— none —</option>@foreach(($demandOptions ?? []) as $opt)<option value="{{ $opt['id'] }}" {{ (int)old('demand_id')===(int)$opt['id']?'selected':'' }}>{{ $opt['label'] }}</option>@endforeach</select>
             </div>
+            <div class="vt-f"><label>Expense Type <span class="vt-req">*</span></label>
+                <select class="vt-control" name="expense_type" required>
+                    @foreach(['Production Expense'=>'Production','Consumable Expense'=>'Consumable','Admin/General Expense'=>'Admin/General'] as $etv=>$etl)
+                        <option value="{{ $etv }}" {{ old('expense_type','Production Expense')===$etv?'selected':'' }}>{{ $etl }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="vt-f"><label>GP Status <span class="vt-opt">(opt)</span></label><input class="vt-control" name="gp_status" value="{{ old('gp_status') }}" placeholder="Received / Pending"></div>
         </div>
 

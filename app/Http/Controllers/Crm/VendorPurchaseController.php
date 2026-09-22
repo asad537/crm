@@ -73,6 +73,7 @@ class VendorPurchaseController extends Controller
             'invoice_number' => ['nullable','string','max:100', \Illuminate\Validation\Rule::unique('vendor_purchases','invoice_number')->where(fn($q)=>$q->where('workspace_id', \App\Support\CrmWorkspaceContext::id()))],
             'job_id' => 'nullable|string|max:100',
             'demand_id' => 'nullable|integer|exists:demand_requests,id',
+            'expense_type' => 'nullable|in:Production Expense,Consumable Expense,Admin/General Expense',
             'gp_status' => 'nullable|string|max:40',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
             'items' => 'required|array|min:1',
@@ -159,7 +160,7 @@ class VendorPurchaseController extends Controller
                 'demand_id' => $data['demand_id'] ?? null,
                 'demand_no' => $demandNo,
                 'category' => $vendor->typeLabel(),
-                'expense_type' => 'Production Expense',
+                'expense_type' => $data['expense_type'] ?? 'Production Expense',
                 'item_name' => $first['description'],
                 'material' => $first['paper_type'],
                 'size' => $first['size'],
@@ -183,7 +184,7 @@ class VendorPurchaseController extends Controller
             foreach ($rows as $i => $r) {
                 $purchase->items()->create([
                     'category' => $vendor->typeLabel(),
-                    'expense_type' => 'Production Expense',
+                    'expense_type' => $data['expense_type'] ?? 'Production Expense',
                     'item_name' => $r['description'],
                     'material' => $r['paper_type'],
                     'size' => $r['size'],
@@ -266,10 +267,14 @@ class VendorPurchaseController extends Controller
                 $this->applyExpenseTypeFilter($query, $request->expense_type);
             }
         };
-        $vendorsQuery = Vendor::withCount(['purchases' => $applyPurchaseFilters])->with(['purchases' => function ($query) use ($applyPurchaseFilters) {
-            $query->select('id', 'vendor_id', 'purchase_date', 'total_amount', 'paid_amount', 'balance_amount', 'payment_status', 'expense_type');
-            $applyPurchaseFilters($query);
-        }]);
+        $vendorsQuery = Vendor::withCount(['purchases' => $applyPurchaseFilters])
+            // Full (unfiltered) totals so "Balance Due of X total" shows the real vendor total.
+            ->withSum('purchases as vp_total_all', 'total_amount')
+            ->withSum('purchases as vp_balance_all', 'balance_amount')
+            ->with(['purchases' => function ($query) use ($applyPurchaseFilters) {
+                $query->select('id', 'vendor_id', 'purchase_date', 'total_amount', 'paid_amount', 'balance_amount', 'payment_status', 'expense_type');
+                $applyPurchaseFilters($query);
+            }]);
         if ($request->filled('search')) {
             $search = $request->search;
             $vendorsQuery->where(function ($query) use ($search) {
