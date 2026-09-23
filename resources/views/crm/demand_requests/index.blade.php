@@ -124,5 +124,7 @@
 <script>
     var drSearchTimer=null;
     function drSearchDebounced(input){clearTimeout(drSearchTimer);drSearchTimer=setTimeout(function(){var f=input.form;if(!f)return;var pg=f.querySelector('[name="page"]');if(pg)pg.remove();f.submit();},500);}
+    // Keep the cursor in the search box after the page reloads with a value.
+    document.addEventListener('DOMContentLoaded',function(){var i=document.querySelector('.dr-search');if(i&&i.value){i.focus();var v=i.value;i.value='';i.value=v;}});
 </script>
 @endsection
