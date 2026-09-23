@@ -404,6 +404,19 @@ class VendorPurchaseController extends Controller
             $summary['paid'] = round($ledger->where('kind', 'payment')->sum('credit'), 2);
             $summary['balance'] = $ledgerBalance;
 
+            // Live search across the whole ledger (each row keeps its true running balance).
+            $search = trim((string) $request->input('search', ''));
+            if ($search !== '') {
+                $needle = mb_strtolower($search);
+                $ledger = $ledger->filter(function ($e) use ($needle) {
+                    $p = $e->purchase ?? null;
+                    $hay = $p
+                        ? optional($e->date)->format('d M Y').' '.$p->invoice_number.' '.$p->job_id.' '.$p->demand_no.' '.$p->vendor_name.' '.($p->items->pluck('item_name')->filter()->implode(' ') ?: $p->item_name).' '.$p->category.' '.$p->material.' '.number_format((float) $p->total_amount, 2)
+                        : optional($e->date)->format('d M Y').' '.$e->desc.' '.($e->sub ?? '');
+                    return strpos(mb_strtolower($hay), $needle) !== false;
+                })->values();
+            }
+
             // Records-per-page (running balance stays correct: computed on the full set above).
             $perPage = (int) $request->input('per_page', 50);
             if (!in_array($perPage, [50, 100, 1000], true)) {
