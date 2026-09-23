@@ -53,7 +53,7 @@
 
     <div class="dr-panel">
         <form method="GET" class="dr-toolbar">
-            <input class="dr-control dr-search" name="search" value="{{ request('search') }}" placeholder="Search request no, requested by, item, job…">
+            <input class="dr-control dr-search" name="search" value="{{ request('search') }}" autocomplete="off" placeholder="Search request no, requested by, item, job…" oninput="drSearchDebounced(this)">
             <select class="dr-control" name="status" onchange="this.form.submit()">
                 <option value="">All statuses</option>
                 @foreach(['Draft','Submitted','Approved','Rejected','Partially Paid','Completed'] as $st)
@@ -121,4 +121,8 @@
         <div style="padding:.8rem 1rem">{{ $requests->links() }}</div>
     </div>
 </div>
+<script>
+    var drSearchTimer=null;
+    function drSearchDebounced(input){clearTimeout(drSearchTimer);drSearchTimer=setTimeout(function(){var f=input.form;if(!f)return;var pg=f.querySelector('[name="page"]');if(pg)pg.remove();f.submit();},500);}
+</script>
 @endsection
