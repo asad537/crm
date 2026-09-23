@@ -223,6 +223,8 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('vendor-purchases/{id}/edit', 'VendorPurchaseController@edit')->name('crm.vendor_purchases.edit');
         Route::post('vendors', 'VendorPurchaseController@storeVendor')->name('crm.vendors.store');
         Route::put('vendors/{id}', 'VendorPurchaseController@updateVendor')->name('crm.vendors.update');
+        Route::post('vendors/{id}/payments', 'VendorPurchaseController@addVendorPayment')->name('crm.vendor_purchases.add_vendor_payment');
+        Route::delete('vendors/{id}/payments/{paymentId}', 'VendorPurchaseController@deleteVendorPayment')->name('crm.vendor_purchases.delete_vendor_payment');
         Route::put('vendor-purchases/{id}', 'VendorPurchaseController@update')->name('crm.vendor_purchases.update');
         Route::delete('vendor-purchases/{id}', 'VendorPurchaseController@destroy')->name('crm.vendor_purchases.destroy');
         Route::delete('vendors/{id}', 'VendorPurchaseController@destroyVendor')->name('crm.vendors.destroy');

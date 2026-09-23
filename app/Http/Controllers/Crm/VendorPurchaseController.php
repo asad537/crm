@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
 use App\VendorPurchase;
+use App\VendorPurchasePayment;
 use App\Vendor;
 use App\Services\LocalInvoiceOcrService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 class VendorPurchaseController extends Controller
@@ -389,8 +391,72 @@ class VendorPurchaseController extends Controller
             'general' => [],
         ];
         $typeCols = $typeColumnMap[$vendorType] ?? [];
-        $vpColspan = 14 + count($typeCols);
-        return view('crm.vendor_purchases.index', compact('purchases', 'summary', 'vendors', 'selectedVendor', 'directorySummary', 'jobSummary', 'expenseCatGroups', 'demandOptions', 'vendorType', 'typeCols', 'vpColspan'));
+        // Purchase-details table columns are fixed (type-specific fields live in the view popup);
+        // per-row payment removed, so one fewer column.
+        $vpColspan = 12;
+
+        // Vendor ledger (running balance): purchases (debit), deductions + payments (credit).
+        $ledger = collect();
+        $ledgerBalance = 0.0;
+        if ($selectedVendor) {
+            [$ledger, $ledgerBalance] = $this->buildVendorLedger($selectedVendor->id, $request);
+            $summary['total'] = round($ledger->sum('debit'), 2);
+            $summary['paid'] = round($ledger->where('kind', 'payment')->sum('credit'), 2);
+            $summary['balance'] = $ledgerBalance;
+
+            // Records-per-page (running balance stays correct: computed on the full set above).
+            $perPage = (int) $request->input('per_page', 50);
+            if (!in_array($perPage, [50, 100, 1000], true)) {
+                $perPage = 50;
+            }
+            $page = LengthAwarePaginator::resolveCurrentPage();
+            $ledger = new LengthAwarePaginator(
+                $ledger->forPage($page, $perPage)->values(),
+                $ledger->count(),
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
+
+        return view('crm.vendor_purchases.index', compact('purchases', 'summary', 'vendors', 'selectedVendor', 'directorySummary', 'jobSummary', 'expenseCatGroups', 'demandOptions', 'vendorType', 'typeCols', 'vpColspan', 'ledger', 'ledgerBalance'));
+    }
+
+    /**
+     * Build a vendor's running-balance ledger: purchases (debit), deductions + payments (credit).
+     * Returns [Collection $entries (newest first, each with ->balance), float $closingBalance].
+     */
+    private function buildVendorLedger($vendorId, Request $request): array
+    {
+        $lp = VendorPurchase::where('vendor_id', $vendorId)->with(['payments', 'items'])
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('purchase_date', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('purchase_date', '<=', $request->date_to))
+            ->get();
+        $entries = collect();
+        foreach ($lp as $p) {
+            $entries->push((object) ['ts' => optional($p->purchase_date)->timestamp ?? 0, 'seq' => 0, 'date' => $p->purchase_date, 'desc' => $p->item_name ?: ($p->invoice_number ?: 'Purchase'), 'sub' => trim(($p->invoice_number ? 'Inv '.$p->invoice_number : '').($p->job_id ? ' · Job '.$p->job_id : '')), 'debit' => (float) $p->total_amount, 'credit' => 0.0, 'kind' => 'purchase', 'edit' => route('crm.vendor_purchases.edit', $p->id), 'purchase' => $p]);
+            if ((float) $p->deduction > 0.009) {
+                $entries->push((object) ['ts' => optional($p->purchase_date)->timestamp ?? 0, 'seq' => 1, 'date' => $p->purchase_date, 'desc' => 'Deduction', 'sub' => $p->invoice_number ? 'Inv '.$p->invoice_number : '', 'debit' => 0.0, 'credit' => (float) $p->deduction, 'kind' => 'deduction']);
+            }
+            foreach ($p->payments as $pay) {
+                $entries->push((object) ['ts' => optional($pay->paid_at)->timestamp ?? 0, 'seq' => 2, 'date' => $pay->paid_at, 'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : ''), 'sub' => $pay->note, 'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'receipt' => $pay->receipt_url, 'del' => route('crm.vendor_purchases.delete_vendor_payment', [$vendorId, $pay->id])]);
+            }
+        }
+        $vpays = VendorPurchasePayment::where('vendor_id', $vendorId)->whereNull('vendor_purchase_id')
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('paid_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('paid_at', '<=', $request->date_to))
+            ->get();
+        foreach ($vpays as $pay) {
+            $entries->push((object) ['ts' => optional($pay->paid_at)->timestamp ?? 0, 'seq' => 2, 'date' => $pay->paid_at, 'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : ''), 'sub' => $pay->note, 'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'receipt' => $pay->receipt_url, 'del' => route('crm.vendor_purchases.delete_vendor_payment', [$vendorId, $pay->id])]);
+        }
+        $run = 0.0;
+        $ledger = $entries->sortBy([['ts', 'asc'], ['seq', 'asc']])->values()->map(function ($e) use (&$run) {
+            $run += $e->debit - $e->credit;
+            $e->balance = round($run, 2);
+            return $e;
+        });
+
+        return [$ledger->reverse()->values(), round($run, 2)];
     }
 
     /**
@@ -710,6 +776,54 @@ class VendorPurchaseController extends Controller
         }
 
         return back()->with('success', 'Payment removed. Balance updated.');
+    }
+
+    /** Record a vendor-level payment (against the whole vendor account, not one purchase). */
+    public function addVendorPayment(Request $request, $id)
+    {
+        $this->authorizeAccess();
+        $vendor = Vendor::findOrFail($id);
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'method' => 'nullable|string|max:40',
+            'paid_at' => 'nullable|date',
+            'note' => 'nullable|string|max:500',
+            'receipt' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
+        ]);
+        $payload = [
+            'vendor_id' => $vendor->id,
+            'amount' => round((float) $validated['amount'], 2),
+            'method' => $validated['method'] ?? null,
+            'paid_at' => $validated['paid_at'] ?? now()->toDateString(),
+            'note' => $validated['note'] ?? null,
+            'created_by' => \Auth::guard('crm')->id(),
+        ];
+        if ($request->hasFile('receipt')) {
+            $payload = array_merge($payload, $this->storeReceipt($request->file('receipt')));
+        }
+        VendorPurchasePayment::create($payload);
+
+        return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $vendor->id])
+            ->with('success', 'Payment of ' . number_format($payload['amount'], 2) . ' recorded.');
+    }
+
+    /** Delete any payment (vendor-level or purchase-linked) shown in the vendor ledger. */
+    public function deleteVendorPayment($id, $paymentId)
+    {
+        $this->authorizeAccess();
+        $payment = VendorPurchasePayment::where('vendor_id', $id)->where('id', $paymentId)->first();
+        if ($payment) {
+            $purchase = $payment->vendor_purchase_id ? VendorPurchase::find($payment->vendor_purchase_id) : null;
+            if ($payment->receipt_path && is_file(public_path($payment->receipt_path))) {
+                @unlink(public_path($payment->receipt_path));
+            }
+            $payment->delete();
+            if ($purchase) {
+                $purchase->recomputePayments();
+            }
+        }
+
+        return back()->with('success', 'Payment removed.');
     }
 
     private function storeReceipt($file)
@@ -1053,6 +1167,27 @@ class VendorPurchaseController extends Controller
         }
         if ($request->filled('date_from')) $query->whereDate('purchase_date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('purchase_date', '<=', $request->date_to);
+        // Single-vendor export → full running-balance ledger (includes payments), matching the on-screen table.
+        // (Skipped when specific rows are ticked: those go through the purchases-only export below.)
+        if ($request->filled('vendor_id') && !$request->filled('ids')) {
+            [$ledger, $ledgerBalance] = $this->buildVendorLedger($request->vendor_id, $request);
+            if ($ledger->isEmpty()) return redirect()->back()->with('error', 'No records match the selected date range.');
+            $vendor = Vendor::find($request->vendor_id);
+            $ledger = $ledger->reverse()->values(); // oldest first for a statement
+            $ledgerData = [
+                'ledger' => $ledger,
+                'ledgerBalance' => $ledgerBalance,
+                'vendor' => $vendor,
+                'totalDebit' => round($ledger->sum('debit'), 2),
+                'totalCredit' => round($ledger->sum('credit'), 2),
+            ];
+            $lname = 'vendor-ledger-'.\Illuminate\Support\Str::slug(optional($vendor)->name ?: 'vendor').'-'.now()->format('Y-m-d');
+            if ($request->format === 'pdf') {
+                return \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.vendor_purchases.export_ledger_pdf', $ledgerData)->setPaper('a4', 'landscape')->download($lname.'.pdf');
+            }
+            return response()->view('crm.vendor_purchases.export_ledger_excel', $ledgerData)->header('Content-Type', 'application/vnd.ms-excel')->header('Content-Disposition', 'attachment; filename="'.$lname.'.xls"');
+        }
+
         $purchases = $query->get();
         if ($purchases->isEmpty()) return redirect()->back()->with('error', 'No purchases match the selected rows/date range.');
         $filename = 'vendor-purchases-'.now()->format('Y-m-d');

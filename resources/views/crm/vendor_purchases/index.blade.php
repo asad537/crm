@@ -28,8 +28,8 @@
     .vp-vendor-hero{display:flex;justify-content:space-between;align-items:center;padding:1.25rem 1.4rem;margin-bottom:1rem;background:linear-gradient(135deg,#fff,var(--primary-soft));border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 6px 22px rgba(15,23,42,.05)}.vp-vendor-hero h2{margin:0;font-size:1.35rem}.vp-vendor-grid{display:none !important;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1rem}.vp-vendor-card{display:block;padding:1.1rem;background:#fff;border:1px solid #e2e8f0;border-radius:16px;text-decoration:none;color:#1e293b;box-shadow:0 5px 18px rgba(15,23,42,.06);transition:.2s}.vp-vendor-card:hover{border-color:var(--primary-purple);transform:translateY(-3px);box-shadow:0 12px 28px var(--primary-shadow)}.vp-vendor-head{display:flex;align-items:center;gap:.8rem}.vp-vendor-avatar{width:46px;height:46px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--primary-soft);color:var(--primary-purple);font-size:1.05rem;font-weight:850}.vp-vendor-card h3{margin:0 0 .25rem;font-size:.98rem}.vp-vendor-contact{display:flex;gap:.45rem;align-items:center;margin-top:.55rem;color:#64748b;font-size:.75rem}.vp-vendor-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid #edf1f5}.vp-vendor-metric span{display:block;color:#94a3b8;font-size:.62rem;text-transform:uppercase;font-weight:750}.vp-vendor-metric strong{display:block;margin-top:.2rem;font-size:.78rem}.vp-vendor-open{display:flex;justify-content:space-between;align-items:center;margin-top:.9rem;color:var(--primary-purple);font-size:.75rem;font-weight:800}.vp-directory-tools{display:flex;gap:.55rem;align-items:center}.vp-directory-search{min-width:240px}.vp-directory-table{display:table !important;width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0}.vp-directory-table th,.vp-directory-table td{padding:.85rem 1rem;border-bottom:1px solid #edf1f5;text-align:left}.vp-directory-table th{font-size:.68rem;text-transform:uppercase;color:#718096;background:#f8fafc}.vp-directory-table td{color:#334155}.vp-directory-table tr:hover{background:var(--primary-soft)}.vp-back{display:inline-flex;gap:.4rem;align-items:center;margin-bottom:1rem;color:var(--primary-purple);text-decoration:none;font-weight:750}
     .vp-card { background:#fff; border:1px solid #e8edf3; border-radius:16px; box-shadow:0 4px 18px rgba(15,23,42,.045); overflow:hidden; }
     .vp-filter-card{position:relative;z-index:20;overflow:visible}
-    .vp-toolbar { display:flex; align-items:center; gap:.65rem; padding:1rem; border-bottom:1px solid #edf1f5; background:#fbfcfe; }
-    .vp-search { position:relative; flex:1; }
+    .vp-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:.65rem; padding:1rem; border-bottom:1px solid #edf1f5; background:#fbfcfe; }
+    .vp-search { position:relative; flex:1 1 300px; min-width:260px; }
     .vp-search>i { position:absolute; left:.85rem; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:.85rem; pointer-events:none; }
     .vp-search-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:var(--primary-purple);color:#fff;cursor:pointer;font-size:.75rem;transition:background .15s;}
     .vp-search-btn:hover{background:var(--primary-hover);}
@@ -41,7 +41,7 @@
     .vp-primary-btn { color:#fff; background:var(--primary-purple); box-shadow:0 7px 16px var(--primary-shadow); }
     .vp-header-add { color:#fff !important; background:var(--primary-purple) !important; border-color:var(--primary-purple) !important; }
     .vp-filter-btn { color:#475569; background:#eef2f7; }
-    .vp-toolbar-row{display:flex;align-items:center;border-bottom:1px solid #edf1f5;background:#fbfcfe}.vp-toolbar-row .vp-toolbar{flex:1;border-bottom:0}.vp-export-bar{display:flex;gap:.45rem;align-items:center;padding:1rem 1rem 1rem 0;white-space:nowrap}.vp-export-btn{color:#fff;background:#2563eb}.vp-export-btn.vp-al-massa{background:#f45a24}.vp-export-menu{position:relative}.vp-export-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:130px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 12px 28px rgba(15,23,42,.15)}.vp-export-options.show{display:block}.vp-export-options button{display:block;width:100%;border:0;background:#fff;padding:9px 11px;text-align:left;border-radius:6px;cursor:pointer;color:#334155}.vp-export-options button:hover{background:#f8fafc}
+    .vp-toolbar-row{display:flex;align-items:stretch;flex-wrap:wrap;border-bottom:1px solid #edf1f5;background:#fbfcfe}.vp-toolbar-row .vp-toolbar{flex:1 1 420px;border-bottom:0}.vp-toolbar-actions{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:.6rem;padding:1rem;white-space:nowrap}.vp-export-bar{display:flex;gap:.45rem;align-items:center;white-space:nowrap}.vp-export-btn{color:#fff;background:#2563eb}.vp-export-btn.vp-al-massa{background:#f45a24}.vp-export-menu{position:relative}.vp-export-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:130px;padding:6px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 12px 28px rgba(15,23,42,.15)}.vp-export-options.show{display:block}.vp-export-options button{display:block;width:100%;border:0;background:#fff;padding:9px 11px;text-align:left;border-radius:6px;cursor:pointer;color:#334155}.vp-export-options button:hover{background:#f8fafc}
     .vp-table-wrap { overflow-x:auto; }
     .vp-table { width:100%; border-collapse:collapse; font-size:.78rem; }
     .vp-table th { padding:.7rem .85rem; text-align:left; color:#718096; background:#f8fafc; border-bottom:1px solid #e8edf3; font-size:.67rem; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
@@ -233,7 +233,7 @@
     </div>
     <div class="vp-card vp-filter-card" style="margin-bottom:1rem"><div class="vp-toolbar-row"><form method="GET" class="vp-toolbar"><div class="vp-search"><i class="fas fa-search"></i><input class="vp-control" name="search" id="vendorLiveSearch" autocomplete="off" value="{{ request('search') }}" placeholder="Search…" oninput="vpVendorLiveSearch(this.value)"><button class="vp-search-btn" type="submit" title="Search"><i class="fas fa-arrow-right"></i></button></div><select class="vp-control" name="expense_type" onchange="this.form.submit()"><option value="">All</option>@foreach(['Production Expense','Consumable Expense','Admin/General Expense'] as $type)<option value="{{ $type }}" {{ request('expense_type')===$type?'selected':'' }}>{{ $type }}</option>@endforeach</select><select class="vp-control" name="payment_status" onchange="this.form.submit()"><option value="">All payments</option>@foreach(['Paid','Partial','Unpaid'] as $status)<option value="{{ $status }}" {{ request('payment_status')===$status?'selected':'' }}>{{ $status }}</option>@endforeach</select><input type="hidden" name="date_from" value="{{ request('date_from') }}"><input type="hidden" name="date_to" value="{{ request('date_to') }}"><input class="vp-control vp-date-range" type="text" value="{{ request('date_from') && request('date_to') ? request('date_from').' - '.request('date_to') : '' }}" placeholder="Date range" title="Date range"></form><form method="POST" action="{{ route('crm.vendor_purchases.export') }}" class="vp-export-bar" id="vpExportForm">{{ csrf_field() }}<input type="hidden" name="search"><input type="hidden" name="expense_type"><input type="hidden" name="payment_status"><input type="hidden" name="date_from"><input type="hidden" name="date_to"><div class="vp-export-menu"><button class="vp-filter-btn vp-export-btn {{ isset($activeCrmWorkspace) && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'vp-al-massa' : '' }}" type="button" onclick="document.getElementById('vpExportOptions').classList.toggle('show')"><i class="fas fa-download"></i> Export <i class="fas fa-chevron-down"></i></button><div class="vp-export-options" id="vpExportOptions"><button name="format" value="excel" type="submit"><i class="fas fa-file-excel"></i> Excel</button><button name="format" value="pdf" type="submit"><i class="fas fa-file-pdf"></i> PDF</button></div></div></form></div></div>
     <div class="vp-vendor-grid">@forelse($vendors as $vendor)<a class="vp-vendor-card" href="{{ route('crm.vendor_purchases.index',array_merge(request()->only('expense_type'), ['vendor_id'=>$vendor->id])) }}"><div class="vp-vendor-head"><div class="vp-vendor-avatar">{{ strtoupper(substr($vendor->name,0,1)) }}</div><div><h3>{{ $vendor->name }}</h3><div class="vp-muted">Vendor #{{ str_pad($vendor->id,4,'0',STR_PAD_LEFT) }} · <span style="color:var(--primary-purple);font-weight:700">{{ $vendor->typeLabel() }}</span></div></div></div>@if($vendor->phone)<div class="vp-vendor-contact"><i class="fas fa-phone"></i>{{ $vendor->phone }}</div>@endif @if($vendor->email)<div class="vp-vendor-contact"><i class="fas fa-envelope"></i>{{ $vendor->email }}</div>@endif<div class="vp-vendor-metrics"><div class="vp-vendor-metric"><span>Purchases</span><strong>{{ $vendor->purchases_count }}</strong></div><div class="vp-vendor-metric"><span>Total</span><strong>{{ number_format($vendor->purchases->sum('total_amount'),2) }}</strong></div><div class="vp-vendor-metric"><span>Outstanding</span><strong>{{ number_format($vendor->purchases->sum('balance_amount'),2) }}</strong></div></div><div class="vp-vendor-open"><span>View Purchases</span><i class="fas fa-arrow-right"></i></div></a>@empty<div class="vp-card vp-empty" style="grid-column:1/-1"><i class="fas fa-truck" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendors yet. Click “Add Vendor” to create the first vendor.</div></div>@endforelse</div>
-    <table class="vp-directory-table" id="vendorDirectoryTable"><thead><tr><th>Vendor / Payee</th><th>Expense Type</th><th>Contact</th><th>Purchases</th><th>Balance Due</th><th>Status</th><th>Action</th></tr></thead><tbody>@forelse($vendors as $vendor)@php($vendorBalance = (float) $vendor->purchases->sum('balance_amount'))
+    <table class="vp-directory-table" id="vendorDirectoryTable"><thead><tr><th>Vendor / Payee</th><th>Expense Type</th><th>Contact</th><th>Purchases</th><th>Paid</th><th>Balance Due</th><th>Action</th></tr></thead><tbody>@forelse($vendors as $vendor)@php($vendorBalance = (float) $vendor->purchases->sum('balance_amount'))
 @php($vendorHasUnpaidPurchase = $vendor->purchases->contains(function ($purchase) { return in_array($purchase->payment_status, ['Unpaid', 'Partial'], true); }))
 @php($vendorHasPurchases = $vendor->purchases->isNotEmpty())
 @php($vendorIsUnpaid = $vendorBalance > 0 || $vendorHasUnpaidPurchase)
@@ -246,8 +246,9 @@
 <span class="vp-directory-number">{{ $vendor->purchases_count }}</span></td><td>
 @php($__vBal = (float) ($vendor->vp_balance_all ?? $vendor->purchases->sum('balance_amount')))
 @php($__vTot = (float) ($vendor->vp_total_all ?? $vendor->purchases->sum('total_amount')))
-<span class="vp-directory-number" style="color:{{ $__vBal > 0.009 ? '#dc2626' : '#16a34a' }}">{{ number_format($__vBal,2) }}</span><div class="vp-directory-sub">of {{ number_format($__vTot,2) }} total</div></td><td>
-<span class="vp-directory-status {{ $vendorStatusClass }}">{{ $vendorStatus }}</span></td><td>
+@php($__vPaid = max(0, round($__vTot - $__vBal, 2)))
+<span class="vp-directory-number" style="color:#16a34a">{{ number_format($__vPaid,2) }}</span><div class="vp-directory-sub">of {{ number_format($__vTot,2) }} total</div></td><td>
+<span class="vp-directory-number" style="color:{{ $__vBal > 0.009 ? '#dc2626' : '#16a34a' }}">{{ number_format($__vBal,2) }}</span></td><td>
 <div class="vp-action-group"><a class="vp-back" href="{{ route('crm.vendor_purchases.index',array_merge(request()->only('expense_type'), ['vendor_id'=>$vendor->id])) }}" title="View vendor purchases"><i class="fas fa-eye"></i></a><button type="button" class="vp-directory-delete" style="border-color:#c7b8f5;color:#6c5ce7;background:var(--primary-soft,#f3f0ff);margin-left:0" title="Edit vendor" data-vendor="{{ json_encode(['id'=>$vendor->id,'name'=>$vendor->name,'vendor_type'=>$vendor->vendor_type,'trn_number'=>$vendor->trn_number,'phone'=>$vendor->phone,'email'=>$vendor->email,'address'=>$vendor->address,'notes'=>$vendor->notes]) }}" onclick="openVendorEditModal(JSON.parse(this.dataset.vendor))"><i class="fas fa-pen"></i></button>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendors.destroy',$vendor->id) }}" data-delete-target="{{ $vendor->name }}" onsubmit="return openVendorDeleteDialog(this,'vendor',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-directory-delete" type="submit" title="Delete vendor"><i class="fas fa-trash"></i></button></form>@endif</div></td></tr>@empty<tr><td colspan="7" class="vp-empty">No vendors found. Click “Add Vendor” to create one.</td></tr>@endforelse</tbody></table>
     @if($vendors->hasPages())<div class="vp-pagination">{{ $vendors->links() }}</div>@endif
     @else
@@ -274,62 +275,111 @@
             <select class="vp-control" name="expense_type" onchange="this.form.submit()"><option value="">All types</option>@foreach(['Production Expense'=>'Production','Consumable Expense'=>'Consumable','Admin/General Expense'=>'Admin/General'] as $etv=>$etl)<option value="{{ $etv }}" {{ request('expense_type')===$etv?'selected':'' }}>{{ $etl }}</option>@endforeach</select>
             <select class="vp-control" name="payment_status" onchange="this.form.submit()"><option value="">All payments</option>@foreach(['Paid','Partial','Unpaid'] as $status)<option value="{{ $status }}" {{ request('payment_status')===$status?'selected':'' }}>{{ $status }}</option>@endforeach</select>
             <input type="hidden" name="date_from" value="{{ request('date_from') }}"><input type="hidden" name="date_to" value="{{ request('date_to') }}"><input class="vp-control vp-date-range" type="text" value="{{ request('date_from') && request('date_to') ? request('date_from').' - '.request('date_to') : '' }}" placeholder="Date range" title="Date range">
+            <select class="vp-control" name="per_page" onchange="this.form.submit()" title="Records per page">@foreach([50,100,1000] as $pp)<option value="{{ $pp }}" {{ (int)request('per_page',50)===$pp?'selected':'' }}>{{ $pp }} / page</option>@endforeach</select>
         </form>
-        <form method="POST" action="{{ route('crm.vendor_purchases.export') }}" class="vp-export-bar" id="vpExportForm">{{ csrf_field() }}<input type="hidden" name="vendor_id" value="{{ $selectedVendor->id }}"><input type="hidden" name="search"><input type="hidden" name="category"><input type="hidden" name="payment_status"><input type="hidden" name="date_from"><input type="hidden" name="date_to"><div class="vp-export-menu"><button class="vp-filter-btn vp-export-btn {{ isset($activeCrmWorkspace) && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'vp-al-massa' : '' }}" type="button" onclick="document.getElementById('vpExportOptions').classList.toggle('show')"><i class="fas fa-download"></i> Export <i class="fas fa-chevron-down"></i></button><div class="vp-export-options" id="vpExportOptions"><button name="format" value="excel" type="submit"><i class="fas fa-file-excel"></i> Excel</button><button name="format" value="pdf" type="submit"><i class="fas fa-file-pdf"></i> PDF</button></div></div><span id="vpSelectedCount" class="vp-muted">0 selected</span></form></div>
-        <div class="vp-table-wrap"><table class="vp-table"><thead><tr><th>Date</th><th>Invoice</th><th>Demand</th><th>Vendor</th><th>Packaging Item</th>@foreach(($typeCols ?? []) as $__c)<th>{{ $__c[0] }}</th>@endforeach<th>Expense Type</th><th>Qty</th><th>Total</th><th>Deduction</th><th>Paid / Balance</th><th>Status</th><th>Attachment</th><th>Actions</th><th>Payment</th></tr></thead><tbody>
-            @forelse($purchases as $purchase)
-            <tr class="vp-row-link" data-href="{{ route('crm.vendor_purchases.edit',$purchase->id) }}" data-purchase-search="{{ strtolower(trim($purchase->purchase_date->format('d M Y').' '.$purchase->invoice_number.' '.$purchase->job_id.' '.$purchase->vendor_name.' '.($purchase->items->pluck('item_name')->filter()->implode(' ') ?: $purchase->item_name).' '.$purchase->category.' '.$purchase->material.' '.$purchase->payment_status)) }}">
-                <td>{{ $purchase->purchase_date->format('d M Y') }}</td><td><div class="vp-muted">{{ $purchase->invoice_number ?: 'No invoice #' }}</div>@if($purchase->job_id)<div class="vp-muted" style="margin-top:.15rem;color:var(--primary-purple);font-weight:700"><i class="fas fa-briefcase" style="font-size:.62rem"></i> {{ $purchase->job_id }}</div>@endif</td>
-                <td>@if($purchase->demand_no)<span style="color:#6c5ce7;font-weight:800">{{ $purchase->demand_no }}</span>@else<span class="vp-muted">—</span>@endif</td>
-                <td><div class="vp-vendor">{{ $purchase->vendor_name }}</div><div class="vp-muted">{{ $purchase->vendor_phone ?: $purchase->vendor_email }}</div></td>
-                <td><div class="vp-vendor">{{ $purchase->items->pluck('item_name')->filter()->implode(', ') ?: $purchase->item_name }}</div><div class="vp-muted">{{ $purchase->items->count() > 1 ? $purchase->items->count().' products' : collect([$purchase->category,$purchase->material,$purchase->gsm ? $purchase->gsm.' GSM' : null])->filter()->implode(' · ') }}</div></td>
-                @foreach(($typeCols ?? []) as $__c)<td class="vp-muted" style="white-space:nowrap">{{ ($__c[2] ?? '')==='money' ? number_format((float)($purchase->{$__c[1]} ?? 0),2) : ($purchase->{$__c[1]} ?: '—') }}</td>@endforeach
-                @php($__petTypes = $purchase->items->pluck('expense_type')->filter()->unique()->values())
-                @php($__petTypes = $__petTypes->isEmpty() ? collect([$purchase->expense_type ?: 'Production Expense']) : $__petTypes)
+        <div class="vp-toolbar-actions">
+            <button type="button" class="vp-primary-btn" onclick="openVendorPay()"><i class="fas fa-hand-holding-usd"></i> Make Payment</button>
+            <form method="POST" action="{{ route('crm.vendor_purchases.export') }}" class="vp-export-bar" id="vpExportForm">{{ csrf_field() }}<input type="hidden" name="vendor_id" value="{{ $selectedVendor->id }}"><input type="hidden" name="search"><input type="hidden" name="category"><input type="hidden" name="payment_status"><input type="hidden" name="date_from"><input type="hidden" name="date_to"><span id="vpSelectedCount" class="vp-muted">0 selected</span><div class="vp-export-menu"><button class="vp-filter-btn vp-export-btn {{ isset($activeCrmWorkspace) && $activeCrmWorkspace->slug === 'mybox-packaging-app' ? 'vp-al-massa' : '' }}" type="button" onclick="document.getElementById('vpExportOptions').classList.toggle('show')"><i class="fas fa-download"></i> Export <i class="fas fa-chevron-down"></i></button><div class="vp-export-options" id="vpExportOptions"><button name="format" value="excel" type="submit"><i class="fas fa-file-excel"></i> Excel</button><button name="format" value="pdf" type="submit"><i class="fas fa-file-pdf"></i> PDF</button></div></div></form>
+        </div></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:.4rem 0 .6rem;padding:0 1.25rem"><h3 style="margin:0;font-size:1rem">Purchase Details</h3><div class="vp-muted">Closing balance: <strong style="color:{{ $ledgerBalance>0.009 ? '#dc2626':'#16a34a' }};font-size:1.05rem">{{ number_format($ledgerBalance,2) }}</strong></div></div>
+        <div class="vp-table-wrap"><table class="vp-table"><thead><tr><th>Date</th><th>Vendor</th><th>Vendor Invoice</th><th>Job No</th><th>Demand</th><th>Packaging Item</th><th>Qty</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th><th style="text-align:right">Balance</th><th>Attachment</th><th>Actions</th></tr></thead><tbody>
+            @forelse($ledger as $e)
+            @php($p = $e->purchase ?? null)
+            <tr @if($p) class="vp-row-link" data-id="{{ $p->id }}" data-href="{{ route('crm.vendor_purchases.edit',$p->id) }}" data-purchase-search="{{ strtolower(trim(optional($e->date)->format('d M Y').' '.$p->invoice_number.' '.$p->job_id.' '.$p->vendor_name.' '.($p->items->pluck('item_name')->filter()->implode(' ') ?: $p->item_name).' '.$p->category.' '.$p->material)) }}" @endif>
+                <td style="white-space:nowrap">{{ $e->date ? $e->date->format('d M Y') : '—' }}</td>
+                @if($p)
+                <td><div class="vp-vendor">{{ $p->vendor_name }}</div><div class="vp-muted">{{ $p->vendor_phone ?: $p->vendor_email }}</div></td>
+                <td>{{ $p->invoice_number ?: 'No invoice #' }}</td>
+                <td>@if($p->job_id)<span style="color:var(--primary-purple);font-weight:700"><i class="fas fa-briefcase" style="font-size:.62rem"></i> {{ $p->job_id }}</span>@else<span class="vp-muted">—</span>@endif</td>
+                <td>@if($p->demand_no)<span style="color:#6c5ce7;font-weight:800">{{ $p->demand_no }}</span>@else<span class="vp-muted">—</span>@endif</td>
+                <td><div class="vp-vendor">{{ $p->items->pluck('item_name')->filter()->implode(', ') ?: $p->item_name }}</div><div class="vp-muted">{{ $p->items->count() > 1 ? $p->items->count().' products' : collect([$p->category,$p->material,$p->gsm ? $p->gsm.' GSM' : null])->filter()->implode(' · ') }}</div></td>
+                <td>@if($p->items->count() > 1)<span class="vp-money">{{ $p->items->count() }}</span> products @else<span class="vp-money">{{ number_format($p->quantity,2) }}</span> {{ $p->unit }}@endif</td>
+                @else
+                <td colspan="5"><div class="vp-vendor">{{ $e->desc }}</div>@if(!empty($e->sub))<div class="vp-muted">{{ $e->sub }}</div>@endif</td>
+                <td></td>
+                @endif
+                <td class="vp-money" style="text-align:right">{{ $e->debit>0.009 ? number_format($e->debit,2) : '' }}</td>
+                <td class="vp-money" style="text-align:right;color:#059669">{{ $e->credit>0.009 ? number_format($e->credit,2) : '' }}</td>
+                <td class="vp-money" style="text-align:right;font-weight:750;color:{{ $e->balance>0.009 ? '#dc2626':'#16a34a' }}">{{ number_format($e->balance,2) }}</td>
+                <td>@if($p && $p->attachment_path)<a class="vp-attachment" href="{{ asset(ltrim(preg_replace('#^public/#','',$p->attachment_path),'/')) }}" target="_blank" rel="noopener" title="{{ $p->attachment_name }}"><i class="fas fa-paperclip"></i> View File</a>@elseif(!$p && !empty($e->receipt))<a class="vp-attachment" href="{{ $e->receipt }}" target="_blank" rel="noopener" title="Receipt"><i class="fas fa-paperclip"></i> Receipt</a>@else<span class="vp-muted">—</span>@endif</td>
                 <td>
-                    @if($__petTypes->count() > 1)
-                        <div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center">
-                            <span style="display:inline-flex;padding:.28rem .55rem;border-radius:999px;font-size:.62rem;font-weight:850;white-space:nowrap;background:linear-gradient(90deg,#e6f7e9,#efedff 55%,#e0f7fb);color:#475569">Mixed · {{ $__petTypes->count() }}</span>
-                            @foreach($__petTypes as $__t)
-                                <span style="display:inline-flex;padding:.22rem .5rem;border-radius:999px;font-size:.6rem;font-weight:800;white-space:nowrap;{{ $__t==='Consumable Expense' ? 'background:#efedff;color:#6457b8' : ($__t==='Admin/General Expense' ? 'background:#e0f7fb;color:#0891b2' : 'background:#e6f7e9;color:#159447') }}">{{ str_replace([' Expense','/General'],['','/Gen'],$__t) }}</span>
-                            @endforeach
-                        </div>
-                    @else
-                        @php($__t = $__petTypes->first())
-                        <span style="display:inline-flex;padding:.3rem .6rem;border-radius:999px;font-size:.66rem;font-weight:850;white-space:nowrap;{{ $__t==='Consumable Expense' ? 'background:#efedff;color:#6457b8' : ($__t==='Admin/General Expense' ? 'background:#e0f7fb;color:#0891b2' : 'background:#e6f7e9;color:#159447') }}">{{ str_replace([' Expense','/General'],['','/Gen'],$__t) }}</span>
+                    @if($p)
+                    <div class="vp-action-group"><button type="button" class="vp-edit-btn" style="border-color:#f0b429;color:#b7791f;background:#fff8ec" title="View details" data-view="{{ json_encode([
+                        'invoice' => $p->invoice_number ?: ('#'.$p->id),
+                        'date' => optional($p->purchase_date)->format('d M Y'),
+                        'vendor' => $p->vendor_name,
+                        'job' => $p->job_id,
+                        'demand' => $p->demand_no,
+                        'expense' => $p->expense_type,
+                        'currency' => $p->currency,
+                        'total' => (float) $p->total_amount,
+                        'deduction' => (float) $p->deduction,
+                        'paid' => (float) $p->paid_amount,
+                        'balance' => (float) $p->balance_amount,
+                        'status' => $p->payment_status,
+                        'attachment' => $p->attachment_path ? asset(ltrim(preg_replace('#^public/#','',$p->attachment_path),'/')) : null,
+                        'items' => $p->items->map(fn($it) => ['name'=>$it->item_name,'material'=>$it->material,'gsm'=>$it->gsm,'size'=>$it->size,'color'=>$it->color,'unit'=>$it->unit,'qty'=>(float)$it->quantity,'rate'=>(float)$it->unit_price,'vat'=>(float)$it->vat_percentage,'total'=>(float)$it->line_total,'expense'=>$it->expense_type])->all(),
+                    ]) }}" onclick="openVpView(JSON.parse(this.dataset.view))"><i class="fas fa-eye"></i></button><a class="vp-edit-btn" href="{{ route('crm.vendor_purchases.edit',$p->id) }}" title="Edit purchase" aria-label="Edit purchase"><i class="fas fa-pen"></i></a>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendor_purchases.destroy',$p->id) }}" data-delete-target="{{ $p->item_name }}" onsubmit="return openVendorDeleteDialog(this,'purchase',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-delete-btn" type="submit" title="Delete purchase"><i class="fas fa-trash"></i></button></form>@endif</div>
+                    @elseif($e->kind==='payment' && !empty($e->del))
+                    <form method="POST" action="{{ $e->del }}" onsubmit="return confirm('Delete this payment?')" style="display:inline">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-delete-btn" type="submit" title="Delete payment"><i class="fas fa-trash"></i></button></form>
                     @endif
-                </td>
-                <td>@if($purchase->items->count() > 1)<span class="vp-money">{{ $purchase->items->count() }}</span> products @else<span class="vp-money">{{ number_format($purchase->quantity,2) }}</span> {{ $purchase->unit }}@endif</td>
-                <td class="vp-money">{{ $purchase->currency }} {{ number_format($purchase->total_amount,2) }}</td>
-                <td class="vp-money">{{ (float)$purchase->deduction > 0.009 ? number_format($purchase->deduction,2) : '—' }}</td>
-                <td><div style="color:#059669;font-weight:750">{{ number_format($purchase->paid_amount,2) }}</div><div class="vp-muted">Balance {{ number_format($purchase->balance_amount,2) }}</div></td>
-                <td><span class="vp-status vp-status-{{ strtolower($purchase->payment_status) }}"><i class="fas fa-circle" style="font-size:.38rem"></i>{{ $purchase->payment_status }}</span></td>
-                <td>@if($purchase->attachment_path)<a class="vp-attachment" href="{{ asset(ltrim(preg_replace('#^public/#','',$purchase->attachment_path),'/')) }}" target="_blank" rel="noopener" title="{{ $purchase->attachment_name }}"><i class="fas fa-paperclip"></i> View File</a>@else<span class="vp-muted">—</span>@endif</td>
-                <td><div class="vp-action-group"><a class="vp-edit-btn" href="{{ route('crm.vendor_purchases.edit',$purchase->id) }}" title="Edit purchase" aria-label="Edit purchase"><i class="fas fa-pen"></i></a>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendor_purchases.destroy',$purchase->id) }}" data-delete-target="{{ $purchase->item_name }}" onsubmit="return openVendorDeleteDialog(this,'purchase',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-delete-btn" type="submit" title="Delete purchase"><i class="fas fa-trash"></i></button></form>@endif</div></td><td>
-                    <div style="display:flex;flex-direction:column;gap:.3rem;min-width:150px">
-                        <div class="vp-muted" style="font-size:.68rem">Bal: <strong style="color:{{ (float)$purchase->balance_amount>0.009 ? '#dc2626':'#16a34a' }}">{{ number_format($purchase->balance_amount,2) }}</strong>{{ (float)$purchase->deduction>0.009 ? ' · Ded '.number_format($purchase->deduction,2) : '' }}</div>
-                        <button type="button" class="vp-pay-btn" style="width:100%;justify-content:center;gap:.35rem"
-                            data-pay="{{ json_encode([
-                                'id' => $purchase->id,
-                                'invoice' => $purchase->invoice_number ?: ('#'.$purchase->id),
-                                'total' => (float) $purchase->total_amount,
-                                'balance' => (float) $purchase->balance_amount,
-                                'payments' => $purchase->payments->map(fn($p) => ['amount' => (float) $p->amount, 'demand_no' => $p->demand_no, 'paid_at' => optional($p->paid_at)->format('d M Y'), 'method' => $p->method, 'note' => $p->note, 'receipt' => $p->receipt_url, 'del' => route('crm.vendor_purchases.delete_payment', [$purchase->id, $p->id])])->all(),
-                            ]) }}"
-                            onclick="openVpPayModal(JSON.parse(this.dataset.pay))">
-                            <i class="fas fa-hand-holding-usd"></i> Payment
-                        </button>
-                    </div>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="{{ $vpColspan ?? 14 }}"><div class="vp-empty"><i class="fas fa-box-open" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendor purchases recorded yet.</div></div></td></tr>
+            <tr><td colspan="{{ $vpColspan ?? 12 }}"><div class="vp-empty"><i class="fas fa-box-open" style="font-size:2rem;margin-bottom:.7rem"></i><div>No vendor purchases recorded yet.</div></div></td></tr>
             @endforelse
             <tr id="vpPurchaseNoMatch" style="display:none"><td colspan="{{ $vpColspan ?? 14 }}"><div class="vp-empty"><i class="fas fa-search" style="font-size:1.6rem;margin-bottom:.6rem"></i><div>No purchases match your search.</div></div></td></tr>
         </tbody></table></div>
-        @if($purchases->hasPages())<div class="vp-pagination">{{ $purchases->links() }}</div>@endif
+        @if($ledger instanceof \Illuminate\Contracts\Pagination\Paginator && $ledger->hasPages())<div class="vp-pagination" style="padding:.4rem 1rem 0">{{ $ledger->links() }}</div>@endif
     </div>
     @endif
+
+    {{-- Purchase details view modal --}}
+    <div id="vpViewModal" class="vp-modal-backdrop" onclick="if(event.target===this) closeVpView()">
+        <div class="vp-modal" style="max-width:760px">
+            <div class="vp-modal-header"><div class="vp-modal-heading"><span class="vp-modal-heading-icon"><i class="fas fa-file-invoice"></i></span><div><h3 id="vpvInvoice">Purchase</h3><p class="vp-modal-subtitle" id="vpvMeta"></p></div></div><button class="vp-close" type="button" onclick="closeVpView()"><i class="fas fa-times"></i></button></div>
+            <div style="padding:0 1.25rem 1.25rem">
+                <div id="vpvSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin:.2rem 0 1rem"></div>
+                <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:640px" id="vpvItems"></table></div>
+                <div id="vpvAttach" style="margin-top:.9rem"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function vpvStat(l,v){return '<div style="background:#f7f9fc;border-radius:10px;padding:.55rem .7rem"><div style="font-size:.6rem;font-weight:850;text-transform:uppercase;color:#94a3b8">'+l+'</div><div style="font-size:.9rem;font-weight:800;color:#1e293b;margin-top:.15rem">'+v+'</div></div>';}
+        function openVpView(d){
+            document.getElementById('vpvInvoice').textContent = d.invoice;
+            document.getElementById('vpvMeta').textContent = [d.date, d.vendor, d.job ? ('Job '+d.job) : '', d.demand || ''].filter(Boolean).join('  ·  ');
+            var cur=d.currency||'';
+            var f=function(n){return (n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});};
+            document.getElementById('vpvSummary').innerHTML =
+                vpvStat('Total', cur+' '+f(d.total)) + vpvStat('Deduction', f(d.deduction)) + vpvStat('Paid', f(d.paid)) + vpvStat('Balance', f(d.balance));
+            var rows='<thead><tr style="text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;letter-spacing:.04em">'
+                +'<th style="padding:6px 8px">Item</th><th style="padding:6px 8px">Paper/Material</th><th style="padding:6px 8px">GSM</th><th style="padding:6px 8px">Size</th><th style="padding:6px 8px">Colours</th><th style="padding:6px 8px">Unit</th><th style="padding:6px 8px;text-align:right">Qty</th><th style="padding:6px 8px;text-align:right">Rate</th><th style="padding:6px 8px;text-align:right">GST%</th><th style="padding:6px 8px;text-align:right">Total</th><th style="padding:6px 8px">Expense</th></tr></thead><tbody>';
+            (d.items||[]).forEach(function(it){
+                var dash=function(x){return (x===null||x===undefined||x==='')?'—':x;};
+                rows+='<tr style="border-top:.5px solid #eef1f6">'
+                    +'<td style="padding:7px 8px;font-weight:700;color:#27364b">'+dash(it.name)+'</td>'
+                    +'<td style="padding:7px 8px">'+dash(it.material)+'</td>'
+                    +'<td style="padding:7px 8px">'+dash(it.gsm)+'</td>'
+                    +'<td style="padding:7px 8px">'+dash(it.size)+'</td>'
+                    +'<td style="padding:7px 8px">'+dash(it.color)+'</td>'
+                    +'<td style="padding:7px 8px">'+dash(it.unit)+'</td>'
+                    +'<td style="padding:7px 8px;text-align:right">'+f(it.qty)+'</td>'
+                    +'<td style="padding:7px 8px;text-align:right">'+f(it.rate)+'</td>'
+                    +'<td style="padding:7px 8px;text-align:right">'+dash(it.vat)+'</td>'
+                    +'<td style="padding:7px 8px;text-align:right;font-weight:700">'+f(it.total)+'</td>'
+                    +'<td style="padding:7px 8px">'+String(dash(it.expense)).replace(' Expense','')+'</td></tr>';
+            });
+            if(!(d.items||[]).length) rows+='<tr><td colspan="11" style="padding:1rem;text-align:center;color:#94a3b8">No line items.</td></tr>';
+            rows+='</tbody>';
+            document.getElementById('vpvItems').innerHTML=rows;
+            document.getElementById('vpvAttach').innerHTML = d.attachment ? ('<a href="'+d.attachment+'" target="_blank" style="color:var(--primary-purple);font-weight:700"><i class="fas fa-paperclip"></i> View attachment</a>') : '';
+            document.getElementById('vpViewModal').style.display='flex';document.body.style.overflow='hidden';
+        }
+        function closeVpView(){document.getElementById('vpViewModal').style.display='none';document.body.style.overflow='';}
+    </script>
 </div>
 
 {{-- Payment modal: record a payment against a purchase, link a Demand Request, attach receipt --}}
@@ -391,6 +441,28 @@
     }
     function closeVpPay(){document.getElementById('vpPayModal').style.display='none';document.body.style.overflow='';}
 </script>
+
+@if($selectedVendor)
+<div id="vpVendorPayModal" class="vp-modal-backdrop" onclick="if(event.target===this) closeVendorPay()">
+    <div class="vp-modal" style="max-width:560px">
+        <div class="vp-modal-header"><div class="vp-modal-heading"><span class="vp-modal-heading-icon"><i class="fas fa-hand-holding-usd"></i></span><div><h3>Make Payment</h3><p class="vp-modal-subtitle">{{ $selectedVendor->name }} · Outstanding <strong style="color:#dc2626">{{ number_format($ledgerBalance,2) }}</strong></p></div></div><button class="vp-close" type="button" onclick="closeVendorPay()"><i class="fas fa-times"></i></button></div>
+        <form class="vp-form" method="POST" action="{{ route('crm.vendor_purchases.add_vendor_payment',$selectedVendor->id) }}" enctype="multipart/form-data">{{ csrf_field() }}
+            <div class="vp-grid">
+                <div class="vp-field vp-field-4"><label>Amount <span class="vp-required">*</span></label><input class="vp-control" type="number" step="0.01" min="0.01" name="amount" value="{{ $ledgerBalance>0.009 ? number_format($ledgerBalance,2,'.','') : '' }}" required></div>
+                <div class="vp-field vp-field-4"><label>Date</label><input class="vp-control" type="date" name="paid_at" value="{{ now()->toDateString() }}"></div>
+                <div class="vp-field vp-field-4"><label>Method</label><select class="vp-control" name="method"><option value="">—</option>@foreach(['Cash','Bank Transfer','Card','Cheque','Credit'] as $m)<option value="{{ $m }}">{{ $m }}</option>@endforeach</select></div>
+                <div class="vp-field vp-field-12"><label>Payment Receipt</label><input class="vp-control" type="file" name="receipt" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv"></div>
+                <div class="vp-field vp-field-12"><label>Note</label><input class="vp-control" name="note" maxlength="500" placeholder="Optional"></div>
+            </div>
+            <div class="vp-modal-actions"><button class="vp-filter-btn" type="button" onclick="closeVendorPay()">Cancel</button><button class="vp-primary-btn" type="submit"><i class="fas fa-check"></i> Save Payment</button></div>
+        </form>
+    </div>
+</div>
+<script>
+    function openVendorPay(){document.getElementById('vpVendorPayModal').style.display='flex';document.body.style.overflow='hidden';}
+    function closeVendorPay(){document.getElementById('vpVendorPayModal').style.display='none';document.body.style.overflow='';}
+</script>
+@endif
 
 @if(!$selectedVendor)
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -613,7 +685,7 @@ function vpVendorLiveSearch(term) {
                 <div class="vp-field vp-field-3"><label>Quantity <span class="vp-required">*</span></label><input class="vp-control vp-calc" type="number" step="0.01" min="0.01" name="quantity" value="1" required></div>
                 <div class="vp-field vp-field-3"><label>Unit <span class="vp-required">*</span></label><select class="vp-control" name="unit" required>@foreach(['Sheets','Kg','Rolls','Pieces','Boxes','Liters','Meters','Pallets'] as $unit)<option>{{ $unit }}</option>@endforeach</select></div>
                 <div class="vp-field vp-field-3"><label>Unit Price <span class="vp-required">*</span></label><input class="vp-control vp-calc" type="number" step="0.01" min="0" name="unit_price" value="0" required></div>
-                <div class="vp-field vp-field-3"><label>Currency</label><select class="vp-control" id="vendorCurrencySelect" name="currency">@foreach(['AED','USD','EUR','GBP','PKR','SAR','QAR','OMR','KWD','BHD','CAD','AUD','INR','CNY','JPY'] as $currency)<option value="{{ $currency }}">{{ $currency }}</option>@endforeach</select><small class="vp-help">Currencies load automatically from live API.</small></div>
+                <div class="vp-field vp-field-3"><label>Currency</label><select class="vp-control" id="vendorCurrencySelect" name="currency">@foreach(['AED','USD','EUR','GBP','PKR','SAR','QAR','OMR','KWD','BHD','CAD','AUD','INR','CNY','JPY'] as $currency)<option value="{{ $currency }}">{{ $currency }}</option>@endforeach</select><small class="vp-help">Select the purchase currency.</small></div>
                 <div class="vp-field vp-field-3"><label>VAT %</label><input class="vp-control vp-calc" type="number" step="0.01" min="0" max="100" name="vat_percentage" value="5"></div>
                 <div class="vp-field vp-field-3"><label>Shipping Cost</label><input class="vp-control vp-calc" type="number" step="0.01" min="0" name="shipping_cost" value="0"></div>
                 <div class="vp-field vp-field-3"><label>Paid Amount</label><input class="vp-control vp-calc" type="number" step="0.01" min="0" name="paid_amount" value="0"></div>
@@ -653,7 +725,7 @@ function vpVendorLiveSearch(term) {
 
 @section('scripts')
 <script>
-    (function loadCurrencies(){var select=document.getElementById('vendorCurrencySelect');if(!select)return;var fallback={AED:'UAE Dirham',USD:'US Dollar',EUR:'Euro',GBP:'British Pound',PKR:'Pakistani Rupee',SAR:'Saudi Riyal',QAR:'Qatari Riyal',OMR:'Omani Rial',KWD:'Kuwaiti Dinar',BHD:'Bahraini Dinar',CAD:'Canadian Dollar',AUD:'Australian Dollar',INR:'Indian Rupee',CNY:'Chinese Yuan',JPY:'Japanese Yen'};function render(currencies){var current=select.value||'AED';select.innerHTML='';Object.keys(currencies).sort().forEach(function(code){var option=document.createElement('option');option.value=code;option.textContent=code+' — '+currencies[code];select.appendChild(option)});select.value=currencies[current]?current:'AED'}fetch('https://restcountries.com/v3.1/all?fields=currencies').then(function(response){if(!response.ok)throw new Error('Currency API unavailable');return response.json()}).then(function(countries){var currencies=Object.assign({},fallback);countries.forEach(function(country){Object.keys(country.currencies||{}).forEach(function(code){currencies[code]=(country.currencies[code]&&country.currencies[code].name)||code})});render(currencies)}).catch(function(){render(fallback)})})();
+    (function loadCurrencies(){var select=document.getElementById('vendorCurrencySelect');if(!select)return;var fallback={AED:'UAE Dirham',USD:'US Dollar',EUR:'Euro',GBP:'British Pound',PKR:'Pakistani Rupee',SAR:'Saudi Riyal',QAR:'Qatari Riyal',OMR:'Omani Rial',KWD:'Kuwaiti Dinar',BHD:'Bahraini Dinar',CAD:'Canadian Dollar',AUD:'Australian Dollar',INR:'Indian Rupee',CNY:'Chinese Yuan',JPY:'Japanese Yen'};function render(currencies){var current=select.value||'AED';select.innerHTML='';Object.keys(currencies).sort().forEach(function(code){var option=document.createElement('option');option.value=code;option.textContent=code+' — '+currencies[code];select.appendChild(option)});select.value=currencies[current]?current:'AED'}render(fallback);})();
     function setVendorView(view){var cards=document.querySelector('.vp-vendor-grid'),table=document.getElementById('vendorDirectoryTable');if(!cards||!table)return;cards.style.display=view==='cards'?'grid':'none';table.style.display=view==='table'?'table':'none'}
     function filterVendorDirectory(value){var q=(value||'').trim().toLowerCase();document.querySelectorAll('#vendorDirectoryTable tbody tr[data-vendor-search]').forEach(function(row){var hay=(row.getAttribute('data-vendor-search')||row.textContent||'').toLowerCase();row.style.display=!q||hay.indexOf(q)!==-1?'table-row':'none'});}
     (function(){var directoryTable=document.getElementById('vendorDirectoryTable');if(!directoryTable)return;var search=document.querySelector('.vp-toolbar [name="search"]');if(search)search.addEventListener('input',function(){filterVendorDirectory(this.value)});})();
@@ -689,7 +761,7 @@ function vpVendorLiveSearch(term) {
     var vendorPurchases = @json($purchases->getCollection()->keyBy('id'));
     document.getElementById('vpExportForm').addEventListener('submit',function(){var filters=document.querySelector('.vp-toolbar');['search','expense_type','category','payment_status','date_from','date_to'].forEach(function(name){if(this.elements[name]&&filters.elements[name])this.elements[name].value=filters.elements[name].value}.bind(this));});
     (function(){function iso(date){return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0')}function presetFor(from,to){var today=new Date(),todayValue=iso(today);if(from===todayValue&&to===todayValue)return 'today';var weekStart=new Date(today);weekStart.setDate(today.getDate()-(today.getDay()+6)%7);var weekEnd=new Date(weekStart);weekEnd.setDate(weekStart.getDate()+6);if(from===iso(weekStart)&&to===iso(weekEnd))return 'week';var monthStart=new Date(today.getFullYear(),today.getMonth(),1),monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0);if(from===iso(monthStart)&&to===iso(monthEnd))return 'month';return ''}document.querySelectorAll('.vp-date-range').forEach(function(legacy){var form=legacy.closest('form'),hiddenFrom=form.elements.date_from,hiddenTo=form.elements.date_to;if(!hiddenFrom||!hiddenTo)return;legacy.style.display='none';var wrap=document.createElement('div');wrap.className='vp-date-filter';wrap.innerHTML='<select class="vp-control" aria-label="Quick date range"><option value="">Custom range</option><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select><input class="vp-control" type="date" aria-label="Start date"><span class="vp-date-separator">—</span><input class="vp-control" type="date" aria-label="End date">';legacy.parentNode.insertBefore(wrap,legacy);var preset=wrap.querySelector('select'),from=wrap.querySelectorAll('input')[0],to=wrap.querySelectorAll('input')[1];from.value=hiddenFrom.value||'';to.value=hiddenTo.value||'';preset.value=presetFor(from.value,to.value);function sync(submit){hiddenFrom.value=from.value;hiddenTo.value=to.value;preset.value=presetFor(from.value,to.value);if(submit&&from.value&&to.value)form.submit()}from.addEventListener('change',function(){sync(true)});to.addEventListener('change',function(){sync(true)});preset.addEventListener('change',function(){if(!this.value)return;var today=new Date(),start,end;if(this.value==='today'){start=end=today}else if(this.value==='week'){start=new Date(today);start.setDate(today.getDate()-(today.getDay()+6)%7);end=new Date(start);end.setDate(start.getDate()+6)}else{start=new Date(today.getFullYear(),today.getMonth(),1);end=new Date(today.getFullYear(),today.getMonth()+1,0)}from.value=iso(start);to.value=iso(end);sync(true)})})})();
-    (function(){var table=document.querySelector('.vp-table');if(!table)return;var head=table.tHead.rows[0], h=document.createElement('th');h.innerHTML='<input type="checkbox" id="vpSelectAll">';head.insertBefore(h,head.firstChild);Array.prototype.forEach.call(table.tBodies[0].rows,function(row){if(row.cells.length<2)return;var c=document.createElement('td');c.innerHTML='<input type="checkbox" class="vp-row-check" name="ids[]" value="'+row.dataset.id+'" form="vpExportForm">';row.insertBefore(c,row.firstChild)});var rows=@json($purchases->getCollection()->pluck('id')->values());Array.prototype.forEach.call(table.tBodies[0].rows,function(row,i){if(rows[i])row.dataset.id=rows[i];var cb=row.querySelector('.vp-row-check');if(cb&&rows[i])cb.value=rows[i]});function count(){var n=document.querySelectorAll('.vp-row-check:checked').length;document.getElementById('vpSelectedCount').textContent=n+' selected'}document.getElementById('vpSelectAll').addEventListener('change',function(){document.querySelectorAll('.vp-row-check').forEach(function(c){c.checked=this.checked}.bind(this));count()});document.addEventListener('change',function(e){if(e.target.classList.contains('vp-row-check'))count()})})();
+    (function(){var table=document.querySelector('.vp-table');if(!table||!table.tHead)return;var head=table.tHead.rows[0], h=document.createElement('th');h.innerHTML='<input type="checkbox" id="vpSelectAll">';head.insertBefore(h,head.firstChild);Array.prototype.forEach.call(table.tBodies[0].rows,function(row){var c=document.createElement('td');var id=row.dataset.id;if(id&&row.cells.length>=2){c.innerHTML='<input type="checkbox" class="vp-row-check" name="ids[]" value="'+id+'" form="vpExportForm">';}row.insertBefore(c,row.firstChild)});function count(){var n=document.querySelectorAll('.vp-row-check:checked').length;var el=document.getElementById('vpSelectedCount');if(el)el.textContent=n+' selected'}var sa=document.getElementById('vpSelectAll');if(sa)sa.addEventListener('change',function(){document.querySelectorAll('.vp-row-check').forEach(function(c){c.checked=this.checked}.bind(this));count()});document.addEventListener('change',function(e){if(e.target.classList&&e.target.classList.contains('vp-row-check'))count()})})();
     function openPurchaseModal(){ var form=document.getElementById('vendorPurchaseForm');form.reset();form.action='{{ route('crm.vendor_purchases.store') }}';document.getElementById('vpFormMethod').value='POST';document.getElementById('vendorPurchaseTitle').textContent='Add Vendor Purchase';form.querySelector('[name="purchase_date"]').value='{{ date('Y-m-d') }}';fillVendorDetails(form.elements.vendor_id);document.getElementById('vendorPurchaseModal').style.display='flex';document.body.style.overflow='hidden';calculateVendorPurchase();rememberVendorForm('purchase'); }
     function openEditPurchase(id){var p=vendorPurchases[id];if(!p)return;var form=document.getElementById('vendorPurchaseForm');form.reset();form.action='{{ url('/crm/vendor-purchases') }}/'+id;document.getElementById('vpFormMethod').value='PUT';document.getElementById('vendorPurchaseTitle').textContent='Edit Vendor Purchase';Object.keys(p).forEach(function(name){var field=form.elements[name];if(!field)return;var value=p[name];if((name==='purchase_date'||name==='due_date')&&value)value=String(value).substring(0,10);field.value=value===null?'':value});var sizeParts=String(p.size||'').split(/\s*(?:x|×|\*)\s*/i);form.elements.size_length.value=sizeParts[0]||'';form.elements.size_width.value=sizeParts[1]||'';form.elements.size_height.value=sizeParts[2]||'';document.getElementById('vendorPurchaseModal').style.display='flex';document.body.style.overflow='hidden';calculateVendorPurchase();rememberVendorForm('purchase')}
     function closePurchaseModal(){ document.getElementById('vendorPurchaseModal').style.display='none'; document.body.style.overflow=''; }
