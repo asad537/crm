@@ -651,33 +651,40 @@ class DemandRequestController extends Controller
         $this->authorizeManageFiles();
         $dr = DemandRequest::findOrFail($id);
         $request->validate([
-            'files' => 'required|array|max:10',
-            'files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
-            'note' => 'nullable|string|max:255',
-            'amount' => 'nullable|numeric|min:0',
+            'entries' => 'required|array|max:20',
+            'entries.*.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
+            'entries.*.note' => 'nullable|string|max:255',
+            'entries.*.amount' => 'nullable|numeric|min:0',
         ]);
-        $note = trim((string) $request->input('note')) ?: null;
-        $amount = $request->filled('amount') ? round((float) $request->input('amount'), 2) : null;
         $dir = public_path('uploads/demand-requests');
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        foreach ((array) $request->file('files', []) as $file) {
+        $count = 0;
+        foreach ((array) $request->input('entries', []) as $i => $entry) {
+            $file = $request->file("entries.$i.file");
+            if (!$file) {
+                continue;
+            }
             $ext = strtolower($file->getClientOriginalExtension());
             $fname = 'dr_' . uniqid('', true) . ($ext ? '.' . $ext : '');
             $dr->attachments()->create([
                 'path' => 'uploads/demand-requests/' . $fname,
                 'name' => $file->getClientOriginalName(),
-                'note' => $note,
-                'amount' => $amount,
+                'note' => trim((string) ($entry['note'] ?? '')) ?: null,
+                'amount' => isset($entry['amount']) && $entry['amount'] !== '' ? round((float) $entry['amount'], 2) : null,
                 'mime' => $file->getClientMimeType(),
                 'size' => $file->getSize(),
                 'created_by' => \Auth::guard('crm')->id(),
             ]);
             $file->move($dir, $fname);
+            $count++;
+        }
+        if ($count === 0) {
+            return back()->withErrors(['entries' => 'Attach at least one file.']);
         }
 
-        return back()->with('status', 'Attachment(s) uploaded.');
+        return back()->with('status', $count . ' attachment(s) uploaded.');
     }
 
     public function deleteAttachment($id, $attId)

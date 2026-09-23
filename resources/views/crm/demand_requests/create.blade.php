@@ -107,7 +107,7 @@
                 <th style="min-width:110px">Per Unit Price</th>
                 <th style="min-width:80px">VAT %</th>
                 <th style="min-width:120px">Total</th>
-                <th style="min-width:130px">Attachment</th>
+                <th style="min-width:130px">Proforma Invoice</th>
                 <th style="width:48px;text-align:center">Del</th>
             </tr></thead>
             <tbody>

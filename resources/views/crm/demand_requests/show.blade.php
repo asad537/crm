@@ -116,7 +116,7 @@
         <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Files</th></tr></thead>
+            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Proforma Invoice</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
                 @php($ip = $dr->paidForItem($it->id))
@@ -288,13 +288,30 @@
     <div class="dr-card">
         <div class="dr-secttl"><i class="fas fa-paperclip"></i> Attachments</div>
         @if($__canManageFiles)
-        <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.8rem">
+        <form method="POST" action="{{ route('crm.demand_requests.add_attachment',$dr->id) }}" enctype="multipart/form-data" style="margin-bottom:.8rem">
             {{ csrf_field() }}
-            <div style="display:flex;flex-direction:column;gap:.25rem;flex:1;min-width:180px"><label style="font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase">Note</label><input class="dr-control" name="note" maxlength="255" placeholder="e.g. cash paid to vendor"></div>
-            <div style="display:flex;flex-direction:column;gap:.25rem"><label style="font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase">Amount</label><input class="dr-control" type="number" step="0.01" min="0" name="amount" placeholder="0.00" style="width:130px"></div>
-            <div style="display:flex;flex-direction:column;gap:.25rem"><label style="font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase">File</label><input class="dr-control" type="file" name="files[]" multiple data-max="10" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:300px"></div>
-            <button class="dr-btn dr-btn-outline dr-btn-sm" type="submit"><i class="fas fa-upload"></i> Upload</button>
+            <div id="drAttRows"></div>
+            <div style="display:flex;gap:.6rem;margin-top:.5rem">
+                <button type="button" class="dr-btn dr-btn-light dr-btn-sm" onclick="drAddAttRow()" style="border:1px dashed #c7b8f5;color:var(--primary-purple);background:var(--primary-soft)"><i class="fas fa-plus"></i> Add row</button>
+                <button class="dr-btn dr-btn-outline dr-btn-sm" type="submit"><i class="fas fa-upload"></i> Upload</button>
+            </div>
         </form>
+        <script>
+            var drAttI = 0;
+            function drAttRowHtml(i){
+                var lab='font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase';
+                return '<div class="dr-att-row" style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.5rem">'
+                    +'<div style="display:flex;flex-direction:column;gap:.25rem;flex:1;min-width:180px"><label style="'+lab+'">Note</label><input class="dr-control" name="entries['+i+'][note]" maxlength="255" placeholder="e.g. cash paid to vendor"></div>'
+                    +'<div style="display:flex;flex-direction:column;gap:.25rem"><label style="'+lab+'">Amount</label><input class="dr-control" type="number" step="0.01" min="0" name="entries['+i+'][amount]" placeholder="0.00" style="width:130px"></div>'
+                    +'<div style="display:flex;flex-direction:column;gap:.25rem"><label style="'+lab+'">File</label><input class="dr-control" type="file" name="entries['+i+'][file]" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="max-width:300px"></div>'
+                    +'<button type="button" class="dr-att-x" title="Remove row" onclick="drRemoveAttRow(this)"><i class="fas fa-times"></i></button>'
+                    +'</div>';
+            }
+            function drAddAttRow(){ var w=document.getElementById('drAttRows'); var d=document.createElement('div'); d.innerHTML=drAttRowHtml(drAttI); w.appendChild(d.firstChild); drAttI++; drAttRowVis(); }
+            function drRemoveAttRow(btn){ btn.closest('.dr-att-row').remove(); if(!document.querySelectorAll('#drAttRows .dr-att-row').length) drAddAttRow(); drAttRowVis(); }
+            function drAttRowVis(){ var rows=document.querySelectorAll('#drAttRows .dr-att-row'); rows.forEach(function(r){ r.querySelector('.dr-att-x').style.visibility = rows.length>1?'visible':'hidden'; }); }
+            drAddAttRow(); // show one row on load
+        </script>
         @endif
         @if($dr->attachments->count())
             <div style="overflow-x:auto;border:1px solid #e5ebf2;border-radius:12px">
