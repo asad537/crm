@@ -94,7 +94,12 @@ class OrderController extends Controller
         $this->guard();
         $order = CrmManualOrder::findOrFail($id);
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.orders.pdf', ['order' => $order])->setPaper('a4');
-        return $pdf->stream('order-' . ($order->invoice_number ?: $order->id) . '.pdf');
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="order-' . ($order->invoice_number ?: $order->id) . '.pdf"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     private function prefillFromInquiry($inquiry, $user)
