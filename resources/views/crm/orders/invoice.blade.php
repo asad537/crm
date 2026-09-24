@@ -1,7 +1,7 @@
 @php
     $__invoiceWorkspace = $order->workspace ?: ($activeCrmWorkspace ?? null);
     // This template renders the TheCustomBoxes (TCB) branded "Sale Invoice".
-    $__invoicePrimary = '#405f8e';
+    $__invoicePrimary = '#376094';
     $__invoicePrimarySoft = '#e6ecf5';
     $__invoiceCurrency = $order->invoice_currency ?: 'USD';
     $__currencySymbol = $__invoiceCurrency === 'USD' ? '$' : ($__invoiceCurrency === 'GBP' ? '£' : ($__invoiceCurrency === 'EUR' ? '€' : ''));

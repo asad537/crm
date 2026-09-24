@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 @php
-    $navy = '#405f8e';
+    $navy = '#376094';
     $cur = $order->currency ?: 'USD';
     $b = $order->billing ?? [];
     $s = $order->shipping ?? [];
