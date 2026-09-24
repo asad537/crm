@@ -156,11 +156,7 @@
             {{-- Header --}}
             <div class="tcb-head">
                 <div class="tcb-brand">
-                    <img src="{{ asset('tcb-icon.png') }}" alt="TheCustomBoxes">
-                    <div class="b-text">
-                        <div class="b-name">TheCustom<span class="light">Boxes</span></div>
-                        <div class="b-tag">Smart Packaging Solutions</div>
-                    </div>
+                    <img src="{{ asset('thecustomboxes-logo-white.png') }}" alt="TheCustomBoxes" style="height:44px">
                 </div>
                 <div class="tcb-sale"><h1>Sale Invoice</h1></div>
             </div>

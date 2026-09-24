@@ -14,7 +14,7 @@
         $p = public_path($rel);
         return is_file($p) ? 'data:image/png;base64,' . base64_encode(file_get_contents($p)) : null;
     };
-    $icon = $img('tcb-icon.png');
+    $logoWhite = $img('thecustomboxes-logo-white.png');
     $paid = strtolower($order->invoice_status ?: '') === 'paid';
     $pays = ['paypal.png', 'master-card.png', 'visa.png', 'american-express.png', 'discover.png', 'ebank-transfer.png'];
     $money = fn ($v) => $cur . ' ' . number_format((float) $v, 2);
@@ -85,10 +85,9 @@
     {{-- Header --}}
     <table class="head"><tr>
         <td style="width:58%">
-            <table class="brand-cell" style="width:auto"><tr>
-                @if($icon)<td style="padding-right:10px"><img src="{{ $icon }}"></td>@endif
-                <td><div class="brand-name">TheCustom<span class="light">Boxes</span></div><div class="brand-tag">Smart Packaging Solutions</div></td>
-            </tr></table>
+            <table style="width:auto"><tr><td class="brand-cell">
+                @if($logoWhite)<img src="{{ $logoWhite }}" style="height:42px">@else<span class="brand-name">TheCustom<span class="light">Boxes</span></span>@endif
+            </td></tr></table>
         </td>
         <td style="width:42%"><div class="sale">Sale Invoice</div></td>
     </tr></table>
