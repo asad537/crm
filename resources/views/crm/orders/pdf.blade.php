@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 @php
-    $navy = '#22406a';
+    $navy = '#405f8e';
     $cur = $order->currency ?: 'USD';
     $b = $order->billing ?? [];
     $s = $order->shipping ?? [];
@@ -102,7 +102,7 @@
             <div class="stamp"># <span class="{{ $paid ? 'paid' : 'unpaid' }}">{{ $paid ? 'PAID' : strtoupper($order->invoice_status ?: 'UNPAID') }}</span></div>
             <table class="kv" style="float:right">
                 <tr><td class="k">Invoice no :</td><td>{{ $order->invoice_number ? 'TCB-'.$order->invoice_number : ('#'.$order->id) }}</td></tr>
-                <tr><td class="k">Date :</td><td>{{ optional($order->invoice_date)->format('m/d/Y') ?: $order->created_at->format('m/d/Y') }}</td></tr>
+                <tr><td class="k">Date :</td><td>{{ optional($order->invoice_date)->format('m/d/Y') ?: optional($order->created_at)->format('m/d/Y') }}</td></tr>
                 <tr><td class="k">Purchase Order # :</td><td>{{ $order->enquiry_number ?: '—' }}</td></tr>
             </table>
         </td>
