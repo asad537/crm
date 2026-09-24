@@ -18,6 +18,14 @@
     $paid = strtolower($order->invoice_status ?: '') === 'paid';
     $pays = ['paypal.png', 'master-card.png', 'visa.png', 'american-express.png', 'discover.png', 'ebank-transfer.png'];
     $money = fn ($v) => $cur . ' ' . number_format((float) $v, 2);
+    $unit = function ($v) {
+        $s = number_format((float) $v, 4, '.', ',');
+        if (strpos($s, '.') !== false) {
+            $s = rtrim($s, '0');
+            if (strlen(substr($s, strrpos($s, '.') + 1)) < 2) { $s = number_format((float) $v, 2, '.', ','); }
+        }
+        return $s;
+    };
 @endphp
 <style>
     @page { margin: 22px 26px; }
@@ -127,30 +135,28 @@
     {{-- Items --}}
     <table class="items">
         <thead><tr>
-            <th style="width:5%">Sr.<br>No</th>
-            <th style="width:12%">Size</th>
-            <th style="width:14%">Stock</th>
-            <th>Finishing / Description</th>
-            <th style="width:7%" class="num">Qty</th>
-            <th style="width:11%" class="num">Unit ({{ $cur }})</th>
-            <th style="width:9%" class="num">Other</th>
-            <th style="width:13%" class="num">Line Total</th>
+            <th style="width:6%" class="ctr">Sr.</th>
+            <th style="width:13%">Size</th>
+            <th style="width:16%">Stock</th>
+            <th>Description</th>
+            <th style="width:8%" class="ctr">Qty</th>
+            <th style="width:11%" class="num">Unit Price</th>
+            <th style="width:15%" class="num">Line Total</th>
         </tr></thead>
         <tbody>
         @forelse($order->line_items ?? [] as $i => $it)
-            @php $size = trim((($it['length'] ?? '') !== '' ? ($it['length'].'x'.($it['width'] ?? '').'x'.($it['height'] ?? '').' '.($it['unit'] ?? '')) : '')); @endphp
+            @php $size = trim((($it['length'] ?? '') !== '' ? ($it['length'].' x '.($it['width'] ?? '').' x '.($it['height'] ?? '').' '.($it['unit'] ?? '')) : '')); @endphp
             <tr>
                 <td class="ctr">{{ $i + 1 }}</td>
                 <td class="ctr">{{ $size ?: '—' }}</td>
                 <td>{{ $it['stock'] ?? '—' }}</td>
                 <td><b>{{ $it['box_style'] ?? '' }}</b>@if(!empty($it['color'])) · {{ $it['color'] }}@endif @if(!empty($it['finishing']))<br><span style="color:#64748b">{{ $it['finishing'] }}</span>@endif</td>
-                <td class="num">{{ $it['qty'] ?? 0 }}</td>
-                <td class="num">{{ number_format((float)($it['unit_price'] ?? 0), 3) }}</td>
-                <td class="num">{{ number_format((float)($it['other_charges'] ?? 0), 2) }}</td>
-                <td class="num">{{ number_format((float)($it['line_total'] ?? 0), 2) }}</td>
+                <td class="ctr">{{ $it['qty'] ?? 0 }}</td>
+                <td class="num">{{ $unit($it['unit_price'] ?? 0) }}</td>
+                <td class="num">{{ $money($it['line_total'] ?? 0) }}</td>
             </tr>
         @empty
-            <tr><td colspan="8" class="ctr" style="color:#888;padding:14px">No line items.</td></tr>
+            <tr><td colspan="7" class="ctr" style="color:#888;padding:14px">No line items.</td></tr>
         @endforelse
         </tbody>
     </table>
@@ -172,10 +178,10 @@
         </td>
         <td style="width:42%;vertical-align:top">
             <table class="tot">
+                <tr><td class="k">Discount</td><td class="v">- {{ $money($order->discount) }}</td></tr>
                 <tr><td class="k">Sub Total</td><td class="v">{{ $money($order->sub_total) }}</td></tr>
                 @if((float)$order->package_price > 0.009)<tr><td class="k">Package Price</td><td class="v">{{ $money($order->package_price) }}</td></tr>@endif
-                @if((float)$order->rush_charges > 0.009)<tr><td class="k">Rush Charges</td><td class="v">{{ $money($order->rush_charges) }}</td></tr>@endif
-                @if((float)$order->discount > 0.009)<tr><td class="k">Discount</td><td class="v">- {{ $money($order->discount) }}</td></tr>@endif
+                <tr><td class="k">Rush Charges</td><td class="v">{{ $money($order->rush_charges) }}</td></tr>
                 <tr class="g"><td>Total</td><td class="v">{{ $money($order->total) }}</td></tr>
             </table>
         </td>
