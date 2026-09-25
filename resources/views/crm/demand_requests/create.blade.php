@@ -56,7 +56,7 @@
 .dr-actions{display:flex;gap:.6rem}
 .dr-errors{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem}
 .dr-table-wrap{overflow-x:auto}
-@media(max-width:900px){.dr-head{grid-template-columns:repeat(2,1fr)}.dr-items{min-width:1340px}}
+@media(max-width:900px){.dr-head{grid-template-columns:repeat(2,1fr)}.dr-items{min-width:1460px}}
 </style>
 <div class="dr-wrap">
     @if($errors->any())
@@ -107,6 +107,7 @@
                 <th style="min-width:110px">Per Unit Price</th>
                 <th style="min-width:80px">VAT %</th>
                 <th style="min-width:120px">Total</th>
+                <th style="min-width:120px" title="Who pays this line">Pay By</th>
                 <th style="min-width:130px">Proforma Invoice</th>
                 <th style="width:48px;text-align:center">Del</th>
             </tr></thead>
@@ -130,6 +131,12 @@
                     <td><input class="dr-control dr-price" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_price]" value="{{ $it['estimated_price'] ?? '' }}" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-vat" type="number" step="0.01" min="0" max="100" name="items[{{ $i }}][vat_percentage]" value="{{ $it['vat_percentage'] ?? '' }}" placeholder="0" oninput="drCalcRow(this)"></td>
                     <td><input class="dr-control dr-total dr-total-input" type="number" step="0.01" min="0" name="items[{{ $i }}][estimated_total]" value="{{ $it['estimated_total'] ?? '' }}" oninput="drCalcGrand()"></td>
+                    <td>
+                        <select class="dr-control dr-payby" name="items[{{ $i }}][pay_by]" title="Company = company pays directly · Account = accountant pays" onchange="drCalcRemaining()">
+                            <option value="Company" {{ ($it['pay_by'] ?? 'Company')==='Company' ? 'selected' : '' }}>Company</option>
+                            <option value="Account" {{ ($it['pay_by'] ?? '')==='Account' ? 'selected' : '' }}>Account</option>
+                        </select>
+                    </td>
                     <td>
                         <input class="dr-control dr-file" type="file" name="items[{{ $i }}][files][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.7rem">
                         @if(!empty($it['files']) && count($it['files']))<div style="margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.25rem">@foreach($it['files'] as $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="font-size:.62rem;color:var(--primary-purple)"><i class="fas fa-paperclip"></i></a>@endforeach</div>@endif
@@ -171,7 +178,7 @@
                 @if($isEdit && isset($cashInHand))
                 @php($__cih = (float) $cashInHand)
                 @php($__ownUsed = (float) $demandRequest->cash_in_hand_used)
-                @php($__avail = round($__cih + $__ownUsed, 2))
+                @php($__avail = round(max(0, $__cih + $__ownUsed), 2))
                 <div class="dr-cih">
                     <div class="dr-cih-head">
                         <span class="dr-cih-badge"><i class="fas fa-wallet"></i> Cash in Hand</span>
@@ -191,9 +198,11 @@
                                    placeholder="e.g. 400 from cash, rest by bank" autocomplete="off">
                         </div>
                     </div>
-                    <div class="dr-cih-remaining">
-                        <span>Company pays <em>(remaining)</em></span>
-                        <strong id="drRemaining">0.00</strong>
+                    <div class="dr-cih-remaining" style="flex-direction:column;align-items:stretch;gap:.45rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center"><span>Company pays <em>(direct)</em></span><strong id="drCompanyPays" style="color:#15803d">0.00</strong></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center"><span>Account pays</span><strong id="drAccountPays" style="color:#0369a1">0.00</strong></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center"><span>Cash in Hand adjusted <em>(from account)</em></span><strong id="drCihShown" style="color:#b45309">0.00</strong></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #dbe7e0;padding-top:.4rem"><span>Account remaining</span><strong id="drAccountRemaining">0.00</strong></div>
                     </div>
                 </div>
                 @endif
@@ -250,15 +259,24 @@ function drCalcGrand(){
     document.getElementById('drGrand').textContent = fmt(grand);
     drCalcRemaining();
 }
-// Company pays (remaining) = Grand Total − Cash in Hand adjusted.
+// Breakdown at approval: Company (direct) vs Account totals, then Cash in Hand adjusts the account side.
 function drCalcRemaining(){
-    var remEl = document.getElementById('drRemaining');
-    if (!remEl) return;
-    var grand = parseFloat((document.getElementById('drGrand').textContent || '0').replace(/,/g,'')) || 0;
+    var compEl = document.getElementById('drCompanyPays');
+    if (!compEl) return; // card only shown on edit/approve
+    var fmt = function(n){ return n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    var company = 0, account = 0;
+    document.querySelectorAll('#drItems .dr-row').forEach(function(row){
+        var total = parseFloat((row.querySelector('.dr-total')||{}).value) || 0;
+        var pb = (row.querySelector('.dr-payby')||{}).value || 'Company';
+        if (pb === 'Account') account += total; else company += total;
+    });
     var cih = parseFloat((document.getElementById('drCih')||{}).value) || 0;
-    var rem = grand - cih;
-    if (rem < 0) rem = 0;
-    remEl.textContent = rem.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+    if (cih > account) cih = account; // cash in hand only offsets the account portion
+    var accountRem = account - cih; if (accountRem < 0) accountRem = 0;
+    compEl.textContent = fmt(company);
+    document.getElementById('drAccountPays').textContent = fmt(account);
+    document.getElementById('drCihShown').textContent = fmt(cih);
+    document.getElementById('drAccountRemaining').textContent = fmt(accountRem);
 }
 function drRenumber(){
     document.querySelectorAll('#drItems .dr-row').forEach(function(row, i){

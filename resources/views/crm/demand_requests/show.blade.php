@@ -9,7 +9,7 @@
     $paid = $dr->paidTotal();
     $writeOff = $dr->writeOffTotal();
     $outstanding = $dr->outstandingTotal();
-    $covered = min($estimated, $paid + $writeOff);
+    $covered = max(0, min($estimated, $estimated - $dr->outstandingTotal()));
     $pct = $estimated > 0 ? min(100, round($covered / $estimated * 100)) : ($paid > 0 ? 100 : 0);
     $stSlug = str_replace([' ','/'],['-','-'],$dr->status);
 @endphp
@@ -95,9 +95,9 @@
             @php($__net = $dr->netBalance())
             @php($__ao = $dr->accountOutstanding())
             @php($__co = $dr->companyOutstanding())
-            <div class="dr-m {{ $__ao < -0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Account Outstanding</span><strong>{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔ 0.00') }}</strong></div>
-            <div class="dr-m {{ $__co < -0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Company Outstanding</span><strong>{{ $__co < -0.009 ? '− '.number_format(abs($__co),2) : ($__co > 0.009 ? '+ '.number_format($__co,2) : '✔ 0.00') }}</strong></div>
-            <div class="dr-m {{ $__net < -0.009 ? 'dr-m3' : 'dr-m2' }}"><span>Total Outstanding</span><strong>{{ $__net < -0.009 ? '− '.number_format(abs($__net),2) : ($__net > 0.009 ? '+ '.number_format($__net,2) : '✔ 0.00') }}</strong></div>
+            <div class="dr-m dr-m2"><span>Account Outstanding</span><strong>{{ abs($__ao) > 0.009 ? '+ '.number_format(abs($__ao),2) : '✔ 0.00' }}</strong></div>
+            <div class="dr-m dr-m2"><span>Company Outstanding</span><strong>{{ abs($__co) > 0.009 ? '+ '.number_format(abs($__co),2) : '✔ 0.00' }}</strong></div>
+            <div class="dr-m dr-m2"><span>Total Outstanding</span><strong>{{ $outstanding > 0.009 ? '+ '.number_format($outstanding,2) : '✔ 0.00' }}</strong></div>
         </div>
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
         <div class="dr-prog-txt">{{ $pct }}% covered @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif @if($writeOff>0)· <span style="color:#15803d">{{ number_format($writeOff,2) }} settled directly by company</span>@endif</div>
@@ -116,11 +116,12 @@
         <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Proforma Invoice</th></tr></thead>
+            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Pay By</th><th>Proforma Invoice</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
                 @php($ip = $dr->paidForItem($it->id))
                 @php($inet = $dr->itemNet($it->id))
+                @php($__adjOut = $dr->adjustedOutForItem($it->id))
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $it->category ?: '—' }}</td>
@@ -133,8 +134,10 @@
                     <td class="dr-num">{{ $it->estimated_price !== null ? number_format($it->estimated_price,2) : '—' }}</td>
                     <td class="dr-num">{{ (float)$it->vat_percentage > 0 ? rtrim(rtrim(number_format($it->vat_percentage,2,'.',''),'0'),'.').'%' : '—' }}</td>
                     <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
-                    <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}</td>
+                    <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}@if($__adjOut > 0.009)<div style="font-size:.6rem;color:#b45309;font-weight:800">−{{ number_format($__adjOut,2) }} adj out</div>@endif</td>
                     <td class="dr-num" style="font-weight:800;color:{{ $inet < -0.009 ? '#e11d48' : '#159447' }}">{{ $inet < -0.009 ? '− '.number_format(abs($inet),2) : ($inet > 0.009 ? '+ '.number_format($inet,2) : '✔') }}</td>
+                    @php($__pb = ($it->pay_by ?? 'Company')==='Account' ? 'Account' : 'Company')
+                    <td><span class="dr-badge" style="{{ $__pb==='Company' ? 'background:#dcfce7;color:#15803d' : 'background:#e0f2fe;color:#0369a1' }}">{{ $__pb }}</span></td>
                     <td style="vertical-align:middle;white-space:nowrap">@if($it->files->count())@foreach($it->files as $__k => $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="color:var(--primary-purple);text-decoration:none;margin-right:.4rem"><i class="fas fa-paperclip"></i>{{ $it->files->count()>1 ? ($__k+1) : '' }}</a>@endforeach@else<span style="color:#cbd5e1">—</span>@endif</td>
                 </tr>
             @endforeach
@@ -175,9 +178,10 @@
                     @if($__rem > 0.009)
                     @php($__anyOpen = true)
                     <tr>
-                        <td><div style="font-weight:700;color:#27364b">{{ $loop->iteration }}. {{ \Illuminate\Support\Str::limit($it->description ?: $it->category, 24) }}</div><div style="font-size:.67rem;color:#e11d48">{{ number_format($__rem,2) }} left</div><input type="hidden" name="rows[{{ $i }}][item_id]" value="{{ $it->id }}"></td>
+                        @php($__pbPlan = ($it->pay_by ?? 'Company')==='Account' ? 'Account' : 'Company')
+                        <td><div style="font-weight:700;color:#27364b">{{ $loop->iteration }}. {{ \Illuminate\Support\Str::limit($it->description ?: $it->category, 24) }}</div><div style="font-size:.67rem;color:#e11d48">{{ number_format($__rem,2) }} left</div><div style="font-size:.62rem;color:#94a3b8">Plan: <span style="font-weight:800;color:{{ $__pbPlan==='Company' ? '#15803d' : '#0369a1' }}">{{ $__pbPlan }}</span></div><input type="hidden" name="rows[{{ $i }}][item_id]" value="{{ $it->id }}"></td>
                         <td><input class="dr-control" type="number" step="0.01" min="0" name="rows[{{ $i }}][amount]" placeholder="0.00"></td>
-                        <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account">By Accountant</option><option value="Direct">Direct Company</option></select></td>
+                        <td><select class="dr-control" name="rows[{{ $i }}][pay_type]"><option value="Account" {{ $__pbPlan==='Account' ? 'selected' : '' }}>By Accountant</option><option value="Direct" {{ $__pbPlan==='Company' ? 'selected' : '' }}>Direct Company</option></select></td>
                         <td><input class="dr-control" list="drPayers" name="rows[{{ $i }}][method]" placeholder="Cash / Bank"></td>
                         <td><input class="dr-control" list="drVendors" name="rows[{{ $i }}][paid_to]" placeholder="Vendor / person"></td>
                         <td><input class="dr-control" name="rows[{{ $i }}][vendor_invoice_no]" placeholder="Invoice #"></td>
@@ -192,12 +196,38 @@
             </div>
             <div style="margin-top:.7rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
                 <button type="button" class="dr-btn dr-btn-light" onclick="drAddPayRow()" style="border:1px dashed #c7b8f5;color:var(--primary-purple);background:var(--primary-soft)"><i class="fas fa-plus"></i> Add breakdown row</button>
+                <button type="button" class="dr-btn dr-btn-light" onclick="drAddAdjustRow()" style="border:1px dashed #fbbf24;color:#b45309;background:#fffbeb"><i class="fas fa-right-left"></i> Adjust from another category</button>
             </div>
             <div style="margin-top:.9rem"><button class="dr-btn dr-btn-primary" type="submit"><i class="fas fa-check"></i> Save Payments</button></div>
         </form>
         <script>
         var drItems = [@foreach($dr->items as $it){id:{{ $it->id }},label:"{{ addslashes($loop->iteration.'. '.\Illuminate\Support\Str::limit($it->description ?: $it->category, 24)) }}"},@endforeach];
+        // Only the categories actually present on THIS demand's items — you can adjust from those.
+        var drCats = [@foreach($dr->items->pluck('category')->map(fn($c)=>trim((string)$c))->filter()->unique()->values() as $c)"{{ addslashes($c) }}",@endforeach];
         var drNewIdx = 500000;
+        // Cross-category adjustment: settle an item using ANOTHER category's cash. No proof needed.
+        function drAddAdjustRow(){
+            var no = document.getElementById('drNoOpen'); if (no) no.remove();
+            var tb = document.querySelector('table.dr-pay-table tbody');
+            var i = drNewIdx++;
+            var opts = '<option value="">— Pay which item —</option>';
+            for (var k=0;k<drItems.length;k++){ opts += '<option value="'+drItems[k].id+'">'+drItems[k].label+'</option>'; }
+            var catOpts = '<option value="">— From category —</option>';
+            for (var c=0;c<drCats.length;c++){ catOpts += '<option value="'+drCats[c]+'">'+drCats[c]+'</option>'; }
+            var tr = document.createElement('tr');
+            tr.style.background = '#fffdf5';
+            tr.innerHTML =
+                '<td><select class="dr-control" name="rows['+i+'][item_id]">'+opts+'</select>'+
+                '<button type="button" class="dr-btn dr-btn-light" onclick="this.closest(\'tr\').remove()" style="margin-top:.25rem;padding:.2rem .5rem;min-height:0;font-size:.66rem;color:#e11d48;background:#fff1f2"><i class="fas fa-trash"></i> Remove</button></td>'+
+                '<td><input class="dr-control" type="number" step="0.01" min="0" name="rows['+i+'][amount]" placeholder="0.00"></td>'+
+                '<td><span style="display:inline-block;padding:.2rem .5rem;border-radius:7px;background:#fef3c7;color:#b45309;font-size:.62rem;font-weight:800">ADJUSTMENT</span></td>'+
+                '<td><select class="dr-control" name="rows['+i+'][adjust_from]" title="Paid from which category">'+catOpts+'</select></td>'+
+                '<td><input class="dr-control" list="drVendors" name="rows['+i+'][paid_to]" placeholder="Vendor / person"></td>'+
+                '<td><input class="dr-control" name="rows['+i+'][vendor_invoice_no]" placeholder="Invoice #"></td>'+
+                '<td><input class="dr-control" name="rows['+i+'][note]" placeholder="Optional"></td>'+
+                '<td><input class="dr-control" type="file" name="rows['+i+'][proofs][]" multiple data-max="5" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.68rem"><div style="font-size:.6rem;color:#e11d48;font-weight:800">Required</div></td>';
+            tb.appendChild(tr);
+        }
         function drAddPayRow(){
             var no = document.getElementById('drNoOpen'); if (no) no.remove();
             var tb = document.querySelector('table.dr-pay-table tbody');
@@ -247,7 +277,7 @@
                 <tr>
                     <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
                     <td class="dr-num"><strong style="color:#159447">{{ number_format($pmt->amount,2) }}</strong></td>
-                    <td>@if(($pmt->pay_type ?? 'Account')==='Direct')<span style="background:#dcfce7;color:#15803d;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">DIRECT</span>@else<span style="background:#e0f2fe;color:#0369a1;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">ACCOUNT</span>@endif{{ $pmt->method ? ' · '.$pmt->method : '' }}</td>
+                    <td>@if($pmt->adjust_from)<span style="background:#fef3c7;color:#b45309;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">ADJUST · from {{ $pmt->adjust_from }}</span>@elseif(($pmt->pay_type ?? 'Account')==='Direct')<span style="background:#dcfce7;color:#15803d;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">DIRECT</span>@else<span style="background:#e0f2fe;color:#0369a1;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">ACCOUNT</span>@endif{{ ($pmt->method && !$pmt->adjust_from) ? ' · '.$pmt->method : '' }}</td>
                     <td>
                         @if($pmt->category)<span class="dr-tag" style="background:#eef2ff;color:#4338ca">{{ $pmt->category }}</span> @endif
                         @if($pmt->item_id)<span class="dr-tag">{{ \Illuminate\Support\Str::limit(optional($dr->items->firstWhere('id',$pmt->item_id))->description ?: 'Item', 24) }}</span>@elseif(!$pmt->category)<span class="dr-tag dr-tag-gen">—</span>@endif

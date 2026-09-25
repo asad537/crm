@@ -88,27 +88,25 @@ class DemandRequestController extends Controller
     }
 
     /**
-     * Cash in Hand pool = account credit accumulated from Completed demands
-     * MINUS everything already drawn back out via "Cash in Hand" payments on any demand.
-     * Recording such a payment removes from the pool; deleting it restores the pool.
+     * Cash in Hand (signed) = net account balance carried by Completed demands, minus draws.
+     *   Positive  → the accountant is holding the company's money (surplus/credit).
+     *   Negative  → the accountant paid from their own pocket (the company owes them).
+     * Draws via "cash_in_hand_used" reduce it; if draws exceed the credit it goes negative.
      */
     private function cashInHand()
     {
         $demands = DemandRequest::with(['items', 'payments'])->get();
-        // Pool gains: unspent (leftover) cash from Completed demands = requested − paid − cashUsed.
-        // Pool draws: every demand's cash_in_hand_used (money taken from the pool to settle it).
-        // accountOutstanding() already includes cash_in_hand_used, so leftover never double-counts.
-        $leftover = (float) $demands->where('status', 'Completed')
-            ->sum(fn($d) => max(0, -$d->accountOutstanding()));
+        $net = (float) $demands->where('status', 'Completed')
+            ->sum(fn($d) => $d->accountOutstanding());
         $used = (float) $demands->sum(fn($d) => (float) $d->cash_in_hand_used);
 
-        return round(max(0, $leftover - $used), 2);
+        return round($net - $used, 2);
     }
 
-    /** Cash in Hand a given demand may draw = current pool + whatever it already holds. */
+    /** Cash in Hand a given demand may draw = current pool + whatever it already holds (never below 0). */
     private function cashInHandAvailableFor(?DemandRequest $demand = null): float
     {
-        return round($this->cashInHand() + ($demand ? (float) $demand->cash_in_hand_used : 0), 2);
+        return round(max(0, $this->cashInHand() + ($demand ? (float) $demand->cash_in_hand_used : 0)), 2);
     }
 
     public function create()
@@ -145,7 +143,7 @@ class DemandRequestController extends Controller
                     'category' => $it->category, 'job_no' => $it->job_no, 'description' => $it->description,
                     'specification' => $it->specification, 'gsm' => $it->gsm, 'vendor_name' => $it->vendor_name, 'vendor_invoice_no' => $it->vendor_invoice_no,
                     'qty' => $it->qty, 'estimated_price' => $it->estimated_price, 'vat_percentage' => $it->vat_percentage, 'estimated_total' => $it->estimated_total,
-                    'files' => $it->files,
+                    'pay_by' => $it->pay_by, 'files' => $it->files,
                 ];
             })->all(),
         ]);
@@ -444,7 +442,8 @@ class DemandRequestController extends Controller
             return $out;
         };
 
-        // At least one proof attachment is mandatory for every row that carries an amount.
+        // At least one proof attachment is mandatory for every row that carries an amount
+        // (including cross-category adjustments).
         $missing = [];
         foreach ($rows as $i => $row) {
             if (round((float) ($row['amount'] ?? 0), 2) > 0 && empty($filesFor($i))) {
@@ -464,7 +463,6 @@ class DemandRequestController extends Controller
                 ]);
             }
         }
-
         $dir = public_path('uploads/demand-requests');
         $count = 0;
         foreach ($rows as $i => $row) {
@@ -476,12 +474,14 @@ class DemandRequestController extends Controller
             if (!empty($row['item_id']) && $dr->items->firstWhere('id', (int) $row['item_id'])) {
                 $itemId = (int) $row['item_id'];
             }
+            $adjustFrom = trim((string) ($row['adjust_from'] ?? '')) ?: null;
             $payment = $dr->payments()->create([
                 'item_id' => $itemId,
                 'category' => trim((string) ($row['category'] ?? '')) ?: null,
+                'adjust_from' => $adjustFrom,
                 'pay_type' => (($row['pay_type'] ?? 'Account') === 'Direct') ? 'Direct' : 'Account',
                 'amount' => $amount,
-                'method' => $row['method'] ?? null,
+                'method' => $adjustFrom ? (trim((string) ($row['method'] ?? '')) ?: 'Adjustment') : ($row['method'] ?? null),
                 'paid_to' => $row['paid_to'] ?? null,
                 'vendor_invoice_no' => trim((string) ($row['vendor_invoice_no'] ?? '')) ?: null,
                 'note' => $row['note'] ?? null,
@@ -753,6 +753,7 @@ class DemandRequestController extends Controller
             'items.*.vat_percentage' => 'nullable|numeric|min:0|max:100',
             'items.*.vendor_invoice_no' => 'nullable|string|max:120',
             'items.*.estimated_total' => 'nullable|numeric|min:0',
+            'items.*.pay_by' => 'nullable|in:Company,Account',
             'items.*.files' => 'nullable|array|max:5',
             'items.*.files.*' => 'file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
         ]);
@@ -791,6 +792,7 @@ class DemandRequestController extends Controller
                 'estimated_price' => $price,
                 'vat_percentage' => $vat,
                 'estimated_total' => $total,
+                'pay_by' => (($item['pay_by'] ?? '') === 'Account') ? 'Account' : 'Company',
             ];
         }
         if (empty($out)) {

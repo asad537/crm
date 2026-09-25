@@ -128,6 +128,59 @@ class DemandRequest extends Model
         return (float) $this->payments->where('item_id', $itemId)->sum('amount');
     }
 
+    /** Total cash adjusted OUT of a category (used to pay other items via "Adjust from another category"). */
+    public function adjustedOutForCategory($cat): float
+    {
+        $cat = trim((string) $cat);
+        if ($cat === '') {
+            return 0.0;
+        }
+
+        return (float) $this->payments->filter(fn($p) => strcasecmp(trim((string) $p->adjust_from), $cat) === 0)->sum('amount');
+    }
+
+    /**
+     * Adjusted-out amount attributed to one item (spread FIFO across items sharing its category).
+     * The LAST item of the category absorbs any remainder, so if more was adjusted out of a
+     * category than its budget, the excess stays visible as a credit on that item's side
+     * (e.g. Account Outstanding for an Account-side petty-cash line).
+     */
+    public function adjustedOutForItem($itemId): float
+    {
+        $it = $this->items->firstWhere('id', $itemId);
+        if (!$it) {
+            return 0.0;
+        }
+        $cat = trim((string) $it->category);
+        if ($cat === '') {
+            return 0.0;
+        }
+        $pool = $this->adjustedOutForCategory($cat);
+        $catItems = $this->items->filter(fn($row) => strcasecmp(trim((string) $row->category), $cat) === 0)->values();
+        $lastId = $catItems->last()->id ?? null;
+        foreach ($catItems as $row) {
+            $amt = (float) $row->estimated_total;
+            $consume = ($row->id === $lastId) ? $pool : min($amt, $pool);
+            if ($row->id == $itemId) {
+                return round($consume, 2);
+            }
+            $pool = max(0, $pool - $consume);
+        }
+
+        return 0.0;
+    }
+
+    /** Total cash moved between categories via adjustments — capped at each item's own budget. */
+    public function totalAdjustedOut(): float
+    {
+        $sum = 0;
+        foreach ($this->items as $it) {
+            $sum += $this->adjustedOutForItem($it->id);
+        }
+
+        return round($sum, 2);
+    }
+
     /** Money that went through a company account and needs reconciliation. */
     public function accountTotal(): float
     {
@@ -153,10 +206,15 @@ class DemandRequest extends Model
      */
     public function companyOutstanding(): float
     {
+        // No outstanding before the demand enters the payment stage (Draft / Submitted / Rejected).
+        if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
+            return 0.0;
+        }
         $total = 0;
         foreach ($this->items as $it) {
-            if ($this->itemHasDirect($it->id)) {
-                $total += $this->paidForItem($it->id) - (float) $it->estimated_total;
+            // Bucket by the item's planned payer, not by how it was actually paid.
+            if (($it->pay_by ?? 'Company') === 'Company') {
+                $total += $this->paidForItem($it->id) + $this->adjustedOutForItem($it->id) - (float) $it->estimated_total;
             }
         }
 
@@ -169,10 +227,15 @@ class DemandRequest extends Model
      */
     public function accountOutstanding(): float
     {
+        // No outstanding before the demand enters the payment stage (Draft / Submitted / Rejected).
+        if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
+            return 0.0;
+        }
         $total = 0;
         foreach ($this->items as $it) {
-            if (!$this->itemHasDirect($it->id)) {
-                $total += $this->paidForItem($it->id) - (float) $it->estimated_total;
+            // Bucket by the item's planned payer, not by how it was actually paid.
+            if (($it->pay_by ?? 'Company') === 'Account') {
+                $total += $this->paidForItem($it->id) + $this->adjustedOutForItem($it->id) - (float) $it->estimated_total;
             }
         }
         $total += $this->generalPaid();
@@ -182,20 +245,26 @@ class DemandRequest extends Model
         return round($total, 2);
     }
 
-    /** Net balance across the whole demand = paid − requested (signed). */
+    /** Net balance across the whole demand = paid (+ cross-category adjustments) − requested (signed). */
     public function netBalance(): float
     {
-        return round($this->paidTotal() - (float) $this->estimated_total, 2);
+        return round($this->paidTotal() + $this->totalAdjustedOut() - (float) $this->estimated_total, 2);
     }
 
     /**
-     * Simple money status once the demand is approved: Paid when nothing is outstanding,
-     * otherwise Unpaid. Returns '' before approval (no payment stage yet).
+     * Money badge once the demand enters payment stage.
+     * Paid means no side still owes money; Partial means some money exists but balance remains.
      */
-    /** Two-state money badge: Paid once the demand is approved (or beyond), otherwise Unpaid. */
     public function paymentStatus(): string
     {
-        return in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true) ? 'Paid' : 'Unpaid';
+        if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
+            return '';
+        }
+        if ($this->outstandingTotal() <= 0.009) {
+            return 'Paid';
+        }
+
+        return $this->paidTotal() > 0.009 ? 'Partial' : 'Unpaid';
     }
 
     /** What any side still owes (no cross-subsidy) — drives completion status. */
@@ -225,18 +294,18 @@ class DemandRequest extends Model
     {
         $map = [];
         foreach ($this->items as $it) {
-            $map[$it->id] = max(0, round((float) $it->estimated_total - $this->paidForItem($it->id), 2));
+            $map[$it->id] = max(0, round((float) $it->estimated_total - $this->paidForItem($it->id) - $this->adjustedOutForItem($it->id), 2));
         }
 
         return $map;
     }
 
-    /** Signed net for one item = paid − requested (tagged payments). */
+    /** Signed net for one item = paid (+ adjusted out of its category) − requested. */
     public function itemNet($itemId): float
     {
         $it = $this->items->firstWhere('id', $itemId);
 
-        return $it ? round($this->paidForItem($itemId) - (float) $it->estimated_total, 2) : 0.0;
+        return $it ? round($this->paidForItem($itemId) + $this->adjustedOutForItem($itemId) - (float) $it->estimated_total, 2) : 0.0;
     }
 
     /** Owed (>=0) on one item. */
