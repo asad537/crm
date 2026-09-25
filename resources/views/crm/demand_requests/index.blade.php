@@ -43,9 +43,11 @@
         <div class="dr-card"><span>Total Requests</span><strong>{{ number_format($summary['total']) }}</strong></div>
         <div class="dr-card"><span>Estimated Value</span><strong>{{ number_format($summary['estimated'], 2) }}</strong></div>
         <div class="dr-card"><span>Total Paid</span><strong style="color:#159447">{{ number_format($summary['paid'], 2) }}</strong></div>
+        {{-- Account Outstanding card is temporarily hidden.
         @php($__ao = $summary['account_out'] ?? 0)
-        @php($__co = $summary['company_out'] ?? 0)
         <div class="dr-card"><span>Account Outstanding</span><strong style="color:#159447">@if(abs($__ao) > 0.009)+ {{ number_format(abs($__ao),2) }}@else{{ number_format(0,2) }}@endif</strong></div>
+        --}}
+        @php($__co = $summary['company_out'] ?? 0)
         <div class="dr-card"><span>Company Outstanding</span><strong style="color:#159447">@if(abs($__co) > 0.009)+ {{ number_format(abs($__co),2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         @php($__cih = $summary['cash_in_hand'] ?? 0)
         <div class="dr-card"><span>Cash in Hand Accounts</span><strong style="color:{{ $__cih < -0.009 ? '#e11d48' : '#159447' }}" title="Account outstanding of completed demands">@if($__cih < -0.009)&minus; {{ number_format(abs($__cih),2) }}@elseif($__cih > 0.009)+ {{ number_format($__cih,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
