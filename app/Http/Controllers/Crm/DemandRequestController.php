@@ -68,15 +68,15 @@ class DemandRequestController extends Controller
 
         // Summary reflects the current filters (Cash in Hand stays the global pool figure).
         $all = $applyFilters(DemandRequest::with(['items', 'payments']))->get();
+        $completed = $all->where('status', 'Completed');
         $summary = [
             'total' => $all->count(),
             'estimated' => (float) $all->sum('estimated_total'),
             'paid' => (float) $all->sum(fn($d) => $d->paidTotal()),
             'outstanding' => round((float) $all->sum(fn($d) => $d->outstandingTotal()), 2),
             'balance' => round((float) $all->sum(fn($d) => $d->paidTotal() + $d->writeOffTotal() - (float) $d->estimated_total), 2),
-            // Account Outstanding excludes Completed demands — those are shown separately as "Cash in Hand".
-            'account_out' => round((float) $all->where('status', '!=', 'Completed')->sum(fn($d) => $d->accountOutstanding()), 2),
-            'company_out' => round((float) $all->sum(fn($d) => $d->companyOutstanding()), 2),
+            'account_out' => round((float) $completed->sum(fn($d) => $d->accountOutstanding()), 2),
+            'company_out' => round((float) $completed->sum(fn($d) => $d->companyOutstanding()), 2),
             'cash_in_hand' => $this->cashInHand(),
         ];
 
