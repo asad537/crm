@@ -91,10 +91,11 @@
                         @elseif($__bal > 0.009)<span style="color:#159447;font-weight:850" title="Overpaid">+ {{ number_format($__bal,2) }}</span>
                         @else<span style="color:#159447;font-weight:850" title="Fully settled">&#10004;</span>@endif
                     </td> -->
-                    @php($__ao = $dr->accountOutstanding())
-                    @php($__co = $dr->companyOutstanding())
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ abs($__ao) > 0.009 ? '+ '.number_format(abs($__ao),2) : '✔' }}</td>
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ abs($__co) > 0.009 ? '+ '.number_format(abs($__co),2) : '✔' }}</td>
+                    @php($__showCompletedMoney = $dr->status === 'Completed')
+                    @php($__ao = $__showCompletedMoney ? $dr->accountOutstanding() : 0)
+                    @php($__co = $__showCompletedMoney ? $dr->companyOutstanding() : 0)
+                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ $__showCompletedMoney ? (abs($__ao) > 0.009 ? '+ '.number_format(abs($__ao),2) : '✔') : '—' }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ $__showCompletedMoney ? (abs($__co) > 0.009 ? '+ '.number_format(abs($__co),2) : '✔') : '—' }}</td>
                     <td>
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
                         @php($__pay = $dr->paymentStatus())
