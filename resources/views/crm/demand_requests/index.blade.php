@@ -48,7 +48,7 @@
         <div class="dr-card"><span>Account Outstanding</span><strong style="color:#159447">@if(abs($__ao) > 0.009)+ {{ number_format(abs($__ao),2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         --}}
         @php($__co = $summary['company_out'] ?? 0)
-        <div class="dr-card"><span>Company Outstanding</span><strong style="color:#159447">@if(abs($__co) > 0.009)+ {{ number_format(abs($__co),2) }}@else{{ number_format(0,2) }}@endif</strong></div>
+        <div class="dr-card"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         @php($__cih = $summary['cash_in_hand'] ?? 0)
         <div class="dr-card"><span>Cash in Hand Accounts</span><strong style="color:{{ $__cih < -0.009 ? '#e11d48' : '#159447' }}" title="Account outstanding of completed demands">@if($__cih < -0.009)&minus; {{ number_format(abs($__cih),2) }}@elseif($__cih > 0.009)+ {{ number_format($__cih,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
     </div>
@@ -95,8 +95,8 @@
                     </td> -->
                     @php($__ao = $dr->accountOutstanding())
                     @php($__co = $dr->companyOutstanding())
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ abs($__ao) > 0.009 ? '+ '.number_format(abs($__ao),2) : '✔' }}</td>
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ abs($__co) > 0.009 ? '+ '.number_format(abs($__co),2) : '✔' }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}" title="Account balance">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else&#10004;@endif</td>
+                    <td class="dr-num2" style="font-weight:800;color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}" title="Company balance">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else&#10004;@endif</td>
                     <td>
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
                         @php($__pay = $dr->paymentStatus())
