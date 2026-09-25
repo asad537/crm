@@ -93,8 +93,8 @@
                     </td> -->
                     @php($__accountAmount = (float) $dr->items->filter(fn($it) => ($it->pay_by ?? 'Company') === 'Account')->sum('estimated_total'))
                     @php($__companyAmount = (float) $dr->items->filter(fn($it) => ($it->pay_by ?? 'Company') !== 'Account')->sum('estimated_total'))
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ number_format($__accountAmount, 2) }}</td>
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ number_format($__companyAmount, 2) }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:{{ $__accountAmount < -0.009 ? '#e11d48' : '#159447' }}" title="Account amount">{{ $__accountAmount < -0.009 ? '- '.number_format(abs($__accountAmount), 2) : number_format($__accountAmount, 2) }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:{{ $__companyAmount < -0.009 ? '#e11d48' : '#159447' }}" title="Company amount">{{ $__companyAmount < -0.009 ? '- '.number_format(abs($__companyAmount), 2) : number_format($__companyAmount, 2) }}</td>
                     <td>
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
                         @php($__pay = $dr->paymentStatus())
