@@ -9,7 +9,7 @@
 .dr-btn{display:inline-flex;align-items:center;gap:.45rem;min-height:40px;padding:.55rem 1rem;border:0;border-radius:10px;font-weight:800;text-decoration:none;cursor:pointer;font-size:.82rem}
 .dr-btn-primary{color:#fff;background:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}
 .dr-btn-light{color:#475569;background:#eef2f7}
-.dr-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
+.dr-cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
 .dr-card{padding:1rem 1.1rem;background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
 .dr-card span{display:block;color:#8a99ae;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .dr-card strong{display:block;margin-top:.3rem;color:#172033;font-size:1.4rem}
@@ -34,7 +34,8 @@
 .dr-ico-edit{background:var(--primary-soft);color:var(--primary-purple)}.dr-ico-del{background:#fff1f2;color:#e11d48}
 .dr-empty{padding:2.5rem;text-align:center;color:#8a99ae}
 .dr-flash{margin-bottom:1rem;padding:.7rem 1rem;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#15803d;font-size:.8rem;font-weight:700}
-@media(max-width:800px){.dr-cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1200px){.dr-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:800px){.dr-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <div class="dr-wrap">
     @if(session('status'))<div class="dr-flash"><i class="fas fa-check-circle"></i> {{ session('status') }}</div>@endif
@@ -43,10 +44,8 @@
         <div class="dr-card"><span>Total Requests</span><strong>{{ number_format($summary['total']) }}</strong></div>
         <div class="dr-card"><span>Estimated Value</span><strong>{{ number_format($summary['estimated'], 2) }}</strong></div>
         <div class="dr-card"><span>Total Paid</span><strong style="color:#159447">{{ number_format($summary['paid'], 2) }}</strong></div>
-        {{-- Account Outstanding card is temporarily hidden.
         @php($__ao = $summary['account_out'] ?? 0)
-        <div class="dr-card"><span>Account Outstanding</span><strong style="color:#159447">@if(abs($__ao) > 0.009)+ {{ number_format(abs($__ao),2) }}@else{{ number_format(0,2) }}@endif</strong></div>
-        --}}
+        <div class="dr-card"><span>Account Outstanding</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         @php($__co = $summary['company_out'] ?? 0)
         <div class="dr-card"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         @php($__cih = $summary['cash_in_hand'] ?? 0)
