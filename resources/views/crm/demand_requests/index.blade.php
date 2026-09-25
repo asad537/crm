@@ -9,7 +9,7 @@
 .dr-btn{display:inline-flex;align-items:center;gap:.45rem;min-height:40px;padding:.55rem 1rem;border:0;border-radius:10px;font-weight:800;text-decoration:none;cursor:pointer;font-size:.82rem}
 .dr-btn-primary{color:#fff;background:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}
 .dr-btn-light{color:#475569;background:#eef2f7}
-.dr-cards{display:grid;grid-template-columns:repeat(6,1fr);gap:.8rem;margin-bottom:1rem}
+.dr-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
 .dr-card{padding:1rem 1.1rem;background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
 .dr-card span{display:block;color:#8a99ae;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .dr-card strong{display:block;margin-top:.3rem;color:#172033;font-size:1.4rem}
