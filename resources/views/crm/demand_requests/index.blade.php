@@ -93,8 +93,8 @@
                     </td> -->
                     @php($__ao = $dr->accountOutstanding())
                     @php($__co = $dr->companyOutstanding())
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ $__ao > 0.009 ? '+ '.number_format($__ao,2) : ($__ao < -0.009 ? '- '.number_format(abs($__ao),2) : '0.00') }}</td>
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ $__co > 0.009 ? '+ '.number_format($__co,2) : ($__co < -0.009 ? '- '.number_format(abs($__co),2) : '0.00') }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ abs($__ao) > 0.009 ? '+ '.number_format(abs($__ao),2) : '✔' }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ abs($__co) > 0.009 ? '+ '.number_format(abs($__co),2) : '✔' }}</td>
                     <td>
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
                         @php($__pay = $dr->paymentStatus())
