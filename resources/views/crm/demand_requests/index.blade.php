@@ -73,7 +73,7 @@
         <div style="overflow-x:auto">
         <table class="dr-table">
             <thead><tr>
-                <th>No.</th><th>Date</th><th>Requested By</th><th>Priority</th><th>Items</th><th class="dr-num2">Est. Total</th><th class="dr-num2">Paid</th><th class="dr-num2">Acc. Amt.</th><th class="dr-num2">Co. Amt.</th><th>Status</th><th>Actions</th>
+                <th>No.</th><th>Date</th><th>Requested By</th><th>Priority</th><th>Items</th><th class="dr-num2">Est. Total</th><th class="dr-num2">Paid</th><th class="dr-num2">Acc. Out.</th><th class="dr-num2">Co. Out.</th><th>Status</th><th>Actions</th>
             </tr></thead>
             <tbody>
             @forelse($requests as $dr)
@@ -91,10 +91,10 @@
                         @elseif($__bal > 0.009)<span style="color:#159447;font-weight:850" title="Overpaid">+ {{ number_format($__bal,2) }}</span>
                         @else<span style="color:#159447;font-weight:850" title="Fully settled">&#10004;</span>@endif
                     </td> -->
-                    @php($__accountAmount = (float) $dr->items->filter(fn($it) => ($it->pay_by ?? 'Company') === 'Account')->sum('estimated_total'))
-                    @php($__companyAmount = (float) $dr->items->filter(fn($it) => ($it->pay_by ?? 'Company') !== 'Account')->sum('estimated_total'))
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ number_format($__accountAmount, 2) }}</td>
-                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ number_format($__companyAmount, 2) }}</td>
+                    @php($__ao = $dr->accountOutstanding())
+                    @php($__co = $dr->companyOutstanding())
+                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Account amount">{{ $__ao > 0.009 ? '+ '.number_format($__ao,2) : ($__ao < -0.009 ? '- '.number_format(abs($__ao),2) : '0.00') }}</td>
+                    <td class="dr-num2" style="font-weight:800;color:#159447" title="Company amount">{{ $__co > 0.009 ? '+ '.number_format($__co,2) : ($__co < -0.009 ? '- '.number_format(abs($__co),2) : '0.00') }}</td>
                     <td>
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
                         @php($__pay = $dr->paymentStatus())
