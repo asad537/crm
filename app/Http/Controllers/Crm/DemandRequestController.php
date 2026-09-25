@@ -68,16 +68,15 @@ class DemandRequestController extends Controller
 
         // Summary reflects the current filters (Cash in Hand stays the global pool figure).
         $all = $applyFilters(DemandRequest::with(['items', 'payments']))->get();
-        $completed = $all->where('status', 'Completed');
         $summary = [
             'total' => $all->count(),
             'estimated' => (float) $all->sum('estimated_total'),
             'paid' => (float) $all->sum(fn($d) => $d->paidTotal()),
             'outstanding' => round((float) $all->sum(fn($d) => $d->outstandingTotal()), 2),
             'balance' => round((float) $all->sum(fn($d) => $d->paidTotal() + $d->writeOffTotal() - (float) $d->estimated_total), 2),
-            // Account/company figures are reported only after the demand is completed.
-            'account_out' => round((float) $completed->sum(fn($d) => $d->accountOutstanding()), 2),
-            'company_out' => round((float) $completed->sum(fn($d) => $d->companyOutstanding()), 2),
+            // Account/company top cards stay hidden until the demand is completed in the row table.
+            'account_out' => 0,
+            'company_out' => 0,
             'cash_in_hand' => $this->cashInHand(),
         ];
 
