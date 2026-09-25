@@ -95,8 +95,8 @@
             @php($__net = $dr->netBalance())
             @php($__ao = $dr->accountOutstanding())
             @php($__co = $dr->companyOutstanding())
-            <div class="dr-m dr-m2"><span>Account Outstanding</span><strong>{{ abs($__ao) > 0.009 ? '+ '.number_format(abs($__ao),2) : '✔ 0.00' }}</strong></div>
-            <div class="dr-m dr-m2"><span>Company Outstanding</span><strong>{{ abs($__co) > 0.009 ? '+ '.number_format(abs($__co),2) : '✔ 0.00' }}</strong></div>
+            <div class="dr-m dr-m2"><span>Account Outstanding</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔ 0.00') }}</strong></div>
+            <div class="dr-m dr-m2"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">{{ $__co < -0.009 ? '− '.number_format(abs($__co),2) : ($__co > 0.009 ? '+ '.number_format($__co,2) : '✔ 0.00') }}</strong></div>
             <div class="dr-m dr-m2"><span>Total Outstanding</span><strong>{{ $outstanding > 0.009 ? '+ '.number_format($outstanding,2) : '✔ 0.00' }}</strong></div>
         </div>
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>

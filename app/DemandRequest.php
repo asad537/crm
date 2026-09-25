@@ -222,8 +222,10 @@ class DemandRequest extends Model
     }
 
     /**
-     * Signed balance for the account side = paid − requested on items paid through the
-     * account, plus any untagged general/advance money. Negative = owed, positive = credit.
+     * Approval allocates the Account-side budget to the accountant. Positive is the
+     * unspent amount to reconcile; negative means the accountant spent beyond it.
+     * Cash in Hand draws fund part of the allocation, so they are deducted once
+     * from the aggregate pool rather than from this demand's spending balance.
      */
     public function accountOutstanding(): float
     {
@@ -235,12 +237,10 @@ class DemandRequest extends Model
         foreach ($this->items as $it) {
             // Bucket by the item's planned payer, not by how it was actually paid.
             if (($it->pay_by ?? 'Company') === 'Account') {
-                $total += $this->paidForItem($it->id) + $this->adjustedOutForItem($it->id) - (float) $it->estimated_total;
+                $total += (float) $it->estimated_total - $this->paidForItem($it->id) - $this->adjustedOutForItem($it->id);
             }
         }
-        $total += $this->generalPaid();
-        // Cash in Hand drawn against this demand settles it like account money.
-        $total += (float) $this->cash_in_hand_used;
+        $total -= $this->generalPaid();
 
         return round($total, 2);
     }
@@ -267,7 +267,7 @@ class DemandRequest extends Model
         return $this->paidTotal() > 0.009 ? 'Partial' : 'Unpaid';
     }
 
-    /** What any side still owes (no cross-subsidy) — drives completion status. */
+    /** Expenses not yet covered: account unspent allocation and company shortfall. */
     public function owedTotal(): float
     {
         $owed = 0;
@@ -276,8 +276,8 @@ class DemandRequest extends Model
         if ($c < 0) {
             $owed += -$c;
         }
-        if ($a < 0) {
-            $owed += -$a;
+        if ($a > 0) {
+            $owed += $a;
         }
 
         return round($owed, 2);

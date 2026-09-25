@@ -9,8 +9,8 @@
         return ['0.00', '#15803d'];
     };
     $acc = $dr->accountOutstanding(); $co = $dr->companyOutstanding(); $net = $dr->netBalance();
-    $accF = abs($acc) > 0.009 ? ['+ ' . $money(abs($acc)), '#15803d'] : ['0.00', '#15803d'];
-    $coF = abs($co) > 0.009 ? ['+ ' . $money(abs($co)), '#15803d'] : ['0.00', '#15803d'];
+    $accF = $sign($acc);
+    $coF = $sign($co);
     $netF = $dr->outstandingTotal() > 0.009 ? ['+ ' . $money($dr->outstandingTotal()), '#15803d'] : ['0.00', '#15803d'];
     $reqNo = str_pad($dr->request_no, 3, '0', STR_PAD_LEFT);
 @endphp
