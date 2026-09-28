@@ -34,7 +34,7 @@
 <style>
     .dj { --ink:#1a1d24; --muted:#8a909c; --soft:#f4f5f7; --line:#ecedf1; --card:#fff;
         --accent: var(--primary-purple, #f45a24); --accent-soft: var(--primary-soft, #fff1ec);
-        max-width: 1180px; margin: 0 auto; color: var(--ink);
+        max-width: none; width: 100%; margin: 0; color: var(--ink);
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif; }
     .dj *, .dj *::before, .dj *::after { box-sizing:border-box; }
 
@@ -69,10 +69,10 @@
     .dj-chip .c { font-size:.68rem; font-weight:700; min-width:1.2rem; height:1.2rem; padding:0 .35rem; border-radius:999px;
         display:inline-grid; place-items:center; background:var(--soft); color:#6b7280; font-variant-numeric:tabular-nums; }
     .dj-chip.active .c { background:rgba(255,255,255,.24); color:#fff; }
-    .dj-search { position:relative; }
+    .dj-search { position:relative; flex:1 1 100%; width:100%; }
     .dj-search i { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:#b3b8c2; font-size:.82rem; }
     .dj-search input { border:1px solid var(--line); border-radius:10px; padding:.6rem .8rem .6rem 2.1rem; font-size:.85rem;
-        font-family:inherit; outline:none; min-width:260px; transition:all .13s; background:var(--card); }
+        font-family:inherit; outline:none; width:100%; transition:all .13s; background:var(--card); }
     .dj-search input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 
     /* Table card */
@@ -123,7 +123,9 @@
 
 @if($canCreate)
     @section('header_actions')
-        <a class="dj-new" href="{{ route('crm.design_jobs.create') }}"><i class="fas fa-plus"></i> New Job</a>
+        <form method="POST" action="{{ route('crm.design_jobs.store') }}" style="display:inline">{{ csrf_field() }}
+            <button type="submit" class="dj-new"><i class="fas fa-plus"></i> New Job</button>
+        </form>
     @endsection
 @endif
 
@@ -138,12 +140,6 @@
     </div>
 
     <div class="dj-toolbar">
-        <div class="dj-chips">
-            <a class="dj-chip {{ $status === 'all' ? 'active' : '' }}" href="{{ route('crm.design_jobs.index', array_merge(request()->except('page'), ['status' => 'all'])) }}">All<span class="c">{{ $totalJobs }}</span></a>
-            @foreach(\App\DesignJob::STATUSES as $key => $label)
-                <a class="dj-chip {{ $status === $key ? 'active' : '' }}" href="{{ route('crm.design_jobs.index', array_merge(request()->except('page'), ['status' => $key])) }}">{{ $label }}<span class="c">{{ $statusCounts[$key] ?? 0 }}</span></a>
-            @endforeach
-        </div>
         <form class="dj-search" method="GET" action="{{ route('crm.design_jobs.index') }}">
             <input type="hidden" name="status" value="{{ $status }}">
             <i class="fas fa-search"></i>
@@ -159,7 +155,6 @@
                 <th>Estimate</th>
                 <th>Title</th>
                 <th>Designer</th>
-                <th>Status</th>
                 <th>Delivery</th>
                 <th>Due</th>
                 <th></th>
@@ -169,7 +164,7 @@
                 @php [$sc, $sb] = $statusColors[$job->status] ?? ['#4b5563', '#eef0f2']; $pct = $job->progressPercent(); @endphp
                 <tr>
                     <td class="dj-job">
-                        <a href="{{ route('crm.design_jobs.show', $job->id) }}">{{ $job->job_number }}</a>
+                        <a href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}">{{ $job->job_number }}</a>
                         <div class="sub">{{ $job->created_at->format('d M Y') }}</div>
                     </td>
                     <td class="dj-est">
@@ -189,20 +184,6 @@
                             <span>{{ $job->designer->name ?? '—' }}</span>
                         </div>
                     </td>
-                    <td>
-                        @if($u->isAdmin() || (int) $job->designer_id === (int) $u->id)
-                            <form method="POST" action="{{ route('crm.design_jobs.status', $job->id) }}">{{ csrf_field() }}
-                                <select class="dj-status-select" name="status" onchange="this.form.submit()" style="color:{{ $sc }}">
-                                    @foreach(\App\DesignJob::STATUSES as $key => $label)
-                                        <option value="{{ $key }}" {{ $job->status === $key ? 'selected' : '' }}>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
-                        @else
-                            <span class="dj-badge" style="color:{{ $sc }};background:{{ $sb }}">{{ $job->statusLabel() }}</span>
-                        @endif
-                        <div class="dj-prog"><span style="width:{{ $pct }}%;background:{{ $sc }}"></span></div>
-                    </td>
                     <td class="dj-deliv">
                         @if($job->estimated_delivery_date){{ $job->estimated_delivery_date->format('d M Y') }}@else<span class="none">—</span>@endif
                     </td>
@@ -215,10 +196,10 @@
                             </span>
                         @else<span class="none">—</span>@endif
                     </td>
-                    <td><a class="dj-track" href="{{ route('crm.design_jobs.show', $job->id) }}"><i class="fas fa-stream"></i> Track</a></td>
+                    <td><a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-clipboard-list"></i> Job Card</a></td>
                 </tr>
             @empty
-                <tr><td colspan="8"><div class="dj-empty">No design jobs yet.@if($canCreate) Create the first one against an estimate ticket.@endif</div></td></tr>
+                <tr><td colspan="7"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
             @endforelse
             </tbody>
         </table>

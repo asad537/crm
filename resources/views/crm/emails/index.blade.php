@@ -412,6 +412,7 @@
                     style="padding:0.5rem 0.75rem !important;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#475569;outline:none;background:white;">
                     <option value="">All Sources</option>
                     <option value="form" {{ request('source') == 'form' ? 'selected' : '' }}>Website Form</option>
+                    <option value="LabelPouches" {{ request('source') == 'LabelPouches' ? 'selected' : '' }}>Label Pouches</option>
                     <option value="call" {{ request('source') == 'call' ? 'selected' : '' }}>Call</option>
                     <option value="live_chat" {{ request('source') == 'live_chat' ? 'selected' : '' }}>Live Chat</option>
                     <option value="email" {{ request('source') == 'email' ? 'selected' : '' }}>Email</option>
@@ -531,7 +532,7 @@
                                     @endif
                                 </div>
                                 <div style="font-size: 0.8rem; color: #64748b;">{{ $email->client_email }}</div>
-                                <div style="font-size: 0.7rem; color: #94a3b8; text-transform: capitalize; margin-top: 2px;"><i class="fas fa-bullseye" style="font-size: 0.65rem;"></i> {{ str_replace('_', ' ', strtolower($email->source) === 'form' ? 'website' : ($email->source ?: 'website')) }}</div>
+                                <div style="font-size: 0.7rem; color: #94a3b8; text-transform: capitalize; margin-top: 2px;"><i class="fas fa-bullseye" style="font-size: 0.65rem;"></i> {{ strtolower((string) $email->source) === 'labelpouches' ? 'Label Pouches' : str_replace('_', ' ', strtolower($email->source) === 'form' ? 'website' : ($email->source ?: 'website')) }}</div>
                             </td>
                             <td>
                                 <span

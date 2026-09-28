@@ -42,82 +42,31 @@ class DesignJobController extends Controller
         return view('crm.design_jobs.index', compact('jobs', 'status', 'statusCounts'));
     }
 
-    public function create()
-    {
-        $this->requireDesigner();
-        $tickets = EstimateTicket::latest()->limit(150)
-            ->get(['id', 'ticket_number', 'client_name', 'product_style', 'status']);
-        $suggestedJobNumber = 'JOB-' . now()->format('ymd') . '-' . strtoupper(substr(uniqid(), -5));
-        return view('crm.design_jobs.create', compact('tickets', 'suggestedJobNumber'));
-    }
-
+    /**
+     * Create a blank design job and go straight to its job card.
+     * (The "New Job" button posts here — no separate create form.)
+     */
     public function store(Request $request)
     {
         $user = $this->requireDesigner();
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
-        $data = $request->validate([
-            'job_number' => 'nullable|string|max:100',
-            'estimate_ticket_id' => 'nullable|integer',
-            'estimate_number' => 'nullable|string|max:100',
-            'title' => 'required|string|max:255',
-            'details' => 'nullable|string|max:3000',
-            'status' => 'nullable|in:' . implode(',', array_keys(DesignJob::STATUSES)),
-            'estimated_delivery_date' => 'nullable|date',
-            'receive_date' => 'nullable|date',
-            'client_approval_date' => 'nullable|date',
-            'due_date' => 'nullable|date',
-        ]);
 
-        // Estimate link is optional: either pick a ticket or type an estimate number.
-        $ticket = null;
-        if (!empty($data['estimate_ticket_id'])) {
-            $ticket = EstimateTicket::find($data['estimate_ticket_id']);
-            if (!$ticket) {
-                return back()->withInput()->with('error', 'Please select a valid estimate ticket.');
-            }
-        }
-        if (!$ticket && empty($data['estimate_number'])) {
-            return back()->withInput()->with('error', 'Select an estimate ticket or enter an estimate number.');
-        }
-
-        // Job number: use the one typed, else auto-generate. Keep it unique.
-        $jobNumber = trim($data['job_number'] ?? '');
-        if ($jobNumber === '') {
+        // Unique auto job number.
+        do {
             $jobNumber = 'JOB-' . now()->format('ymd') . '-' . strtoupper(substr(uniqid(), -5));
-        }
-        if (DesignJob::where('job_number', $jobNumber)->exists()) {
-            return back()->withInput()->with('error', 'Job number "' . $jobNumber . '" already exists. Use a different one.');
-        }
+        } while (DesignJob::where('job_number', $jobNumber)->exists());
 
         $job = DesignJob::create([
             'job_number' => $jobNumber,
             'workspace_id' => $workspaceId,
-            'estimate_ticket_id' => $ticket ? $ticket->id : null,
-            'estimate_number' => $ticket ? null : ($data['estimate_number'] ?? null),
             'designer_id' => $user->id,
-            'title' => $data['title'],
-            'details' => $data['details'] ?? null,
-            'status' => $data['status'] ?? 'designing',
+            'title' => 'Untitled Job',
+            'status' => 'designing',
             'status_updated_at' => now(),
-            'estimated_delivery_date' => $data['estimated_delivery_date'] ?? null,
-            'receive_date' => $data['receive_date'] ?? null,
-            'client_approval_date' => $data['client_approval_date'] ?? null,
-            'due_date' => $data['due_date'] ?? null,
         ]);
 
-        $ref = $ticket ? $ticket->ticket_number : ($data['estimate_number'] ?? '');
-        return redirect()->route('crm.design_jobs.show', $job->id)
-            ->with('success', 'Job ' . $job->job_number . ' created' . ($ref ? ' against ' . $ref : '') . '.');
-    }
-
-    public function show($id)
-    {
-        $user = $this->requireDesignJobAccess();
-        $job = DesignJob::with(['ticket', 'designer'])
-            ->where('workspace_id', \App\Support\CrmWorkspaceContext::id())
-            ->findOrFail($id);
-        $canUpdate = $user->isAdmin() || (int) $job->designer_id === (int) $user->id;
-        return view('crm.design_jobs.show', compact('job', 'canUpdate'));
+        return redirect()->route('crm.design_jobs.job_card.edit', $job->id)
+            ->with('success', 'Job ' . $job->job_number . ' created. Fill in its job card below.');
     }
 
     public function updateStatus(Request $request, $id)

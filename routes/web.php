@@ -106,10 +106,10 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         // Al Massa designer jobs (not shared with other CRM workspaces)
         Route::group(['middleware' => 'crm.workspace.slug:mybox-packaging-app'], function () {
         Route::get('design-jobs', 'DesignJobController@index')->name('crm.design_jobs.index');
-        Route::get('design-jobs/create', 'DesignJobController@create')->name('crm.design_jobs.create');
         Route::post('design-jobs', 'DesignJobController@store')->name('crm.design_jobs.store');
-        Route::get('design-jobs/{id}', 'DesignJobController@show')->name('crm.design_jobs.show')->where('id', '[0-9]+');
         Route::post('design-jobs/{id}/status', 'DesignJobController@updateStatus')->name('crm.design_jobs.status');
+        Route::get('design-jobs/{id}/job-card', 'DesignJobCardController@edit')->name('crm.design_jobs.job_card.edit')->where('id', '[0-9]+');
+        Route::post('design-jobs/{id}/job-card', 'DesignJobCardController@update')->name('crm.design_jobs.job_card.update')->where('id', '[0-9]+');
         });
 
         // Inventory (stock items + movements) — available in every CRM workspace

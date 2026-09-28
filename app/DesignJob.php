@@ -75,6 +75,11 @@ class DesignJob extends Model
         return $this->belongsTo(CrmWorkspace::class, 'workspace_id');
     }
 
+    public function jobCard()
+    {
+        return $this->hasOne(DesignJobCard::class);
+    }
+
     public function statusLabel()
     {
         return self::STATUSES[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
