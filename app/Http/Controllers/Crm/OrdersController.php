@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\CrmEmail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OrdersController extends Controller
 {
@@ -29,6 +30,8 @@ class OrdersController extends Controller
         if (!$this->canManageOrders($currentUser)) {
             return redirect()->route('crm.orders.index')->with('error', 'Unauthorized to create orders.');
         }
+        $workspace = view()->shared('activeCrmWorkspace');
+        $isAlMassa = $workspace && $workspace->slug === 'mybox-packaging-app';
 
         $validated = $request->validate([
             'client_name'      => 'required|string|max:255',
@@ -49,7 +52,12 @@ class OrdersController extends Controller
             'products.*.name'          => 'required|string|max:255',
             'products.*.quantity'      => 'required|integer|min:1',
             'products.*.unit_price'    => 'required|numeric|min:0',
-            'payment_status'   => 'required|in:Paid,Unpaid',
+            'payment_status'   => $isAlMassa ? 'required|in:Paid,Unpaid,Partial' : 'required|in:Paid,Unpaid',
+            'initial_payment_amount' => 'nullable|numeric|min:0',
+            'initial_payment_date' => 'nullable|date|before_or_equal:today',
+            'initial_payment_method' => 'nullable|string|max:100',
+            'initial_payment_reference' => 'nullable|string|max:255',
+            'initial_payment_note' => 'nullable|string|max:2000',
             'invoice_currency' => 'required|in:AED,USD,GBP,EUR',
             'vat_percentage'   => 'required|numeric|min:0|max:100',
             'order_date'       => 'required|date|before_or_equal:today',
@@ -75,9 +83,27 @@ class OrdersController extends Controller
         $totalQty = array_sum(array_column($products, 'quantity'));
         $firstName = $products[0]['product_name'];
         $legacyUnitPrice = $totalQty > 0 ? round($subtotal / $totalQty, 4) : 0;
+        $invoiceTotal = round($subtotal * (1 + (float) $validated['vat_percentage'] / 100), 2);
+        $initialAmount = round((float) ($validated['initial_payment_amount'] ?? 0), 2);
+        if (!$isAlMassa) {
+            $initialAmount = 0;
+        } elseif ($validated['payment_status'] === 'Paid') {
+            if ($invoiceTotal < 0.01) {
+                throw ValidationException::withMessages(['products' => 'A paid invoice must have a total greater than zero.']);
+            }
+            $initialAmount = $invoiceTotal;
+            $validated['initial_payment_date'] = $validated['initial_payment_date'] ?? now()->toDateString();
+        } elseif (($validated['payment_status'] === 'Partial' && ($initialAmount <= 0 || $initialAmount >= $invoiceTotal))
+            || ($validated['payment_status'] === 'Unpaid' && $initialAmount > 0)) {
+            throw ValidationException::withMessages(['initial_payment_amount' => 'Partial payment must be above zero and below the VAT-inclusive invoice total; unpaid orders cannot include a payment.']);
+        }
+        if ($isAlMassa && $initialAmount > 0 && empty($validated['initial_payment_date'])) {
+            throw ValidationException::withMessages(['initial_payment_date' => 'Payment date is required when an amount is received.']);
+        }
 
-        $order = DB::transaction(function () use ($validated, $currentUser, $orderDate, $products, $subtotal, $totalQty, $firstName, $legacyUnitPrice) {
-            unset($validated['order_date'], $validated['products']);
+        $order = DB::transaction(function () use ($validated, $currentUser, $orderDate, $products, $subtotal, $totalQty, $firstName, $legacyUnitPrice, $initialAmount) {
+            $paymentDetails = $validated;
+            unset($validated['order_date'], $validated['products'], $validated['initial_payment_amount'], $validated['initial_payment_date'], $validated['initial_payment_method'], $validated['initial_payment_reference'], $validated['initial_payment_note']);
 
             $order = new CrmEmail(array_merge($validated, [
                 'source'          => 'manual_offline_order',
@@ -101,6 +127,17 @@ class OrdersController extends Controller
             foreach ($products as $item) {
                 $order->orderItems()->create($item);
             }
+            if ($initialAmount > 0) {
+                $order->orderPayments()->create([
+                    'workspace_id' => $order->workspace_id,
+                    'amount' => $initialAmount,
+                    'paid_at' => $paymentDetails['initial_payment_date'],
+                    'method' => $paymentDetails['initial_payment_method'] ?? null,
+                    'reference' => $paymentDetails['initial_payment_reference'] ?? null,
+                    'note' => $paymentDetails['initial_payment_note'] ?? null,
+                    'created_by' => $currentUser->id,
+                ]);
+            }
 
             DB::table('crm_assignment_logs')->insert([
                 'crm_email_id' => $order->id,
@@ -117,6 +154,10 @@ class OrdersController extends Controller
                 'old_status'   => 'Created Offline',
                 'new_status'   => 'Order Done',
             ]);
+
+            if ($order->workspace && $order->workspace->slug === 'mybox-packaging-app') {
+                app(\App\Services\CrmOrderCustomerSaleSync::class)->sync($order);
+            }
 
             return $order;
         });
@@ -192,7 +233,7 @@ class OrdersController extends Controller
             });
         }
 
-        $orders = $query->paginate(15)->appends($request->all());
+        $orders = $query->with(['orderItems', 'orderPayments'])->paginate(15)->appends($request->all());
 
         // Agent list for dropdown filter — cached 5 min (agent names rarely change).
         if ($isRestricted) {
@@ -213,36 +254,11 @@ class OrdersController extends Controller
         }
 
         // Summary stats — merged into ONE aggregate query (was 4 separate queries).
-        $statsQuery = CrmEmail::where(function ($q) {
-                $q->where('status', 'Order Done')->orWhereHas('salesOrder');
-            })->where('is_spam', false);
-        if ($isRestricted) {
-            $statsQuery->where(function ($q) use ($currentUser) {
-                $q->where('assigned_to', $currentUser->id)->orWhere('order_marked_by', $currentUser->name);
-            });
-        }
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $statsQuery->whereBetween('order_marked_at', [
-                Carbon::parse($request->start_date)->startOfDay(),
-                Carbon::parse($request->end_date)->endOfDay(),
-            ]);
-        }
-        if (!$isRestricted && $request->filled('agent')) {
-            $statsQuery->where('order_marked_by', $request->agent);
-        }
-
-        $agg = $statsQuery->selectRaw("
-                COUNT(*) as total_orders,
-                COALESCE(SUM(order_price * order_quantity), 0) as total_revenue,
-                COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_status,'')) NOT IN ('paid','received','approved')
-                                  THEN order_price * order_quantity ELSE 0 END), 0) as unpaid_total,
-                SUM(CASE WHEN LOWER(COALESCE(payment_status,'')) NOT IN ('paid','received','approved') THEN 1 ELSE 0 END) as unpaid_count
-            ")->first();
-
-        $totalOrders   = (int)   $agg->total_orders;
-        $totalRevenue  = (float) $agg->total_revenue;
-        $unpaidTotal   = (float) $agg->unpaid_total;
-        $unpaidCount   = (int)   $agg->unpaid_count;
+        $statsOrders = (clone $query)->with(['orderItems', 'orderPayments'])->get();
+        $totalOrders = $statsOrders->count();
+        $totalRevenue = (float) $statsOrders->sum(function ($order) { return $order->orderInvoiceTotal(); });
+        $unpaidTotal = (float) $statsOrders->sum(function ($order) { return $order->orderBalanceDue(); });
+        $unpaidCount = $statsOrders->filter(function ($order) { return $order->orderBalanceDue() > 0.009; })->count();
         $avgOrderValue = $totalOrders > 0 ? ($totalRevenue / $totalOrders) : 0;
 
         return view('crm.orders.index', compact(
@@ -295,7 +311,7 @@ class OrdersController extends Controller
             });
         }
 
-        $orders = $query->get();
+        $orders = $query->with(['orderItems', 'orderPayments'])->get();
         if ($orders->isEmpty()) {
             return redirect()->route('crm.orders.index', $request->except('format'))
                 ->with('error', 'No invoices match the selected filters.');
@@ -307,8 +323,10 @@ class OrdersController extends Controller
             'isAlMassa' => optional($workspace)->slug === 'mybox-packaging-app',
             'generatedAt' => now()->format('d M Y, h:i A'),
             'count' => $orders->count(),
-            'total' => (float) $orders->sum(function ($o) {
-                return (float) ($o->order_price ?? 0) * (float) ($o->order_quantity ?? 0);
+            'total' => (float) $orders->sum(function ($o) use ($workspace) {
+                return optional($workspace)->slug === 'mybox-packaging-app'
+                    ? $o->orderInvoiceTotal()
+                    : (float) ($o->order_price ?? 0) * (float) ($o->order_quantity ?? 0);
             }),
         ];
 
@@ -433,6 +451,7 @@ class OrdersController extends Controller
         }
 
         $order = CrmEmail::findOrFail($id);
+        $isAlMassa = $order->workspace && $order->workspace->slug === 'mybox-packaging-app';
 
         if ($order->status !== 'Order Done' && !$order->salesOrder) {
             return redirect()->back()->with('error', 'This lead is not an order yet.');
@@ -464,7 +483,7 @@ class OrdersController extends Controller
             'products.*.name'          => 'required|string|max:255',
             'products.*.quantity'      => 'required|integer|min:1',
             'products.*.unit_price'    => 'required|numeric|min:0',
-            'payment_status'  => 'required|in:Paid,Unpaid',
+            'payment_status' => $isAlMassa ? 'prohibited' : 'required|in:Paid,Unpaid',
             'invoice_currency'=> 'required|in:AED,USD,GBP,EUR',
             'vat_percentage'  => 'required|numeric|min:0|max:100',
             'order_date'      => 'nullable|date|before_or_equal:today',
@@ -489,7 +508,15 @@ class OrdersController extends Controller
         $firstName = $products[0]['product_name'];
         $legacyUnitPrice = $totalQty > 0 ? round($subtotal / $totalQty, 4) : 0;
 
-        DB::transaction(function () use ($order, $request, $products, $subtotal, $totalQty, $firstName, $legacyUnitPrice) {
+        DB::transaction(function () use ($order, $request, $products, $subtotal, $totalQty, $firstName, $legacyUnitPrice, $isAlMassa) {
+            $order = CrmEmail::whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $newTotal = round($subtotal * (1 + (float) $request->vat_percentage / 100), 2);
+            if ($isAlMassa && $newTotal + 0.009 < $order->orderReceivedTotal()) {
+                throw ValidationException::withMessages(['products' => 'Invoice total cannot be less than the amount already received.']);
+            }
+            if ($isAlMassa && $order->orderReceivedTotal() > 0.009 && $request->invoice_currency !== $order->invoice_currency) {
+                throw ValidationException::withMessages(['invoice_currency' => 'Currency cannot change after a payment has been recorded.']);
+            }
             $update = [
                 'client_name'      => $request->client_name,
                 'client_email'     => $request->client_email,
@@ -509,13 +536,15 @@ class OrdersController extends Controller
                 'order_quantity'   => $totalQty,
                 'order_price'      => $legacyUnitPrice,
                 'quantity'         => $totalQty,
-                'payment_status'   => $request->payment_status,
                 'invoice_currency' => $request->invoice_currency,
                 'vat_percentage'   => $request->vat_percentage,
                 'billing_address'  => $request->billing_address,
                 'shipping_address' => $request->shipping_address,
                 'order_notes'      => $request->order_notes,
             ];
+            if (!$isAlMassa) {
+                $update['payment_status'] = $request->payment_status;
+            }
             if ($request->filled('order_date')) {
                 $update['order_marked_at'] = Carbon::parse($request->order_date)->setTimeFrom($order->order_marked_at ?: now());
             }
@@ -526,25 +555,65 @@ class OrdersController extends Controller
             foreach ($products as $item) {
                 $order->orderItems()->create($item);
             }
+            if ($isAlMassa) {
+                $order->unsetRelation('orderItems');
+                $order->update(['payment_status' => $order->orderPaymentLabel()]);
+                app(\App\Services\CrmOrderCustomerSaleSync::class)->sync($order);
+            }
         });
 
-        if ($order->salesOrder) {
-            $salesOrderPaymentStatus = $request->payment_status === 'Paid'
-                ? ($order->salesOrder->payment_term === 'credit' ? 'approved' : 'received')
-                : 'pending';
-
-            $salesOrderStatus = $order->salesOrder->status;
-            if ($request->payment_status === 'Paid' && $salesOrderStatus === 'pending_payment') {
-                $salesOrderStatus = 'pending_artwork';
-            }
-
+        if (!$isAlMassa && $order->salesOrder) {
             $order->salesOrder->update([
-                'payment_status' => $salesOrderPaymentStatus,
-                'status' => $salesOrderStatus
+                'payment_status' => $request->payment_status === 'Paid'
+                    ? ($order->salesOrder->payment_term === 'credit' ? 'approved' : 'received') : 'pending',
+                'status' => $request->payment_status === 'Paid' && $order->salesOrder->status === 'pending_payment'
+                    ? 'pending_artwork' : $order->salesOrder->status,
             ]);
         }
 
         return redirect()->route('crm.orders.invoice', $order->id)->with('success', 'Invoice details updated successfully.');
+    }
+
+    public function addPayment(Request $request, $id)
+    {
+        $user = \Auth::guard('crm')->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSalesManager() && !$user->isAccounts())) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|gt:0',
+            'paid_at' => 'required|date|before_or_equal:today',
+            'method' => 'nullable|string|max:100',
+            'reference' => 'nullable|string|max:255',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        DB::transaction(function () use ($id, $validated, $user) {
+            $order = CrmEmail::whereKey($id)->lockForUpdate()->firstOrFail();
+            if (!$order->workspace || $order->workspace->slug !== 'mybox-packaging-app'
+                || ($order->status !== 'Order Done' && !$order->salesOrder)) {
+                abort(404);
+            }
+            $amount = round((float) $validated['amount'], 2);
+            if ($amount < 0.01 || $amount > $order->orderBalanceDue() + 0.009) {
+                throw ValidationException::withMessages(['amount' => 'Payment must be above zero and cannot exceed the remaining balance.']);
+            }
+            $order->orderPayments()->create([
+                'workspace_id' => $order->workspace_id,
+                'amount' => $amount,
+                'paid_at' => $validated['paid_at'],
+                'method' => $validated['method'] ?? null,
+                'reference' => $validated['reference'] ?? null,
+                'note' => $validated['note'] ?? null,
+                'created_by' => $user->id,
+            ]);
+            $order->unsetRelation('orderPayments');
+            $order->update(['payment_status' => $order->orderPaymentLabel()]);
+            app(\App\Services\CrmOrderCustomerSaleSync::class)->sync($order);
+        });
+
+        return redirect()->route('crm.orders.invoice', $id)->with('success', 'Payment recorded.');
     }
 
     /**
@@ -624,6 +693,7 @@ class OrdersController extends Controller
         if (method_exists($order, 'orderItems')) {
             $order->orderItems()->delete();
         }
+        $order->customerSale()->delete();
         $order->delete();
 
         return redirect()->route('crm.orders.index')->with('success', 'Invoice deleted (logged).');

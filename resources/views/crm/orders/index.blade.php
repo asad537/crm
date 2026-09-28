@@ -477,7 +477,7 @@
         </thead>
         <tbody>
             @foreach($orders as $order)
-            @php $__paid = in_array(strtolower($order->payment_status ?? ''), ['paid','received','approved']); @endphp
+            @php $__paymentLabel = $order->orderPaymentLabel(); $__paid = $__paymentLabel === 'Paid'; @endphp
             <tr data-search="{{ strtolower($order->client_name.' '.$order->client_email.' '.$order->product_name) }}">
                 <td style="text-align:center;">
                     <input type="checkbox" class="oi-check" value="{{ $order->id }}" onclick="oiSyncSelected()" style="cursor:pointer;">
@@ -497,7 +497,7 @@
                 </td>
                 <td>
                     <span style="display:inline-flex;align-items:center;gap:5px;padding:0.3rem 0.65rem;border-radius:999px;font-size:0.72rem;font-weight:700;{{ $__paid ? 'color:#15803d;background:#dcfce7;' : 'color:#b45309;background:#fef3c7;' }}">
-                        <span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ $__paid ? 'Paid' : 'Unpaid' }}
+                        <span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ $__paymentLabel }}
                     </span>
                 </td>
                 <td>
@@ -505,8 +505,9 @@
                 </td>
                 <td>
                     <span class="total-val">
-                        {{ $order->invoice_currency ?: $__wsCur }} {{ number_format(($order->order_price ?? 0) * ($order->order_quantity ?? 0), 2) }}
+                        {{ $order->invoice_currency ?: $__wsCur }} {{ number_format($order->orderInvoiceTotal(), 2) }}
                     </span>
+                    <div style="font-size:.7rem;color:#64748b">Received {{ number_format($order->orderReceivedTotal(), 2) }} · Balance {{ number_format($order->orderBalanceDue(), 2) }}</div>
                 </td>
                 <td>
                     <span class="agent-pill">

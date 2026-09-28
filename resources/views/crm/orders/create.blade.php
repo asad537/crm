@@ -109,7 +109,16 @@
 
             <div class="section-title"><i class="fas fa-dollar-sign"></i> Pricing & Payment</div>
             <div class="form-grid">
+                @if($__isAlMassaOrder)
+                <div class="form-group"><label class="form-label">Payment Status *</label><select class="form-select" name="payment_status" id="orderPaymentStatus"><option value="Unpaid" {{ old('payment_status', 'Unpaid') === 'Unpaid' ? 'selected' : '' }}>Unpaid</option><option value="Partial" {{ old('payment_status') === 'Partial' ? 'selected' : '' }}>Partial</option><option value="Paid" {{ old('payment_status') === 'Paid' ? 'selected' : '' }}>Paid</option></select></div>
+                <div class="form-group partial-payment-field" style="display:none"><label class="form-label">Amount Received *</label><input type="number" min="0.01" step="0.01" class="form-input" name="initial_payment_amount" value="{{ old('initial_payment_amount') }}" placeholder="0.00"></div>
+                <div class="form-group partial-payment-field" style="display:none"><label class="form-label">Payment Date *</label><input type="date" class="form-input" name="initial_payment_date" value="{{ old('initial_payment_date', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}"></div>
+                <div class="form-group partial-payment-field" style="display:none"><label class="form-label">Payment Method</label><input class="form-input" name="initial_payment_method" value="{{ old('initial_payment_method') }}" placeholder="Cash / Bank / Card"></div>
+                <div class="form-group partial-payment-field" style="display:none"><label class="form-label">Payment Reference</label><input class="form-input" name="initial_payment_reference" value="{{ old('initial_payment_reference') }}"></div>
+                <div class="form-group partial-payment-field" style="display:none"><label class="form-label">Payment Note</label><input class="form-input" name="initial_payment_note" value="{{ old('initial_payment_note') }}"></div>
+                @else
                 <div class="form-group"><label class="form-label">Payment Status *</label><select class="form-select" name="payment_status"><option value="Paid" {{ old('payment_status', 'Paid') === 'Paid' ? 'selected' : '' }}>Paid</option><option value="Unpaid" {{ old('payment_status') === 'Unpaid' ? 'selected' : '' }}>Unpaid</option></select></div>
+                @endif
                 <div class="form-group"><label class="form-label">Currency *</label><select class="form-select" name="invoice_currency"><option value="AED" {{ old('invoice_currency', $__isAlMassaOrder ? 'AED' : 'USD') === 'AED' ? 'selected' : '' }}>AED</option><option value="USD" {{ old('invoice_currency', $__isAlMassaOrder ? 'AED' : 'USD') === 'USD' ? 'selected' : '' }}>USD</option><option value="GBP" {{ old('invoice_currency') === 'GBP' ? 'selected' : '' }}>GBP</option><option value="EUR" {{ old('invoice_currency') === 'EUR' ? 'selected' : '' }}>EUR</option></select></div>
                 <div class="form-group"><label class="form-label">VAT Percentage *</label><input type="number" min="0" max="100" step="0.01" class="form-input" name="vat_percentage" value="{{ old('vat_percentage', $__isAlMassaOrder ? 5 : 0) }}" required></div>
                 <div class="form-group"><label class="form-label">Company TR No</label><input class="form-input" name="company_trn" value="{{ old('company_trn') }}"></div>
@@ -192,6 +201,21 @@
     }
 
     (function () {
+        var paymentStatus = document.getElementById('orderPaymentStatus');
+        if (paymentStatus) {
+            var syncPaymentFields = function () {
+                var isPartial = paymentStatus.value === 'Partial';
+                document.querySelectorAll('.partial-payment-field').forEach(function (field) {
+                    field.style.display = isPartial ? '' : 'none';
+                    field.querySelectorAll('input').forEach(function (input) {
+                        input.disabled = !isPartial;
+                        input.required = isPartial && (input.name === 'initial_payment_amount' || input.name === 'initial_payment_date');
+                    });
+                });
+            };
+            paymentStatus.addEventListener('change', syncPaymentFields);
+            syncPaymentFields();
+        }
         var currSel = document.querySelector('[name="invoice_currency"]');
         if (currSel) {
             var syncCurr = function () { document.getElementById('oiCurr').textContent = currSel.value; };

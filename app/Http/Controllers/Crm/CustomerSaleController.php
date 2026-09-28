@@ -100,6 +100,10 @@ class CustomerSaleController extends Controller
     {
         $this->authorizeAccess();
         $sale = CustomerSale::findOrFail($id);
+        if ($sale->crm_email_id) {
+            return redirect()->route('crm.orders.invoice.edit', $sale->crm_email_id)
+                ->with('error', 'This sale is linked to an order. Edit its invoice instead.');
+        }
         $data = $this->validateSale($request);
         $this->calculateSale($data);
         $sale->update($data);
@@ -112,6 +116,10 @@ class CustomerSaleController extends Controller
     {
         $this->authorizeAccess();
         $sale = CustomerSale::findOrFail($id);
+        if ($sale->crm_email_id) {
+            return redirect()->route('crm.orders.invoice', $sale->crm_email_id)
+                ->with('error', 'This sale is linked to an order. Record payments on its invoice.');
+        }
         $data = $request->validate(['paid_amount' => 'required|numeric|min:0|max:'.$sale->total_amount]);
         $paid = round((float) $data['paid_amount'], 2);
         $balance = round((float) $sale->total_amount - $paid, 2);

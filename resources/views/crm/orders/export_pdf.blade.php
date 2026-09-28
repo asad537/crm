@@ -20,11 +20,11 @@ table.rows { width: 100%; border-collapse: collapse; }
 <br>
 <table class="rows"><thead><tr>
     <th>Invoice #</th><th>Client</th><th>Email</th><th>Product</th>
-    <th class="num">Unit Price</th><th class="num">Qty</th><th class="num">Total</th>
+    <th class="num">Unit Price</th><th class="num">Qty</th><th class="num">Total incl. VAT</th><th class="num">Received</th><th class="num">Balance</th>
     <th>Agent</th><th>Date</th><th>Payment</th><th>Currency</th>
 </tr></thead><tbody>
 @foreach($orders as $o)
-    @php $__total = (float)($o->order_price ?? 0) * (float)($o->order_quantity ?? 0); @endphp
+    @php $__total = $meta['isAlMassa'] ? $o->orderInvoiceTotal() : (float)($o->order_price ?? 0) * (float)($o->order_quantity ?? 0); @endphp
     <tr>
         <td>{{ $o->order_invoice_number ?: ('#'.str_pad($o->id, 5, '0', STR_PAD_LEFT)) }}</td>
         <td>{{ $o->client_name }}</td>
@@ -33,9 +33,11 @@ table.rows { width: 100%; border-collapse: collapse; }
         <td class="num">{{ number_format($o->order_price ?? 0, 2) }}</td>
         <td class="num">{{ number_format($o->order_quantity ?? 0) }}</td>
         <td class="num">{{ number_format($__total, 2) }}</td>
+        <td class="num">{{ $meta['isAlMassa'] ? number_format($o->orderReceivedTotal(), 2) : '—' }}</td>
+        <td class="num">{{ $meta['isAlMassa'] ? number_format($o->orderBalanceDue(), 2) : '—' }}</td>
         <td>{{ $o->order_marked_by ?: '—' }}</td>
         <td>{{ optional($o->order_marked_at ?: $o->created_at)->format('d/m/Y') }}</td>
-        <td>{{ $o->payment_status ?: '—' }}</td>
+        <td>{{ $meta['isAlMassa'] ? $o->orderPaymentLabel() : ($o->payment_status ?: '—') }}</td>
         <td>{{ $o->invoice_currency }}</td>
     </tr>
 @endforeach

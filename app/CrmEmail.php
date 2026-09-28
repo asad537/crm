@@ -76,6 +76,7 @@ class CrmEmail extends Model
         'estimate_breakdown',
         'estimate_quantity_options',
         'payment_status',
+        'order_paid_opening_amount',
         'invoice_currency',
         'vat_percentage',
         'billing_address',
@@ -135,6 +136,51 @@ class CrmEmail extends Model
     public function orderItems()
     {
         return $this->hasMany(CrmOrderItem::class, 'crm_email_id');
+    }
+
+    public function orderPayments()
+    {
+        return $this->hasMany(CrmOrderPayment::class, 'crm_email_id')->orderBy('paid_at')->orderBy('id');
+    }
+
+    public function customerSale()
+    {
+        return $this->hasOne(CustomerSale::class, 'crm_email_id');
+    }
+
+    /** Al Massa invoice total, including VAT, used as the payment basis. */
+    public function orderInvoiceTotal(): float
+    {
+        $items = $this->relationLoaded('orderItems') ? $this->orderItems : $this->orderItems()->get();
+        $subtotal = $items->isNotEmpty()
+            ? (float) $items->sum('line_total')
+            : (float) ($this->order_price ?? 0) * (float) ($this->order_quantity ?? 0);
+
+        return round($subtotal * (1 + (float) ($this->vat_percentage ?? 0) / 100), 2);
+    }
+
+    public function orderReceivedTotal(): float
+    {
+        $payments = $this->relationLoaded('orderPayments')
+            ? (float) $this->orderPayments->sum('amount')
+            : (float) $this->orderPayments()->sum('amount');
+
+        return round((float) ($this->order_paid_opening_amount ?? 0) + $payments, 2);
+    }
+
+    public function orderBalanceDue(): float
+    {
+        return max(0, round($this->orderInvoiceTotal() - $this->orderReceivedTotal(), 2));
+    }
+
+    public function orderPaymentLabel(): string
+    {
+        $received = $this->orderReceivedTotal();
+        if ($received < 0.01) {
+            return 'Unpaid';
+        }
+
+        return $received + 0.01 < $this->orderInvoiceTotal() ? 'Partial' : 'Paid';
     }
 
     /** Multiple products captured on this inquiry (multi-product inquiries). */

@@ -66,7 +66,19 @@
     <div class="cs-toolbar"><form method="GET"><input type="hidden" name="customer_id" value="{{ $selectedCustomer->id }}"><input class="cs-control" name="search" value="{{ request('search') }}" placeholder="Search order or item..."><select class="cs-control" name="payment_status" onchange="this.form.submit()"><option value="">All payments</option>@foreach(['Unpaid','Partial','Paid'] as $status)<option {{ request('payment_status')===$status?'selected':'' }}>{{ $status }}</option>@endforeach</select><button class="cs-btn cs-btn-soft">Search</button></form></div>
     <div class="cs-table-wrap"><table class="cs-table"><thead><tr><th>Date</th><th>Order</th><th>Item</th><th>Qty</th><th>Total</th><th>Paid / Balance</th><th>Order Status</th><th>Payment</th><th>Action</th></tr></thead><tbody>
     @forelse($sales as $sale)
-        <tr><td>{{ $sale->order_date->format('d M Y') }}</td><td><strong>{{ $sale->order_number }}</strong></td><td>{{ $sale->item_name }}</td><td>{{ number_format($sale->quantity,2) }} {{ $sale->unit }}</td><td>{{ $sale->currency }} {{ number_format($sale->total_amount,2) }}</td><td>{{ number_format($sale->paid_amount,2) }} / {{ number_format($sale->balance_amount,2) }}</td><td><span class="cs-status">{{ $sale->order_status }}</span></td><td><form class="cs-pay" method="POST" action="{{ route('crm.customer_sales.update_payment',$sale->id) }}">{{ csrf_field() }}{{ method_field('PATCH') }}<input class="cs-control" name="paid_amount" type="number" step=".01" min="0" max="{{ $sale->total_amount }}" value="{{ $sale->paid_amount }}"><button class="cs-icon-btn"><i class="fas fa-save"></i></button></form></td><td><button class="cs-icon-btn" type="button" onclick="editSale({{ $sale->id }})"><i class="fas fa-edit"></i></button></td></tr>
+        <tr><td>{{ $sale->order_date->format('d M Y') }}</td><td><strong>{{ $sale->order_number }}</strong></td><td>{{ $sale->item_name }}</td><td>{{ number_format($sale->quantity,2) }} {{ $sale->unit }}</td><td>{{ $sale->currency }} {{ number_format($sale->total_amount,2) }}</td><td>{{ number_format($sale->paid_amount,2) }} / {{ number_format($sale->balance_amount,2) }}</td><td><span class="cs-status">{{ $sale->order_status }}</span></td><td>
+            @if($sale->crm_email_id)
+                <span class="cs-status">{{ $sale->payment_status }}</span>
+            @else
+                <form class="cs-pay" method="POST" action="{{ route('crm.customer_sales.update_payment',$sale->id) }}">{{ csrf_field() }}{{ method_field('PATCH') }}<input class="cs-control" name="paid_amount" type="number" step=".01" min="0" max="{{ $sale->total_amount }}" value="{{ $sale->paid_amount }}"><button class="cs-icon-btn"><i class="fas fa-save"></i></button></form>
+            @endif
+        </td><td>
+            @if($sale->crm_email_id)
+                <a class="cs-link" href="{{ route('crm.orders.invoice', $sale->crm_email_id) }}">View Invoice</a>
+            @else
+                <button class="cs-icon-btn" type="button" onclick="editSale({{ $sale->id }})"><i class="fas fa-edit"></i></button>
+            @endif
+        </td></tr>
     @empty<tr><td colspan="9" class="cs-empty">No sales recorded for this customer.</td></tr>@endforelse
     </tbody></table></div>
     @if(method_exists($sales,'links')) {{ $sales->links() }} @endif

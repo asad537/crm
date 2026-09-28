@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CustomerSale extends Model
 {
     protected $fillable = [
-        'workspace_id', 'created_by', 'customer_id', 'order_number', 'order_date',
+        'workspace_id', 'created_by', 'customer_id', 'crm_email_id', 'order_number', 'order_date',
         'due_date', 'item_name', 'description', 'quantity', 'unit', 'unit_price',
         'subtotal', 'discount_amount', 'tax_amount', 'shipping_cost', 'total_amount',
         'paid_amount', 'balance_amount', 'currency', 'payment_status', 'order_status',
@@ -42,5 +42,10 @@ class CustomerSale extends Model
     public function customer()
     {
         return $this->belongsTo(CrmCustomer::class, 'customer_id');
+    }
+
+    public function crmOrder()
+    {
+        return $this->belongsTo(CrmEmail::class, 'crm_email_id');
     }
 }

@@ -204,6 +204,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('orders/{id}/invoice', 'OrdersController@invoice')->name('crm.orders.invoice');
         Route::get('orders/{id}/invoice/edit', 'OrdersController@editInvoice')->name('crm.orders.invoice.edit');
         Route::post('orders/{id}/invoice/update', 'OrdersController@updateInvoice')->name('crm.orders.invoice.update');
+        Route::post('orders/{id}/payments', 'OrdersController@addPayment')->name('crm.orders.payments.store');
         Route::post('orders/{id}/invoice/send', 'OrdersController@sendInvoice')->name('crm.orders.invoice.send');
         Route::delete('orders/{id}', 'OrdersController@destroyInvoice')->name('crm.orders.destroy');
         Route::get('deletion-logs', 'DeletionLogController@index')->name('crm.deletion_logs.index');
@@ -357,4 +358,3 @@ Route::get('/clear-cache',  'UtilityController@cacheClear');
 Route::get('/route-cache',  'UtilityController@routeCache');
 Route::get('/config-cache', 'UtilityController@configCache');
 Route::get('/view-clear',   'UtilityController@viewClear');
-

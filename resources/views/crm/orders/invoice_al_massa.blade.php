@@ -20,6 +20,8 @@
     $vatPercentage = (float) ($order->vat_percentage ?? 5);
     $vatAmount = $subtotal * $vatPercentage / 100;
     $grandTotal = $subtotal + $vatAmount;
+    $receivedTotal = $order->orderReceivedTotal();
+    $balanceDue = $order->orderBalanceDue();
     $invoiceDate = $order->order_marked_at ?: $order->created_at;
     $formatMoney = function ($amount) {
         return number_format($amount, 2, '.', ',');
@@ -84,6 +86,10 @@
         .total-row span:last-child { text-align: right; }
         .grand-total { width: 100%; background: {{ $primaryColor }}; color: white; display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; padding: 7px 10px; font-size: 14px; font-weight: 800; }
         .grand-total span:first-child { text-align: right; }
+        .payment-panel { width: 210mm; max-width: calc(100% - 24px); margin: 0 auto 20px; padding: 18px; background: white; border-radius: 10px; box-shadow: 0 5px 24px rgba(15,23,42,.12); font-size: 13px; }
+        .payment-fields { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .payment-fields input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; min-width: 120px; }
+        .payment-fields button { background: {{ $primaryColor }}; color: white; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
         .signoff { margin-top: 36mm; }
         .signatory { text-align: right; margin-right: 3mm; }
         .signatory-name { font-size: 19px; font-weight: 800; }
@@ -104,7 +110,7 @@
         @media print {
             @page { size: A4 portrait; margin: 0; }
             body { background: white; }
-            .toolbar { display: none; }
+            .toolbar, .payment-panel { display: none; }
             .invoice-page { margin: 0; box-shadow: none; width: 210mm; min-height: 297mm; page-break-after: avoid; }
         }
     </style>
@@ -185,6 +191,8 @@
             <div class="total-row"><span>VAT {{ number_format($vatPercentage, 2) }}% :</span><span>{{ $formatMoney($vatAmount) }}</span></div>
         </section>
         <div class="grand-total"><span>GRAND TOTAL :</span><span>{{ $formatMoney($grandTotal) }} {{ $currency }}</span></div>
+        <div class="total-row" style="width:70mm;margin-left:auto;margin-top:8px"><span>Received ({{ $order->orderPaymentLabel() }}):</span><span>{{ $formatMoney($receivedTotal) }} {{ $currency }}</span></div>
+        <div class="total-row" style="width:70mm;margin-left:auto;font-weight:bold"><span>Balance Due:</span><span>{{ $formatMoney($balanceDue) }} {{ $currency }}</span></div>
 
         <section class="signoff">
             <div class="signatory"><div class="signatory-name">{{ $signatoryName }}</div><div class="signatory-title">Administrator</div></div>
@@ -192,6 +200,32 @@
             <div class="footer-rule"></div>
         </section>
     </main>
+
+    <section class="payment-panel">
+        <strong>Payment history</strong>
+        @if((float) $order->order_paid_opening_amount > 0)
+            <p>Previous paid balance: {{ $currency }} {{ $formatMoney($order->order_paid_opening_amount) }} (legacy invoice; payment date not recorded)</p>
+        @endif
+        @forelse($order->orderPayments as $payment)
+            <p>{{ $payment->paid_at->format('d M Y') }} — {{ $currency }} {{ $formatMoney($payment->amount) }}{{ $payment->method ? ' · '.$payment->method : '' }}{{ $payment->reference ? ' · '.$payment->reference : '' }}{{ $payment->note ? ' · '.$payment->note : '' }}</p>
+        @empty
+            @if(!(float) $order->order_paid_opening_amount)<p>No payments recorded.</p>@endif
+        @endforelse
+        @if($balanceDue > 0.009 && (Auth::guard('crm')->user()->isAdmin() || Auth::guard('crm')->user()->isSalesManager() || Auth::guard('crm')->user()->isAccounts()))
+            <form action="{{ route('crm.orders.payments.store', $order->id) }}" method="POST">
+                @csrf
+                <div class="payment-fields">
+                    <input type="number" name="amount" min="0.01" max="{{ number_format($balanceDue, 2, '.', '') }}" step="0.01" placeholder="Amount" required>
+                    <input type="date" name="paid_at" value="{{ now()->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}" required>
+                    <input name="method" placeholder="Method">
+                    <input name="reference" placeholder="Reference">
+                    <input name="note" placeholder="Note">
+                    <button type="submit">Record payment</button>
+                </div>
+            </form>
+        @endif
+        @if($errors->any())<p style="color:#b91c1c">{{ $errors->first() }}</p>@endif
+    </section>
 
     @php $__pdfName = $order->order_invoice_number ?: str_pad($order->id, 6, '0', STR_PAD_LEFT); @endphp
     <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>

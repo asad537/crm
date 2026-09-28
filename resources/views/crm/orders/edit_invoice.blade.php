@@ -105,7 +105,11 @@
 
             <div class="section-title"><i class="fas fa-dollar-sign"></i> Pricing & Payment</div>
             <div class="form-grid">
+                @if($__isAlMassaOrder)
+                <div class="form-group"><label class="form-label">Payment Status</label><div class="form-input" style="background:#f1f5f9">{{ $order->orderPaymentLabel() }} · Received {{ number_format($order->orderReceivedTotal(), 2) }} · Balance {{ number_format($order->orderBalanceDue(), 2) }}</div></div>
+                @else
                 <div class="form-group"><label class="form-label">Payment Status *</label><select class="form-select" name="payment_status"><option value="Paid" {{ old('payment_status', $order->payment_status) === 'Paid' ? 'selected' : '' }}>Paid</option><option value="Unpaid" {{ old('payment_status', $order->payment_status) === 'Unpaid' ? 'selected' : '' }}>Unpaid</option></select></div>
+                @endif
                 <div class="form-group"><label class="form-label">Currency *</label>
                     <select class="form-select" name="invoice_currency">
                         @foreach(['AED','USD','GBP','EUR'] as $cur)

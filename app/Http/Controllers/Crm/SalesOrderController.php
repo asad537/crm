@@ -136,13 +136,26 @@ class SalesOrderController extends Controller
         ]);
 
         if ($order->lead) {
-            $order->lead->update([
+            $leadUpdate = [
                 'status' => 'Order Done',
-                'payment_status' => 'Paid',
+                'payment_status' => $order->payment_term === 'credit' ? 'Unpaid' : 'Paid',
                 'order_marked_at' => now(),
                 'order_marked_by' => optional($order->agent)->name
                     ?: optional(\Auth::guard('crm')->user())->name,
-            ]);
+            ];
+            if ($order->lead->workspace && $order->lead->workspace->slug === 'mybox-packaging-app'
+                && $order->payment_term !== 'credit' && $order->lead->orderReceivedTotal() < 0.01) {
+                // Legacy workflow confirms receipt but has no receipt date/amount entry.
+                $leadUpdate['order_paid_opening_amount'] = $order->lead->orderInvoiceTotal();
+            }
+            if ($order->lead->workspace && $order->lead->workspace->slug === 'mybox-packaging-app') {
+                $order->lead->fill($leadUpdate);
+                $leadUpdate['payment_status'] = $order->lead->orderPaymentLabel();
+            }
+            $order->lead->update($leadUpdate);
+            if ($order->lead->workspace && $order->lead->workspace->slug === 'mybox-packaging-app') {
+                app(\App\Services\CrmOrderCustomerSaleSync::class)->sync($order->lead);
+            }
         }
 
         \App\Services\WorkflowService::logApproval(
