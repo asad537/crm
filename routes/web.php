@@ -236,6 +236,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         // Customer sales add-on
         Route::get('customer-sales', 'CustomerSaleController@index')->name('crm.customer_sales.index');
         Route::post('customers', 'CustomerSaleController@storeCustomer')->name('crm.customers.store');
+        Route::delete('customers/{id}', 'CustomerSaleController@destroyCustomer')->name('crm.customers.destroy');
         Route::post('customer-sales', 'CustomerSaleController@storeSale')->name('crm.customer_sales.store');
         Route::put('customer-sales/{id}', 'CustomerSaleController@updateSale')->name('crm.customer_sales.update');
         Route::patch('customer-sales/{id}/payment', 'CustomerSaleController@updatePayment')->name('crm.customer_sales.update_payment');

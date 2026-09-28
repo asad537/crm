@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Crm;
 
 use App\CrmCustomer;
+use App\CrmEmail;
 use App\CustomerSale;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CustomerSaleController extends Controller
 {
@@ -81,6 +83,37 @@ class CustomerSaleController extends Controller
 
         return redirect()->route('crm.customer_sales.index', ['customer_id' => $customer->id])
             ->with('success', 'Customer added successfully. You can now add a sale.');
+    }
+
+    public function destroyCustomer($id)
+    {
+        $user = \Auth::guard('crm')->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSalesManager() && !$user->isAccounts())) {
+            abort(403);
+        }
+
+        return DB::transaction(function () use ($id) {
+            $customer = CrmCustomer::whereKey($id)->lockForUpdate()->firstOrFail();
+            if ($customer->sales()->exists()) {
+                return redirect()->route('crm.customer_sales.index')
+                    ->with('error', 'Customer has sales records and cannot be deleted.');
+            }
+
+            $email = strtolower(trim((string) $customer->email));
+            if ($email !== '' && CrmEmail::where('workspace_id', $customer->workspace_id)
+                ->whereRaw('LOWER(client_email) = ?', [$email])
+                ->where(function ($query) {
+                    $query->where('status', 'Order Done')->orWhereHas('salesOrder');
+                })->exists()) {
+                return redirect()->route('crm.customer_sales.index')
+                    ->with('error', 'Customer has a CRM order and cannot be deleted.');
+            }
+
+            $customer->delete();
+
+            return redirect()->route('crm.customer_sales.index')
+                ->with('success', 'Customer profile deleted.');
+        });
     }
 
     public function storeSale(Request $request)
