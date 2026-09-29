@@ -174,11 +174,7 @@ class DesignJobCardController extends Controller
             'delay_reason' => 'nullable|string',
             'wizard_completed_step' => 'nullable|integer|between:-1,12',
             'wizard_current_step' => 'nullable|integer|between:0,12',
-            'sections.dummy' => 'nullable|in:yes',
         ];
-        foreach (self::OPTIONAL_SECTIONS as $section) {
-            $rules['sections.' . $section] = ($draft ? 'nullable' : 'required') . '|in:yes,no';
-        }
         if (!$draft) {
             $rules['dummy_sent_on'] = 'required|date';
             $rules['dummy_approved_on'] = 'required|date';
@@ -198,7 +194,7 @@ class DesignJobCardController extends Controller
         if (!$card->job_date) {
             $card->job_date = optional($job->created_at)->toDateString() ?: now()->toDateString();
         }
-        $choices = array_intersect_key((array) $request->input('sections', []), array_flip(self::OPTIONAL_SECTIONS));
+        $choices = array_fill_keys(self::OPTIONAL_SECTIONS, 'yes');
         $choices['dummy'] = 'yes';
         $choices['__draft'] = $draft;
         $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 12;

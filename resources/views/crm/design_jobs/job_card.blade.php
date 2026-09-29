@@ -546,12 +546,9 @@ function jcInitJobCard(){
         });
         if(Array.isArray(cached.done)&&cached.done.length===keys.length)done=cached.done;
         if(typeof cached.activeStep==='number')activeStep=Math.max(0,Math.min(cached.activeStep,keys.length-1));
-        keys.slice(2).forEach(function(key){
-            var choice=cached.fields['sections['+key+']'];
-            if(choice!==undefined)savedChoices[key]=choice;
-        });
         jcToggleQc();
     }
+    for(var sectionIndex=2;sectionIndex<done.length;sectionIndex++)done[sectionIndex]=!!done[1];
     function syncProgress(){
         completedStep=-1;
         for(var i=0;i<done.length&&done[i];i++)completedStep=i;
@@ -576,37 +573,13 @@ function jcInitJobCard(){
     }
 
     function refreshSteps(){
-        var unlocked=true;
         cards.forEach(function(card,index){
-            card.classList.toggle('jc-step-hidden',!unlocked);
-            if(!done[index])unlocked=false;
+            card.classList.toggle('jc-step-hidden',index===1?!done[0]:index>1?!done[0]||!done[1]:false);
         });
-        saveButton.disabled=!done.every(Boolean);
+        saveButton.disabled=!done[0]||!done[1];
         saveButton.style.opacity=saveButton.disabled?'0.5':'1';
         if(printButton){printButton.disabled=saveButton.disabled;printButton.style.opacity=saveButton.style.opacity;}
         syncProgress();
-    }
-    function setBodyEnabled(body,enabled,clear){
-        body.querySelectorAll('input,select,textarea').forEach(function(field){
-            if(field.classList.contains('jc-handwrite'))return;
-            field.disabled=!enabled;
-            if(clear){if(field.type==='checkbox'||field.type==='radio')field.checked=false;else field.value='';}
-        });
-    }
-    function markChoice(index,choice){
-        formError.textContent='';
-        var card=cards[index],body=card.querySelector('.jc-step-body'),input=card.querySelector('.jc-section-input');
-        input.value=choice;
-        card.dataset.choice=choice;
-        card.querySelectorAll('.jc-step-choice button').forEach(function(button){button.classList.toggle('is-selected',button.dataset.value===choice);});
-        done[index]=choice==='no';
-        for(var i=index+1;i<done.length;i++)done[i]=false;
-        body.hidden=choice!=='yes';
-        setBodyEnabled(body,choice==='yes',choice==='no');
-        activeStep=choice==='no'?Math.min(index+1,cards.length-1):index;
-        refreshSteps();
-        remember();
-        if(choice==='no'&&cards[index+1])cards[index+1].scrollIntoView({behavior:'smooth',block:'center'});
     }
     cards.forEach(function(card,index){
         var key=keys[index],title=card.querySelector('.jc-title');
@@ -618,49 +591,47 @@ function jcInitJobCard(){
         Array.from(card.childNodes).forEach(function(node){if(node!==head)body.appendChild(node);});
         card.appendChild(body);
 
-        var choices=document.createElement('div');choices.className='jc-step-choice';head.appendChild(choices);
         if(index===0){
+            var choices=document.createElement('div');choices.className='jc-step-choice';head.appendChild(choices);
             var start=document.createElement('button');start.type='button';start.textContent='Open';
             start.addEventListener('click',function(){body.hidden=!body.hidden;start.textContent=body.hidden?'Open':'Close';activeStep=index;remember();});
             choices.appendChild(start);
-        }else if(index===1){
-            var dummyInput=document.createElement('input');dummyInput.type='hidden';dummyInput.name='sections[dummy]';dummyInput.value='yes';head.appendChild(dummyInput);
-            card.dataset.choice='yes';
         }else{
-            var input=document.createElement('input');input.type='hidden';input.name='sections['+key+']';input.className='jc-section-input';input.value=savedChoices[key]||'';head.appendChild(input);
-            ['yes','no'].forEach(function(choice){
-                var button=document.createElement('button');button.type='button';button.dataset.value=choice;
-                button.textContent=choice==='yes'?'Yes':'No';
-                button.classList.toggle('is-selected',input.value===choice);
-                button.addEventListener('click',function(){markChoice(index,choice);});
-                choices.appendChild(button);
-            });
-            card.dataset.choice=input.value;
-            if(input.value==='no')setBodyEnabled(body,false,false);
+            var input=document.createElement('input');input.type='hidden';input.name='sections['+key+']';input.value='yes';head.appendChild(input);
+            card.dataset.choice='yes';
         }
-        var next=document.createElement('button');next.type='button';next.className='jc-btn jc-btn-primary jc-step-next';
-        next.textContent=index===0?'Continue to Dummy':'Continue';
-        next.addEventListener('click',function(){
-            if(index===0){
-                var product=form.querySelector('[name="product"]');
-                if(!product.value.trim()){product.setCustomValidity('Enter a product before continuing.');product.reportValidity();return;}
-                product.setCustomValidity('');
-            }else if(index===1){
-                var required=['dummy_sent_on','dummy_approved_on','dummy_approved_by'];
-                for(var i=0;i<required.length;i++){
-                    var field=body.querySelector('[name="'+required[i]+'"]');
-                    field.required=true;
-                    if(!field.reportValidity())return;
+        if(index<2){
+            var next=document.createElement('button');next.type='button';next.className='jc-btn jc-btn-primary jc-step-next';
+            next.textContent=index===0?'Continue to Dummy':'Continue to Job Details';
+            next.addEventListener('click',function(){
+                if(index===0){
+                    var product=form.querySelector('[name="product"]');
+                    if(!product.value.trim()){product.setCustomValidity('Enter a product before continuing.');product.reportValidity();return;}
+                    product.setCustomValidity('');
+                }else{
+                    var required=['dummy_sent_on','dummy_approved_on','dummy_approved_by'];
+                    for(var i=0;i<required.length;i++){
+                        var field=body.querySelector('[name="'+required[i]+'"]');
+                        field.required=true;
+                        if(!field.reportValidity())return;
+                    }
                 }
-            }
-            done[index]=true;body.hidden=true;
-            activeStep=Math.min(index+1,cards.length-1);
-            if(index===0)choices.querySelector('button').textContent='Open';
-            if(index===0&&cards[1])cards[1].querySelector('.jc-step-body').hidden=false;
-            refreshSteps();remember();
-            if(cards[index+1])cards[index+1].scrollIntoView({behavior:'smooth',block:'center'});
-        });
-        body.appendChild(next);
+                done[index]=true;body.hidden=true;
+                activeStep=index+1;
+                if(index===0){
+                    choices.querySelector('button').textContent='Open';
+                    cards[1].querySelector('.jc-step-body').hidden=false;
+                }else{
+                    for(var i=2;i<cards.length;i++){
+                        done[i]=true;
+                        cards[i].querySelector('.jc-step-body').hidden=false;
+                    }
+                }
+                refreshSteps();remember();
+                if(cards[index+1])cards[index+1].scrollIntoView({behavior:'smooth',block:'center'});
+            });
+            body.appendChild(next);
+        }
         card.addEventListener('focusin',function(){activeStep=index;syncProgress();});
     });
     var product=form.querySelector('[name="product"]');
@@ -672,14 +643,16 @@ function jcInitJobCard(){
             if(!field.value.trim()){done[1]=false;refreshSteps();}
         });
     });
-    // Drafts reopen precisely at the card being edited; new cards begin with Header open.
-    var openIndex=done.every(Boolean)?0:activeStep;
-    if(!done.every(Boolean))openIndex=Math.min(openIndex,done.findIndex(function(value){return !value;}));
-    if(printMode)openIndex=0;
-    if(cards[openIndex]){
-        var openBody=cards[openIndex].querySelector('.jc-step-body');
-        if(openIndex<2||cards[openIndex].dataset.choice==='yes')openBody.hidden=false;
-        if(openIndex===0)cards[0].querySelector('.jc-step-choice button').textContent='Close';
+    // After Dummy, every production card stays visible; restore the active card position.
+    if(done[1]){
+        cards.slice(2).forEach(function(card){card.querySelector('.jc-step-body').hidden=false;});
+        if(activeStep===0){cards[0].querySelector('.jc-step-body').hidden=false;cards[0].querySelector('.jc-step-choice button').textContent='Close';}
+        if(activeStep===1)cards[1].querySelector('.jc-step-body').hidden=false;
+    }else if(done[0]){
+        cards[1].querySelector('.jc-step-body').hidden=false;
+    }else{
+        cards[0].querySelector('.jc-step-body').hidden=false;
+        cards[0].querySelector('.jc-step-choice button').textContent='Close';
     }
     form.addEventListener('submit',function(event){
         formError.textContent='';
@@ -690,10 +663,10 @@ function jcInitJobCard(){
             try{sessionStorage.removeItem(cacheKey);}catch(error){}
             return;
         }
-        if(!done.every(Boolean)){
+        if(!done[0]||!done[1]){
             event.preventDefault();
-            var pending=done.findIndex(function(value){return !value;});
-            formError.textContent='Complete this card before creating the job.';
+            var pending=done[0]?1:0;
+            formError.textContent='Complete Header and Dummy before finishing the job card.';
             cards[pending].scrollIntoView({behavior:'smooth',block:'center'});
             return;
         }
@@ -713,7 +686,7 @@ function jcInitJobCard(){
     form.addEventListener('click',function(event){if(event.target.closest('.jc-add,.jc-remove'))setTimeout(remember,0);});
     refreshSteps();
     document.querySelector('.jc-page').classList.add('jc-ready');
-    if(@json($job->exists)&&!printMode&&!done.every(Boolean)&&activeStep>0){
+    if(!printMode&&activeStep>0&&((activeStep===1&&done[0])||(activeStep>1&&done[1]))){
         requestAnimationFrame(function(){cards[activeStep].scrollIntoView({block:'center'});});
     }
     var serverErrors=@json($errors->all());
