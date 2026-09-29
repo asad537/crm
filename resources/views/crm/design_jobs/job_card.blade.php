@@ -443,8 +443,8 @@ textarea.jc-control{min-height:74px;resize:vertical}
     <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}">Cancel</a>
     <span class="jc-form-error" id="jcFormError" role="alert"></span>
     @if($job->exists)<button class="jc-btn jc-btn-light jc-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> Print Form</button>@endif
-    <button class="jc-btn jc-btn-light jc-draft" type="submit" name="save_mode" value="draft"><i class="fas fa-save"></i> Save Draft</button>
-    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> {{ $job->exists ? 'Save Job Card' : 'Create Job' }}</button>
+    <button class="jc-btn jc-btn-light jc-draft" type="submit" name="save_mode" value="draft"><i class="fas fa-save"></i> Save</button>
+    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> Complete Job Card</button>
 </div>
 </form>
 </div>

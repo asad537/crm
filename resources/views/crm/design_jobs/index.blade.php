@@ -167,7 +167,6 @@
                 <tr>
                     <td class="dj-job">
                         <a href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}">{{ $job->job_number }}</a>
-                        @if(data_get($job->jobCard, 'section_choices.__draft') === true)<span style="display:inline-block;margin-left:.35rem;padding:.12rem .4rem;border-radius:999px;background:#fff1e7;color:#b54713;font-size:.6rem;font-weight:800;vertical-align:middle">Draft</span>@endif
                         <div class="sub">{{ $job->created_at->format('d M Y') }}</div>
                     </td>
                     <td class="dj-est">

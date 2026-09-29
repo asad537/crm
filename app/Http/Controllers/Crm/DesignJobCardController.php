@@ -126,8 +126,8 @@ class DesignJobCardController extends Controller
             return $job;
         });
 
-        return redirect()->route($draft ? 'crm.design_jobs.job_card.edit' : 'crm.design_jobs.index', $draft ? [$job->id] : [])
-            ->with('success', 'Job ' . $job->job_number . ($draft ? ' saved as a draft.' : ' created.'));
+        return redirect()->route('crm.design_jobs.index')
+            ->with('success', 'Job ' . $job->job_number . ' saved.');
     }
 
     public function update(Request $request, $id)
@@ -146,8 +146,8 @@ class DesignJobCardController extends Controller
             $this->saveCard($request, $job, $draft);
         });
 
-        return redirect()->route($draft ? 'crm.design_jobs.job_card.edit' : 'crm.design_jobs.index', $draft ? [$job->id] : [])
-            ->with('success', 'Job ' . $job->job_number . ($draft ? ' draft saved.' : ' saved.'));
+        return redirect()->route('crm.design_jobs.index')
+            ->with('success', 'Job ' . $job->job_number . ' saved.');
     }
 
     private function validateCard(Request $request, $jobId, $draft = false)
