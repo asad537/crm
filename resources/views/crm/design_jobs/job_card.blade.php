@@ -508,9 +508,11 @@ function jcSyncPrintFields(){
     });
 }
 window.addEventListener('beforeprint',jcSyncPrintFields);
-document.addEventListener('DOMContentLoaded',function(){
-    jcToggleQc();
+function jcInitJobCard(){
     var form=document.getElementById('jcForm');
+    if(!form||form.dataset.jcInitialized==='1')return;
+    form.dataset.jcInitialized='1';
+    jcToggleQc();
     var keys=['header','dummy','briefing','stock','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
@@ -718,6 +720,12 @@ document.addEventListener('DOMContentLoaded',function(){
     if(serverErrors.length){formError.textContent=serverErrors[0];document.querySelector('.jc-errors').scrollIntoView({block:'start'});}
     jcSyncPrintFields();
     if(printMode&&@json($job->exists)){window.requestAnimationFrame(function(){window.print();});}
-});
+}
+// The CRM also replaces pages through AJAX; DOMContentLoaded does not fire there.
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',jcInitJobCard,{once:true});
+else jcInitJobCard();
+if(window.__jcPageLoadedHandler)document.removeEventListener('crm:page-loaded',window.__jcPageLoadedHandler);
+window.__jcPageLoadedHandler=jcInitJobCard;
+document.addEventListener('crm:page-loaded',jcInitJobCard);
 </script>
 @endsection
