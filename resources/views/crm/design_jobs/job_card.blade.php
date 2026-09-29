@@ -199,7 +199,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
 <div class="jc-card">
     <h4 class="jc-title"><i class="fas fa-file-signature"></i> Job Header</h4>
     <div class="jc-grid">
-        <div class="jc-field"><label>Date</label><input class="jc-control" type="date" name="job_date" value="{{ old('job_date', $jobDateDefault) }}"></div>
+        <div class="jc-field"><label>Job Assigned Date</label><input class="jc-control" type="date" name="job_date" value="{{ old('job_date', $jobDateDefault) }}"></div>
         <div class="jc-field"><label>Job No #</label><input class="jc-control" name="job_no" value="{{ $val('job_no', $job->job_number) }}" placeholder="{{ $job->exists ? '' : 'Auto-generated when saved' }}"></div>
         <div class="jc-field"><label>Product @unless($job->exists)<span style="color:#e11d48">*</span>@endunless</label><input class="jc-control" name="product" value="{{ $val('product', $job->title) }}" {{ $job->exists ? '' : 'required' }}></div>
         <div class="jc-field"><label>Order Qty</label><input class="jc-control" type="number" min="0" name="order_qty" value="{{ $val('order_qty') }}"></div>

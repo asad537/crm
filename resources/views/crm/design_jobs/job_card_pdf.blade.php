@@ -772,7 +772,7 @@
 
         <table class="details">
             <tr>
-                <th>Date</th>
+                <th>Job Assigned Date</th>
                 <td>
                     {{ $date($card->job_date ?: $job->created_at) }}
                 </td>
