@@ -112,7 +112,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
 .jc-form-error{display:none;align-self:center;color:#b91c1c;font-size:.75rem;font-weight:800}
 .jc-form-error:not(:empty){display:block}
 @media print{
-  @page{size:A4;margin:11mm}
+  @page{size:A4 portrait;margin:5mm}
   body{display:block!important;height:auto!important;overflow:visible!important;background:#fff!important;color:#111!important}
   .custom-sidebar,.sidebar-overlay,.top-bar,.jc-actions,.jc-step-choice,.jc-step-next,.jc-flash,.jc-errors,.jc-add,.jc-remove{display:none!important}
   .main-area{height:auto!important;overflow:visible!important;padding:0!important;width:100%!important}
@@ -179,6 +179,51 @@ textarea.jc-control{min-height:74px;resize:vertical}
   .jc-step-hidden{display:none!important}
   .jc-step[data-choice="no"]{display:none!important}
   .jc-step[data-choice="yes"] .jc-step-body,.jc-header-step .jc-step-body{display:block!important}
+  /* Keep the complete production form on one A4 sheet without changing the screen form. */
+  .jc-page{font-size:7pt!important}
+  .jc-hero{padding:0 0 1mm!important;margin:0 0 1.5mm!important;border-bottom-width:1px!important}
+  .jc-hero h1{font-size:11pt!important}
+  .jc-hero p,.jc-print-note{font-size:6.5pt!important;line-height:1.1!important}
+  #jcForm{gap:1mm!important}
+  .jc-card{padding:1.5mm!important;border-color:#9aa5b1!important}
+  .jc-card:nth-of-type(-n+5){grid-column:1/-1}
+  .jc-title{font-size:7.5pt!important;line-height:1!important;margin:0 0 1mm!important;gap:1mm!important}
+  .jc-title::before{min-width:4mm!important;width:4mm!important;height:4mm!important;font-size:6pt!important}
+  .jc-step-head{padding:0 0 .7mm!important;margin:0 0 1mm!important}
+  .jc-step-body{margin:0!important}
+  .jc-grid,.jc-qc-card .jc-grid,.jc-timeline-card .jc-grid{gap:1mm 1.5mm!important}
+  .jc-field label,.jc-timestrip label{font-size:6.3pt!important;line-height:1.05!important;margin-bottom:.35mm!important}
+  .jc-print-value{min-height:3.5mm!important;padding:.2mm 0!important;font-size:7pt!important;line-height:1.1!important}
+  .jc-print-value-multiline{min-height:6mm!important;padding:.7mm!important}
+  .jc-control{min-height:3.5mm!important;padding:0!important;font-size:7pt!important;line-height:1.1!important}
+  .jc-checks{gap:0 1.5mm!important}
+  .jc-check,.jc-check:has(input:checked){padding:0!important;font-size:6.5pt!important;line-height:1.15!important}
+  .jc-check input{width:9px!important;height:9px!important;margin:0 .4mm 0 0!important}
+  .jc-briefing-layout,.jc-printing-layout{gap:1mm!important}
+  .jc-briefing-group,.jc-printing-panel{padding:1mm!important}
+  .jc-briefing-panel-heading{margin:0 0 .7mm!important;padding:0 0 .5mm!important}
+  .jc-briefing-panel-heading strong,.jc-printing-panel-title,.jc-briefing-heading{font-size:6.5pt!important;line-height:1.1!important}
+  .jc-briefing-dimensions{gap:1mm!important}
+  .jc-briefing-measure+.jc-briefing-measure{padding-left:1mm!important}
+  .jc-briefing-heading,.jc-printing-panel-title{margin-bottom:.5mm!important}
+  .jc-briefing-specs{gap:.5mm!important}
+  .jc-briefing-specs-row+.jc-briefing-specs-row{padding-top:.5mm!important}
+  .jc-dimension-fields,.jc-printing-plates{gap:.7mm!important}
+  .jc-multiply{padding-bottom:.4mm!important;font-size:7pt!important}
+  .jc-printing-panel:nth-child(2){grid-column:auto!important}
+  .jc-printing-coating{padding:1mm!important}
+  .jc-items{gap:.5mm!important;margin:0!important}
+  .jc-item{padding:1mm!important}
+  .jc-item-head{margin-bottom:.4mm!important}
+  .jc-item-number{min-width:3mm!important;width:3mm!important;height:3mm!important;font-size:6pt!important}
+  .jc-timestrip,.jc-foil-card .jc-timestrip,.jc-corr-card .jc-timestrip{gap:.7mm!important;margin-top:1mm!important;padding:.7mm!important}
+  .jc-timestrip .jc-control{min-height:3.5mm!important;padding:0!important}
+  .jc-foil-options,.jc-corr-layout{gap:.5mm 2mm!important}
+  .jc-foil-choice .jc-field,.jc-corr-layout>.jc-field{width:17mm!important}
+  .jc-qc-card .jc-field.jc-6{grid-column:span 6}
+  textarea.jc-control{min-height:6mm!important;padding:.5mm!important}
+  .jc-page:has(#jcStocks .jc-item:nth-child(2)){zoom:.88!important}
+  .jc-page:has(#jcStocks .jc-item:nth-child(3)){zoom:.77!important}
 }
 @media screen and (max-width:900px){.jc-briefing-layout{grid-template-columns:1fr}}
 @media screen and (max-width:700px){.jc-printing-layout{grid-template-columns:1fr}.jc-printing-plates{grid-template-columns:repeat(2,minmax(0,1fr))}.jc-printing-coating{grid-column:auto}}
