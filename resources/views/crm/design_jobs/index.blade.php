@@ -112,7 +112,10 @@
     .dj-track { display:inline-flex; align-items:center; gap:.4rem; font-size:.78rem; font-weight:600; text-decoration:none;
         color:#5b616e; border:1px solid var(--line); border-radius:9px; padding:.42rem .75rem; transition:all .14s; white-space:nowrap; }
     .dj-track:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+    .dj-delete { color:#dc2626; border-color:#fecaca; background:#fff5f5; font-family:inherit; cursor:pointer; }
+    .dj-delete:hover { color:#b91c1c; border-color:#fca5a5; background:#fee2e2; }
     .dj-actions { display:flex; align-items:center; gap:.4rem; }
+    .dj-actions form { display:inline-flex; margin:0; }
     .dj-empty { text-align:center; padding:3.5rem 1rem; color:var(--muted); font-size:.9rem; }
     .dj-pagination { padding:1rem; display:flex; justify-content:center; }
     /* NOTE: this button renders in the layout top bar, OUTSIDE .dj — must use theme vars, not .dj-scoped --accent */
@@ -199,6 +202,13 @@
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}?print=1" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}"><i class="fas fa-file-pdf"></i> PDF</a>
+                        @if($u->isAdmin() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))
+                            <form method="POST" action="{{ route('crm.design_jobs.destroy', $job->id) }}" onsubmit="return confirm('Delete this job and its job card? This cannot be undone.');">
+                                @csrf
+                                @method('DELETE')
+                                <button class="dj-track dj-delete" type="submit" aria-label="Delete job {{ $job->job_number }}"><i class="fas fa-trash-alt"></i> Delete</button>
+                            </form>
+                        @endif
                     </div></td>
                 </tr>
             @empty

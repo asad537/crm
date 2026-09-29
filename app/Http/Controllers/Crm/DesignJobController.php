@@ -7,6 +7,8 @@ use App\EstimateTicket;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DesignJobController extends Controller
 {
@@ -72,6 +74,27 @@ class DesignJobController extends Controller
         $job->update($update);
 
         return back()->with('success', $job->job_number . ' moved to ' . DesignJob::STATUSES[$data['status']] . '.');
+    }
+
+    public function destroy($id)
+    {
+        $user = $this->requireDesignJobAccess();
+        $job = DesignJob::where('workspace_id', \App\Support\CrmWorkspaceContext::id())->findOrFail($id);
+
+        if (!$user->isAdmin() && (!$user->isDesigner() || (int) $job->designer_id !== (int) $user->id)) {
+            abort(403, 'Only an admin or the job designer can delete this job.');
+        }
+
+        if (Schema::hasTable('crm_inventory_movements') && DB::table('crm_inventory_movements')
+            ->where('job_id', $job->id)
+            ->exists()) {
+            return back()->with('error', 'This job has inventory movements and cannot be deleted.');
+        }
+
+        $jobNumber = $job->job_number;
+        $job->delete();
+
+        return redirect()->route('crm.design_jobs.index')->with('success', 'Job ' . $jobNumber . ' deleted.');
     }
 
     protected function requireDesignJobAccess()
