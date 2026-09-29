@@ -6,7 +6,32 @@ use Illuminate\Database\Eloquent\Model;
 
 class DesignJobCard extends Model
 {
+    public const CARD_STAGES = [
+        'Job Header',
+        'Dummy / Sample Approval',
+        'Job Briefing',
+        'Paper / Board / Stock',
+        'Printing',
+        'Lamination',
+        'Screen Printing / Spot UV',
+        'Foiling',
+        'Corrugation',
+        'Diecutting',
+        'Pasting',
+        'Quality Check',
+        'Job Timeline',
+    ];
+
     protected $guarded = ['id'];
+
+    public function currentCardLabel(): ?string
+    {
+        $step = ($this->section_choices ?? [])['__active_step'] ?? null;
+
+        return is_numeric($step) && isset(self::CARD_STAGES[(int) $step])
+            ? self::CARD_STAGES[(int) $step]
+            : null;
+    }
 
     protected $casts = [
         'job_date' => 'date',

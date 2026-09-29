@@ -79,7 +79,7 @@
     .dj-card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;
         box-shadow:0 1px 3px rgba(20,23,33,.04), 0 18px 40px -30px rgba(20,23,33,.25); }
     .dj-wrap { overflow-x:auto; }
-    .dj-table { width:100%; border-collapse:collapse; min-width:860px; }
+    .dj-table { width:100%; border-collapse:collapse; min-width:1040px; }
     .dj-table thead th { background:#fafafb; font-size:.66rem; text-transform:uppercase; letter-spacing:.09em;
         font-weight:700; color:#9096a1; text-align:left; padding:.85rem 1.15rem; border-bottom:1px solid var(--line); }
     .dj-table tbody td { padding:1rem 1.15rem; border-bottom:1px solid var(--line); font-size:.88rem; vertical-align:middle; }
@@ -95,6 +95,8 @@
     .dj-est .manual { font-weight:600; color:#4b5563; }
     .dj-title { font-weight:600; color:#2b2f38; }
     .dj-title .sub { font-size:.74rem; color:var(--muted); margin-top:.2rem; font-weight:400; white-space:normal; max-width:230px; }
+    .dj-stage { display:inline-flex;align-items:center;max-width:190px;padding:.36rem .6rem;border:1px solid var(--primary-shadow);border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:.72rem;font-weight:750;line-height:1.25; }
+    .dj-stage-muted { border-color:var(--line);background:var(--soft);color:var(--muted); }
     .dj-designer { display:flex; align-items:center; gap:.55rem; }
     .dj-ava { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:.7rem; font-weight:700;
         background:var(--accent-soft); color:var(--accent); flex:0 0 30px; }
@@ -156,6 +158,7 @@
                 <th>Job</th>
                 <th>Estimate</th>
                 <th>Title</th>
+                <th>Current Stage</th>
                 <th>Designer</th>
                 <th>Delivery</th>
                 <th>Due</th>
@@ -180,6 +183,7 @@
                     <td class="dj-title">{{ $job->title }}
                         @if($job->details)<div class="sub">{{ \Illuminate\Support\Str::limit($job->details, 60) }}</div>@endif
                     </td>
+                    <td>@if($job->jobCard && $job->jobCard->currentCardLabel())<span class="dj-stage">{{ $job->jobCard->currentCardLabel() }}</span>@else<span class="dj-stage dj-stage-muted">{{ $job->jobCard ? 'Not recorded' : 'Not started' }}</span>@endif</td>
                     <td>
                         <div class="dj-designer">
                             <span class="dj-ava">{{ $initials($job->designer->name ?? '') }}</span>
@@ -212,7 +216,7 @@
                     </div></td>
                 </tr>
             @empty
-                <tr><td colspan="7"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
+                <tr><td colspan="8"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
             @endforelse
             </tbody>
         </table>

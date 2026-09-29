@@ -632,7 +632,12 @@ function jcInitJobCard(){
             });
             body.appendChild(next);
         }
-        card.addEventListener('focusin',function(){activeStep=index;syncProgress();});
+        card.addEventListener('focusin',function(){activeStep=index;remember();});
+        card.addEventListener('click',function(event){
+            if(event.target.closest('.jc-step-next'))return;
+            activeStep=index;
+            remember();
+        });
     });
     var product=form.querySelector('[name="product"]');
     product.addEventListener('input',function(){product.setCustomValidity('');if(!product.value.trim()){done[0]=false;refreshSteps();}});

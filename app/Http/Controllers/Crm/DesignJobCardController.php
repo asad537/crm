@@ -198,7 +198,7 @@ class DesignJobCardController extends Controller
         $choices['dummy'] = 'yes';
         $choices['__draft'] = $draft;
         $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 12;
-        $choices['__active_step'] = $draft ? (int) $request->input('wizard_current_step', 0) : 12;
+        $choices['__active_step'] = (int) $request->input('wizard_current_step', 0);
         $card->section_choices = $choices;
         $card->job_no = $card->job_no ?: $job->job_number;
         foreach ($this->booleanFields as $field) {
