@@ -704,6 +704,11 @@ function jcInitJobCard(){
         cards[0].querySelector('.jc-step-body').hidden=false;
         cards[0].querySelector('.jc-step-choice button').textContent='Close';
     }
+    // Existing jobs open the header immediately, even when editing resumes at a later card.
+    if(@json($job->exists)){
+        cards[0].querySelector('.jc-step-body').hidden=false;
+        cards[0].querySelector('.jc-step-choice button').textContent='Close';
+    }
     form.addEventListener('submit',function(event){
         formError.textContent='';
         syncProgress();
