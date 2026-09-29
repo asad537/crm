@@ -1831,6 +1831,7 @@
                 const currentMain = document.querySelector('.main-area');
 
                 if (!nextMain || !currentMain) {
+                    if (currentMain) currentMain.classList.remove('crm-loading');
                     window.location.href = url;
                     return;
                 }
@@ -1861,11 +1862,15 @@
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
                     .then(response => {
-                        if (!response.ok) throw new Error('Navigation failed');
+                        const contentType = response.headers.get('content-type') || '';
+                        if (!response.ok || !contentType.toLowerCase().includes('text/html')) {
+                            throw new Error('Navigation requires a full page load');
+                        }
                         return response.text();
                     })
                     .then(html => updateMainAreaFromHtml(html, url, pushState))
                     .catch(() => {
+                        if (currentMain) currentMain.classList.remove('crm-loading');
                         window.location.href = url;
                     });
             }

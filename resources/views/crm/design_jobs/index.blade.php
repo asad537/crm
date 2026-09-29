@@ -205,7 +205,7 @@
                     <td><div class="dj-actions">
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}?print=1" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
-                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}"><i class="fas fa-file-pdf"></i> PDF</a>
+                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}" data-no-ajax-nav><i class="fas fa-file-pdf"></i> PDF</a>
                         @if($u->isAdmin() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))
                             <form method="POST" action="{{ route('crm.design_jobs.destroy', $job->id) }}" onsubmit="return confirm('Delete this job and its job card? This cannot be undone.');">
                                 @csrf
