@@ -55,7 +55,7 @@ class GeneralLedgerController extends Controller
             $partyOptions = $customerNames;
             $partyLabel = 'Customer';
         } else {
-            $partyOptions = $customerNames->concat($vendorNames)->unique()->sort()->values();
+            $partyOptions = collect($customerNames)->concat($vendorNames)->unique()->sort()->values();
             $partyLabel = 'Customer / Vendor';
         }
 
