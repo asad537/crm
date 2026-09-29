@@ -11,6 +11,7 @@ class DesignJobCard extends Model
         'Dummy / Sample Approval',
         'Job Briefing',
         'Paper / Board / Stock',
+        'Foam',
         'Printing',
         'Lamination',
         'Screen Printing / Spot UV',

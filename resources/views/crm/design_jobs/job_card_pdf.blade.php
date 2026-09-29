@@ -89,6 +89,36 @@
             ]
         ],
 
+        'foam' => [
+            'Foam',
+            [
+                [
+                    [
+                        'Foam Type',
+                        $choice($card->foam_type, [
+                            'eva' => 'EVA Foam',
+                            'soft' => 'Soft Foam',
+                            'other' => 'Other',
+                        ]) . ($card->foam_type === 'other' && $card->foam_type_other
+                            ? ': ' . $card->foam_type_other : '')
+                    ],
+                    [
+                        'Color',
+                        $choice($card->foam_color, [
+                            'black' => 'Black',
+                            'white' => 'White',
+                            'other' => 'Other',
+                        ]) . ($card->foam_color === 'other' && $card->foam_color_other
+                            ? ': ' . $card->foam_color_other : '')
+                    ],
+                ],
+                [
+                    ['Thickness (mm)', $card->foam_thickness],
+                    ['Quantity', $card->foam_qty],
+                ],
+            ],
+        ],
+
         'printing' => [
             'Printing',
             [

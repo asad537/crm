@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 class DesignJobCardController extends Controller
 {
     private const OPTIONAL_SECTIONS = [
-        'briefing', 'stock', 'printing', 'lamination',
+        'briefing', 'stock', 'foam', 'printing', 'lamination',
         'screen', 'foiling', 'corrugation', 'diecutting', 'pasting', 'quality', 'timeline',
     ];
 
@@ -26,6 +26,8 @@ class DesignJobCardController extends Controller
         'dummy_sent_on', 'dummy_approved_on', 'dummy_approved_by',
         // Job briefing
         'box_l', 'box_w', 'box_h', 'box_unit', 'open_l', 'open_w', 'box_type', 'box_type_other',
+        // Foam
+        'foam_type', 'foam_type_other', 'foam_color', 'foam_color_other', 'foam_thickness', 'foam_qty',
         // Printing
         'printing_method', 'printing_method_other', 'ctp_plates', 'pms', 'coating_other_text',
         // Lamination
@@ -165,6 +167,12 @@ class DesignJobCardController extends Controller
             'due_date' => 'nullable|date',
             'box_unit' => 'nullable|in:cm,inches,mm',
             'box_type' => 'nullable|in:hard,soft,other',
+            'foam_type' => 'nullable|in:eva,soft,other',
+            'foam_type_other' => 'nullable|string|max:255',
+            'foam_color' => 'nullable|in:black,white,other',
+            'foam_color_other' => 'nullable|string|max:255',
+            'foam_thickness' => 'nullable|numeric|min:0',
+            'foam_qty' => 'nullable|integer|min:0',
             'printing_method' => 'nullable|in:offset,digital,other',
             'corr_color' => 'nullable|in:brown,white,other',
             'qc_result' => 'nullable|in:approved,rejected',
@@ -172,8 +180,8 @@ class DesignJobCardController extends Controller
             'qc_comments' => 'nullable|string',
             'qc_rejection_comments' => $draft ? 'nullable|string' : 'nullable|required_if:qc_result,rejected|string',
             'delay_reason' => 'nullable|string',
-            'wizard_completed_step' => 'nullable|integer|between:-1,12',
-            'wizard_current_step' => 'nullable|integer|between:0,12',
+            'wizard_completed_step' => 'nullable|integer|between:-1,13',
+            'wizard_current_step' => 'nullable|integer|between:0,13',
         ];
         if (!$draft) {
             $rules['dummy_sent_on'] = 'required|date';
@@ -197,7 +205,7 @@ class DesignJobCardController extends Controller
         $choices = array_fill_keys(self::OPTIONAL_SECTIONS, 'yes');
         $choices['dummy'] = 'yes';
         $choices['__draft'] = $draft;
-        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 12;
+        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 13;
         $choices['__active_step'] = (int) $request->input('wizard_current_step', 0);
         $card->section_choices = $choices;
         $card->job_no = $card->job_no ?: $job->job_number;

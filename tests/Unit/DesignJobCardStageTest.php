@@ -13,9 +13,12 @@ class DesignJobCardStageTest extends TestCase
         $this->assertSame('Dummy / Sample Approval', $card->currentCardLabel());
 
         $card->section_choices = ['__active_step' => 4];
-        $this->assertSame('Printing', $card->currentCardLabel());
+        $this->assertSame('Foam', $card->currentCardLabel());
 
         $card->section_choices = ['__active_step' => 5];
+        $this->assertSame('Printing', $card->currentCardLabel());
+
+        $card->section_choices = ['__active_step' => 6];
         $this->assertSame('Lamination', $card->currentCardLabel());
     }
 

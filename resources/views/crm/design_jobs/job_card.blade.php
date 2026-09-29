@@ -124,7 +124,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
   .jc-print-note{display:block!important;margin-left:auto;text-align:right;font-size:7pt;line-height:1.35;color:#555}
   #jcForm{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:3mm!important;align-items:start}
   .jc-card{box-shadow:none!important;border:1px solid #8d99a6!important;border-radius:0!important;break-inside:avoid;page-break-inside:avoid;margin:0!important;padding:3mm!important;min-width:0}
-  .jc-card:nth-of-type(-n+5){grid-column:1/-1}
+  .jc-card:nth-of-type(-n+6){grid-column:1/-1}
   .jc-step-head{padding-bottom:1.5mm!important;margin-bottom:2mm!important;border-bottom:1px solid #aab4be!important}
   .jc-title{font-size:9pt!important;color:#111!important;line-height:1.2}
   .jc-title::before{min-width:20px!important;height:20px!important;border:1px solid #555!important;border-radius:0!important;background:#fff!important;color:#111!important;font-size:7pt!important}
@@ -180,13 +180,13 @@ textarea.jc-control{min-height:74px;resize:vertical}
   .jc-step[data-choice="no"]{display:none!important}
   .jc-step[data-choice="yes"] .jc-step-body,.jc-header-step .jc-step-body{display:block!important}
   /* Keep the complete production form on one A4 sheet without changing the screen form. */
-  .jc-page{font-size:7pt!important}
+  .jc-page{font-size:7pt!important;zoom:.92!important}
   .jc-hero{padding:0 0 1mm!important;margin:0 0 1.5mm!important;border-bottom-width:1px!important}
   .jc-hero h1{font-size:11pt!important}
   .jc-hero p,.jc-print-note{font-size:6.5pt!important;line-height:1.1!important}
   #jcForm{gap:1mm!important}
   .jc-card{padding:1.5mm!important;border-color:#9aa5b1!important}
-  .jc-card:nth-of-type(-n+5){grid-column:1/-1}
+  .jc-card:nth-of-type(-n+6){grid-column:1/-1}
   .jc-title{font-size:7.5pt!important;line-height:1!important;margin:0 0 1mm!important;gap:1mm!important}
   .jc-title::before{min-width:4mm!important;width:4mm!important;height:4mm!important;font-size:6pt!important}
   .jc-step-head{padding:0 0 .7mm!important;margin:0 0 1mm!important}
@@ -222,8 +222,9 @@ textarea.jc-control{min-height:74px;resize:vertical}
   .jc-foil-choice .jc-field,.jc-corr-layout>.jc-field{width:17mm!important}
   .jc-qc-card .jc-field.jc-6{grid-column:span 6}
   textarea.jc-control{min-height:6mm!important;padding:.5mm!important}
-  .jc-page:has(#jcStocks .jc-item:nth-child(2)){zoom:.88!important}
-  .jc-page:has(#jcStocks .jc-item:nth-child(3)){zoom:.77!important}
+  .jc-page:has(#jcFoamTypeOther:not(.jc-hidden)),.jc-page:has(#jcFoamColorOther:not(.jc-hidden)){zoom:.88!important}
+  .jc-page:has(#jcStocks .jc-item:nth-child(2)){zoom:.84!important}
+  .jc-page:has(#jcStocks .jc-item:nth-child(3)){zoom:.72!important}
 }
 @media screen and (max-width:900px){.jc-briefing-layout{grid-template-columns:1fr}}
 @media screen and (max-width:700px){.jc-printing-layout{grid-template-columns:1fr}.jc-printing-plates{grid-template-columns:repeat(2,minmax(0,1fr))}.jc-printing-coating{grid-column:auto}}
@@ -237,7 +238,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
 @if($errors->any())<div class="jc-errors"><strong>Please check the form:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
 <form id="jcForm" method="POST" novalidate action="{{ $job->exists ? route('crm.design_jobs.job_card.update', $job->id) : route('crm.design_jobs.store') }}">{{ csrf_field() }}
-<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 12 : -1)) }}">
+<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 13 : -1)) }}">
 <input type="hidden" name="wizard_current_step" value="{{ old('wizard_current_step', ($card->section_choices ?? [])['__active_step'] ?? 0) }}">
 
 {{-- Card 1 — Job header --}}
@@ -334,6 +335,25 @@ textarea.jc-control{min-height:74px;resize:vertical}
         @endforeach
     </div>
     <button class="jc-add" type="button" onclick="jcAddRow('jcStocks','stocks')"><i class="fas fa-plus"></i> Add stock line</button>
+</div>
+
+{{-- Foam --}}
+<div class="jc-card jc-foam-card">
+    <h4 class="jc-title"><i class="fas fa-cubes"></i> Foam</h4>
+    <div class="jc-grid">
+        <div class="jc-field jc-4"><label>Foam Type</label><div class="jc-checks">
+            @foreach(['eva' => 'EVA Foam', 'soft' => 'Soft Foam', 'other' => 'Other'] as $key => $label)
+                <label class="jc-check"><input type="radio" name="foam_type" value="{{ $key }}" data-other-target="jcFoamTypeOther" onchange="jcToggleRadioOther(this)" {{ (string) $val('foam_type') === $key ? 'checked' : '' }}> {{ $label }}</label>
+            @endforeach
+        </div><div class="jc-field jc-briefing-other {{ $val('foam_type') === 'other' ? '' : 'jc-hidden' }}" id="jcFoamTypeOther"><label>Other Foam Type</label><input class="jc-control" name="foam_type_other" value="{{ $val('foam_type_other') }}"></div></div>
+        <div class="jc-field jc-4"><label>Color</label><div class="jc-checks">
+            @foreach(['black' => 'Black', 'white' => 'White', 'other' => 'Other'] as $key => $label)
+                <label class="jc-check"><input type="radio" name="foam_color" value="{{ $key }}" data-other-target="jcFoamColorOther" onchange="jcToggleRadioOther(this)" {{ (string) $val('foam_color') === $key ? 'checked' : '' }}> {{ $label }}</label>
+            @endforeach
+        </div><div class="jc-field jc-briefing-other {{ $val('foam_color') === 'other' ? '' : 'jc-hidden' }}" id="jcFoamColorOther"><label>Other Color</label><input class="jc-control" name="foam_color_other" value="{{ $val('foam_color_other') }}"></div></div>
+        <div class="jc-field jc-2"><label>Thickness (mm)</label><input class="jc-control" type="number" min="0" step="0.01" name="foam_thickness" value="{{ $val('foam_thickness') }}"></div>
+        <div class="jc-field jc-2"><label>Quantity</label><input class="jc-control" type="number" min="0" step="1" name="foam_qty" value="{{ $val('foam_qty') }}"></div>
+    </div>
 </div>
 
 {{-- Card 6 — Printing --}}
@@ -558,7 +578,7 @@ function jcInitJobCard(){
     if(!form||form.dataset.jcInitialized==='1')return;
     form.dataset.jcInitialized='1';
     jcToggleQc();
-    var keys=['header','dummy','briefing','stock','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline'];
+    var keys=['header','dummy','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
     var printMode=new URLSearchParams(window.location.search).has('print');
@@ -566,7 +586,7 @@ function jcInitJobCard(){
     var legacy=@json($job->exists)&&savedChoices.__completed_step===undefined;
     if(legacy&&!Object.keys(savedChoices).length){keys.slice(1).forEach(function(key){savedChoices[key]='yes';});}
     var completedStep=parseInt(form.elements.wizard_completed_step.value,10);
-    if(isNaN(completedStep))completedStep=legacy?12:-1;
+    if(isNaN(completedStep))completedStep=legacy?13:-1;
     var activeStep=parseInt(form.elements.wizard_current_step.value,10);
     if(isNaN(activeStep))activeStep=0;
     activeStep=Math.max(0,Math.min(activeStep,keys.length-1));
@@ -578,6 +598,11 @@ function jcInitJobCard(){
     var cached=null;
     try{cached=JSON.parse(sessionStorage.getItem(cacheKey)||'null');}catch(error){}
     if(cached&&cached.fields){
+        // Preserve unsaved browser data from before Foam was inserted after Stock.
+        if(Array.isArray(cached.done)&&cached.done.length===keys.length-1){
+            cached.done.splice(4,0,!!cached.done[1]);
+            if(typeof cached.activeStep==='number'&&cached.activeStep>=4)cached.activeStep++;
+        }
         Object.keys(cached.rows||{}).forEach(function(id){
             var box=document.getElementById(id),config=cached.rows[id];
             if(!box||!config||!config.name)return;
