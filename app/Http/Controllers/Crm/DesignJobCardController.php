@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 class DesignJobCardController extends Controller
 {
     private const OPTIONAL_SECTIONS = [
-        'dummy', 'briefing', 'stock', 'printing', 'lamination',
+        'briefing', 'stock', 'printing', 'lamination',
         'screen', 'foiling', 'corrugation', 'diecutting', 'pasting', 'quality', 'timeline',
     ];
 
@@ -104,29 +104,30 @@ class DesignJobCardController extends Controller
         $user = $this->requireAccess();
         abort_unless($user->isAdmin() || $user->isDesigner(), 403, 'Only designers can create job cards.');
 
-        $this->validateCard($request, null);
-        $request->validate(['product' => 'required|string|max:255']);
+        $draft = $request->input('save_mode') === 'draft';
+        $this->validateCard($request, null, $draft);
+        $request->validate(['product' => ($draft ? 'nullable' : 'required') . '|string|max:255']);
 
-        $job = DB::transaction(function () use ($request, $user) {
+        $job = DB::transaction(function () use ($request, $user, $draft) {
             $jobNumber = $this->nullIfBlank($request->input('job_no')) ?: $this->newJobNumber();
             $job = DesignJob::create([
                 'job_number' => $jobNumber,
                 'workspace_id' => CrmWorkspaceContext::id(),
                 'designer_id' => $user->id,
-                'title' => trim($request->input('product')),
+                'title' => $this->nullIfBlank($request->input('product')) ?: 'Untitled Job',
                 'estimate_number' => $this->nullIfBlank($request->input('estimate_number')),
                 'estimated_delivery_date' => $this->nullIfBlank($request->input('estimated_delivery_date')),
                 'due_date' => $this->nullIfBlank($request->input('due_date')),
                 'status' => 'designing',
                 'status_updated_at' => now(),
             ]);
-            $this->saveCard($request, $job);
+            $this->saveCard($request, $job, $draft);
 
             return $job;
         });
 
-        return redirect()->route('crm.design_jobs.index')
-            ->with('success', 'Job ' . $job->job_number . ' created.');
+        return redirect()->route($draft ? 'crm.design_jobs.job_card.edit' : 'crm.design_jobs.index', $draft ? [$job->id] : [])
+            ->with('success', 'Job ' . $job->job_number . ($draft ? ' saved as a draft.' : ' created.'));
     }
 
     public function update(Request $request, $id)
@@ -138,23 +139,27 @@ class DesignJobCardController extends Controller
             abort(403, 'Only designers can edit the job card.');
         }
 
-        $this->validateCard($request, $job->id);
+        $draft = $request->input('save_mode') === 'draft';
+        $this->validateCard($request, $job->id, $draft);
 
-        DB::transaction(function () use ($request, $job) {
-            $this->saveCard($request, $job);
+        DB::transaction(function () use ($request, $job, $draft) {
+            $this->saveCard($request, $job, $draft);
         });
 
-        return redirect()->route('crm.design_jobs.index')
-            ->with('success', 'Job ' . $job->job_number . ' saved.');
+        return redirect()->route($draft ? 'crm.design_jobs.job_card.edit' : 'crm.design_jobs.index', $draft ? [$job->id] : [])
+            ->with('success', 'Job ' . $job->job_number . ($draft ? ' draft saved.' : ' saved.'));
     }
 
-    private function validateCard(Request $request, $jobId)
+    private function validateCard(Request $request, $jobId, $draft = false)
     {
         $rules = [
             'job_no' => 'nullable|string|max:255|unique:design_jobs,job_number' . ($jobId ? ',' . $jobId : ''),
             'job_date' => 'nullable|date',
             'job_start_on' => 'nullable|date',
-            'priority_level' => 'required|in:regular,urgent,critical',
+            'dummy_sent_on' => 'nullable|date',
+            'dummy_approved_on' => 'nullable|date',
+            'dummy_approved_by' => 'nullable|string|max:255',
+            'priority_level' => ($draft ? 'nullable' : 'required') . '|in:regular,urgent,critical',
             'estimate_number' => 'nullable|string|max:255',
             'estimated_delivery_date' => 'nullable|date',
             'due_date' => 'nullable|date',
@@ -165,13 +170,16 @@ class DesignJobCardController extends Controller
             'qc_result' => 'nullable|in:approved,rejected',
             'timeline_status' => 'nullable|in:on_time,delayed',
             'qc_comments' => 'nullable|string',
-            'qc_rejection_comments' => 'nullable|required_if:qc_result,rejected|string',
+            'qc_rejection_comments' => $draft ? 'nullable|string' : 'nullable|required_if:qc_result,rejected|string',
             'delay_reason' => 'nullable|string',
+            'wizard_completed_step' => 'nullable|integer|between:-1,12',
+            'wizard_current_step' => 'nullable|integer|between:0,12',
+            'sections.dummy' => 'nullable|in:yes',
         ];
         foreach (self::OPTIONAL_SECTIONS as $section) {
-            $rules['sections.' . $section] = 'required|in:yes,no';
+            $rules['sections.' . $section] = ($draft ? 'nullable' : 'required') . '|in:yes,no';
         }
-        if ($request->input('sections.dummy') === 'yes') {
+        if (!$draft) {
             $rules['dummy_sent_on'] = 'required|date';
             $rules['dummy_approved_on'] = 'required|date';
             $rules['dummy_approved_by'] = 'required|string|max:255';
@@ -179,7 +187,7 @@ class DesignJobCardController extends Controller
         $request->validate($rules);
     }
 
-    private function saveCard(Request $request, DesignJob $job)
+    private function saveCard(Request $request, DesignJob $job, $draft = false)
     {
         $card = $job->jobCard ?: new DesignJobCard();
         $card->design_job_id = $job->id;
@@ -190,7 +198,12 @@ class DesignJobCardController extends Controller
         if (!$card->job_date) {
             $card->job_date = optional($job->created_at)->toDateString() ?: now()->toDateString();
         }
-        $card->section_choices = $request->input('sections');
+        $choices = array_intersect_key((array) $request->input('sections', []), array_flip(self::OPTIONAL_SECTIONS));
+        $choices['dummy'] = 'yes';
+        $choices['__draft'] = $draft;
+        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 12;
+        $choices['__active_step'] = $draft ? (int) $request->input('wizard_current_step', 0) : 12;
+        $card->section_choices = $choices;
         $card->job_no = $card->job_no ?: $job->job_number;
         foreach ($this->booleanFields as $field) {
             $card->{$field} = $request->boolean($field);

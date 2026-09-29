@@ -15,6 +15,7 @@
 @endphp
 <style>
 .jc-page{max-width:1200px;margin:0 auto;color:#263449}
+.jc-page:not(.jc-ready) #jcForm>.jc-card,.jc-page:not(.jc-ready) #jcForm>.jc-actions{display:none}
 #jcForm{counter-reset:jc-section}
 .jc-hero{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:1.35rem 1.5rem;border:1px solid #dce5ee;border-radius:16px;background:linear-gradient(120deg,var(--primary-soft),#fff 58%);box-shadow:0 6px 20px rgba(15,23,42,.04)}
 .jc-icon{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:var(--primary-purple);color:#fff;font-size:1.1rem}
@@ -191,6 +192,8 @@ textarea.jc-control{min-height:74px;resize:vertical}
 @if($errors->any())<div class="jc-errors"><strong>Please check the form:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
 <form id="jcForm" method="POST" novalidate action="{{ $job->exists ? route('crm.design_jobs.job_card.update', $job->id) : route('crm.design_jobs.store') }}">{{ csrf_field() }}
+<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 12 : -1)) }}">
+<input type="hidden" name="wizard_current_step" value="{{ old('wizard_current_step', ($card->section_choices ?? [])['__active_step'] ?? 0) }}">
 
 {{-- Card 1 — Job header --}}
 <div class="jc-card">
@@ -440,7 +443,8 @@ textarea.jc-control{min-height:74px;resize:vertical}
     <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}">Cancel</a>
     <span class="jc-form-error" id="jcFormError" role="alert"></span>
     @if($job->exists)<button class="jc-btn jc-btn-light jc-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> Print Form</button>@endif
-    <button class="jc-btn jc-btn-primary" type="submit"><i class="fas fa-check-circle"></i> {{ $job->exists ? 'Save Job Card' : 'Create Job' }}</button>
+    <button class="jc-btn jc-btn-light jc-draft" type="submit" name="save_mode" value="draft"><i class="fas fa-save"></i> Save Draft</button>
+    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> {{ $job->exists ? 'Save Job Card' : 'Create Job' }}</button>
 </div>
 </form>
 </div>
@@ -510,14 +514,64 @@ document.addEventListener('DOMContentLoaded',function(){
     var keys=['header','dummy','briefing','stock','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
-    // Cards created before section choices existed should retain their printable fields.
-    if(@json($job->exists)&&!Object.keys(savedChoices).length){keys.slice(1).forEach(function(key){savedChoices[key]='yes';});}
     var printMode=new URLSearchParams(window.location.search).has('print');
-    if(printMode&&!Object.keys(savedChoices).length){keys.slice(1).forEach(function(key){savedChoices[key]='yes';});}
-    var done=keys.map(function(key,index){return index===0 ? @json($job->exists) : savedChoices[key]==='yes'||savedChoices[key]==='no';});
-    var saveButton=form.querySelector('.jc-actions button[type="submit"]');
+    // A legacy completed job has no wizard metadata; leave it fully editable/printable.
+    var legacy=@json($job->exists)&&savedChoices.__completed_step===undefined;
+    if(legacy&&!Object.keys(savedChoices).length){keys.slice(1).forEach(function(key){savedChoices[key]='yes';});}
+    var completedStep=parseInt(form.elements.wizard_completed_step.value,10);
+    if(isNaN(completedStep))completedStep=legacy?12:-1;
+    var activeStep=parseInt(form.elements.wizard_current_step.value,10);
+    if(isNaN(activeStep))activeStep=0;
+    activeStep=Math.max(0,Math.min(activeStep,keys.length-1));
+    var done=keys.map(function(key,index){return index<=completedStep;});
+    var saveButton=form.querySelector('.jc-complete');
     var printButton=form.querySelector('.jc-print');
     var formError=document.getElementById('jcFormError');
+    var cacheKey='crm-job-card-'+@json($job->exists ? (string) $job->id : 'new');
+    var cached=null;
+    try{cached=JSON.parse(sessionStorage.getItem(cacheKey)||'null');}catch(error){}
+    if(cached&&cached.fields){
+        Object.keys(cached.rows||{}).forEach(function(id){
+            var box=document.getElementById(id),config=cached.rows[id];
+            if(!box||!config||!config.name)return;
+            while(box.querySelectorAll('.jc-item').length<config.count)jcAddRow(id,config.name);
+        });
+        form.querySelectorAll('input,select,textarea').forEach(function(field){
+            if(!field.name||field.name==='_token'||field.name==='save_mode')return;
+            var entry=cached.fields[field.name];if(entry===undefined)return;
+            if(field.type==='radio'||field.type==='checkbox')field.checked=Array.isArray(entry)&&entry.includes(field.value);
+            else field.value=entry;
+        });
+        if(Array.isArray(cached.done)&&cached.done.length===keys.length)done=cached.done;
+        if(typeof cached.activeStep==='number')activeStep=Math.max(0,Math.min(cached.activeStep,keys.length-1));
+        keys.slice(2).forEach(function(key){
+            var choice=cached.fields['sections['+key+']'];
+            if(choice!==undefined)savedChoices[key]=choice;
+        });
+        jcToggleQc();
+    }
+    function syncProgress(){
+        completedStep=-1;
+        for(var i=0;i<done.length&&done[i];i++)completedStep=i;
+        form.elements.wizard_completed_step.value=completedStep;
+        form.elements.wizard_current_step.value=activeStep;
+    }
+    function remember(){
+        syncProgress();
+        var fields={},rows={};
+        form.querySelectorAll('input,select,textarea').forEach(function(field){
+            if(!field.name||field.name==='_token'||field.name==='save_mode')return;
+            if(field.type==='radio'||field.type==='checkbox'){
+                if(!fields[field.name])fields[field.name]=[];
+                if(field.checked)fields[field.name].push(field.value);
+            }else fields[field.name]=field.value;
+        });
+        form.querySelectorAll('.jc-items[id]').forEach(function(box){
+            var first=box.querySelector('.jc-item [name]');
+            if(first)rows[box.id]={count:box.querySelectorAll('.jc-item').length,name:first.name.split('[')[0]};
+        });
+        try{sessionStorage.setItem(cacheKey,JSON.stringify({fields:fields,rows:rows,done:done,activeStep:activeStep}));}catch(error){}
+    }
 
     function refreshSteps(){
         var unlocked=true;
@@ -528,6 +582,7 @@ document.addEventListener('DOMContentLoaded',function(){
         saveButton.disabled=!done.every(Boolean);
         saveButton.style.opacity=saveButton.disabled?'0.5':'1';
         if(printButton){printButton.disabled=saveButton.disabled;printButton.style.opacity=saveButton.style.opacity;}
+        syncProgress();
     }
     function setBodyEnabled(body,enabled,clear){
         body.querySelectorAll('input,select,textarea').forEach(function(field){
@@ -543,9 +598,12 @@ document.addEventListener('DOMContentLoaded',function(){
         card.dataset.choice=choice;
         card.querySelectorAll('.jc-step-choice button').forEach(function(button){button.classList.toggle('is-selected',button.dataset.value===choice);});
         done[index]=choice==='no';
+        for(var i=index+1;i<done.length;i++)done[i]=false;
         body.hidden=choice!=='yes';
         setBodyEnabled(body,choice==='yes',choice==='no');
+        activeStep=choice==='no'?Math.min(index+1,cards.length-1):index;
         refreshSteps();
+        remember();
         if(choice==='no'&&cards[index+1])cards[index+1].scrollIntoView({behavior:'smooth',block:'center'});
     }
     cards.forEach(function(card,index){
@@ -561,8 +619,11 @@ document.addEventListener('DOMContentLoaded',function(){
         var choices=document.createElement('div');choices.className='jc-step-choice';head.appendChild(choices);
         if(index===0){
             var start=document.createElement('button');start.type='button';start.textContent='Open';
-            start.addEventListener('click',function(){body.hidden=!body.hidden;start.textContent=body.hidden?'Open':'Close';});
+            start.addEventListener('click',function(){body.hidden=!body.hidden;start.textContent=body.hidden?'Open':'Close';activeStep=index;remember();});
             choices.appendChild(start);
+        }else if(index===1){
+            var dummyInput=document.createElement('input');dummyInput.type='hidden';dummyInput.name='sections[dummy]';dummyInput.value='yes';head.appendChild(dummyInput);
+            card.dataset.choice='yes';
         }else{
             var input=document.createElement('input');input.type='hidden';input.name='sections['+key+']';input.className='jc-section-input';input.value=savedChoices[key]||'';head.appendChild(input);
             ['yes','no'].forEach(function(choice){
@@ -590,22 +651,43 @@ document.addEventListener('DOMContentLoaded',function(){
                     if(!field.reportValidity())return;
                 }
             }
-            done[index]=true;body.hidden=true;refreshSteps();
+            done[index]=true;body.hidden=true;
+            activeStep=Math.min(index+1,cards.length-1);
+            if(index===0)choices.querySelector('button').textContent='Open';
+            if(index===0&&cards[1])cards[1].querySelector('.jc-step-body').hidden=false;
+            refreshSteps();remember();
             if(cards[index+1])cards[index+1].scrollIntoView({behavior:'smooth',block:'center'});
         });
         body.appendChild(next);
+        card.addEventListener('focusin',function(){activeStep=index;syncProgress();});
     });
     var product=form.querySelector('[name="product"]');
     product.addEventListener('input',function(){product.setCustomValidity('');if(!product.value.trim()){done[0]=false;refreshSteps();}});
     ['dummy_sent_on','dummy_approved_on','dummy_approved_by'].forEach(function(name){
         var field=form.querySelector('[name="'+name+'"]');
-        field.required=cards[1].dataset.choice==='yes';
+        field.required=false;
         field.addEventListener('input',function(){
-            if(cards[1].dataset.choice==='yes'&&!field.value.trim()){done[1]=false;refreshSteps();}
+            if(!field.value.trim()){done[1]=false;refreshSteps();}
         });
     });
+    // Drafts reopen precisely at the card being edited; new cards begin with Header open.
+    var openIndex=done.every(Boolean)?0:activeStep;
+    if(!done.every(Boolean))openIndex=Math.min(openIndex,done.findIndex(function(value){return !value;}));
+    if(printMode)openIndex=0;
+    if(cards[openIndex]){
+        var openBody=cards[openIndex].querySelector('.jc-step-body');
+        if(openIndex<2||cards[openIndex].dataset.choice==='yes')openBody.hidden=false;
+        if(openIndex===0)cards[0].querySelector('.jc-step-choice button').textContent='Close';
+    }
     form.addEventListener('submit',function(event){
         formError.textContent='';
+        syncProgress();
+        if(event.submitter&&event.submitter.value==='draft'){
+            // An unfinished card may have empty required fields; the server accepts drafts.
+            form.querySelectorAll('[required]').forEach(function(field){field.required=false;});
+            try{sessionStorage.removeItem(cacheKey);}catch(error){}
+            return;
+        }
         if(!done.every(Boolean)){
             event.preventDefault();
             var pending=done.findIndex(function(value){return !value;});
@@ -620,10 +702,18 @@ document.addEventListener('DOMContentLoaded',function(){
             if(card){card.querySelector('.jc-step-body').hidden=false;card.scrollIntoView({behavior:'smooth',block:'center'});}
             formError.textContent='Fill the required field in the highlighted card.';
             invalid.reportValidity();
+            return;
         }
+        try{sessionStorage.removeItem(cacheKey);}catch(error){}
     });
-    form.addEventListener('input',function(){formError.textContent='';});
+    form.addEventListener('input',function(){formError.textContent='';remember();});
+    form.addEventListener('change',remember);
+    form.addEventListener('click',function(event){if(event.target.closest('.jc-add,.jc-remove'))setTimeout(remember,0);});
     refreshSteps();
+    document.querySelector('.jc-page').classList.add('jc-ready');
+    if(@json($job->exists)&&!printMode&&!done.every(Boolean)&&activeStep>0){
+        requestAnimationFrame(function(){cards[activeStep].scrollIntoView({block:'center'});});
+    }
     var serverErrors=@json($errors->all());
     if(serverErrors.length){formError.textContent=serverErrors[0];document.querySelector('.jc-errors').scrollIntoView({block:'start'});}
     jcSyncPrintFields();
