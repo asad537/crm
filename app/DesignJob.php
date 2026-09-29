@@ -80,6 +80,11 @@ class DesignJob extends Model
         return $this->hasOne(DesignJobCard::class);
     }
 
+    public function attachments()
+    {
+        return $this->hasManyThrough(DesignJobCardAttachment::class, DesignJobCard::class);
+    }
+
     public function statusLabel()
     {
         return self::STATUSES[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));

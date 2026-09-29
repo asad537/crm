@@ -20,6 +20,9 @@ class DesignJobCardStageTest extends TestCase
 
         $card->section_choices = ['__active_step' => 6];
         $this->assertSame('Lamination', $card->currentCardLabel());
+
+        $card->section_choices = ['__active_step' => 14];
+        $this->assertSame('Attachments', $card->currentCardLabel());
     }
 
     public function test_old_cards_without_saved_position_do_not_claim_a_stage(): void

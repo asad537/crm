@@ -112,6 +112,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::delete('design-jobs/{id}', 'DesignJobController@destroy')->name('crm.design_jobs.destroy')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/job-card', 'DesignJobCardController@edit')->name('crm.design_jobs.job_card.edit')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/job-card/pdf', 'DesignJobCardController@pdf')->name('crm.design_jobs.job_card.pdf')->where('id', '[0-9]+');
+        Route::get('design-jobs/{id}/attachments/{attachmentId}', 'DesignJobCardController@downloadAttachment')->name('crm.design_jobs.attachments.download')->where(['id' => '[0-9]+', 'attachmentId' => '[0-9]+']);
         Route::post('design-jobs/{id}/job-card', 'DesignJobCardController@update')->name('crm.design_jobs.job_card.update')->where('id', '[0-9]+');
         });
 

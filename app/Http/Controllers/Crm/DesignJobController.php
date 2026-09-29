@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class DesignJobController extends Controller
 {
@@ -18,7 +19,7 @@ class DesignJobController extends Controller
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
         $status = $request->input('status', 'all');
 
-        $query = DesignJob::with(['ticket', 'designer', 'jobCard'])
+        $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments'])
             ->where('workspace_id', $workspaceId)
             ->latest();
         if ($status !== 'all' && array_key_exists($status, DesignJob::STATUSES)) {
@@ -53,6 +54,7 @@ class DesignJobController extends Controller
             'job' => new DesignJob(),
             'card' => new \App\DesignJobCard(),
             'stocks' => collect(),
+            'attachments' => collect(),
         ]);
     }
 
@@ -92,7 +94,9 @@ class DesignJobController extends Controller
         }
 
         $jobNumber = $job->job_number;
+        $attachmentPaths = $job->attachments()->pluck('path')->all();
         $job->delete();
+        Storage::disk('local')->delete($attachmentPaths);
 
         return redirect()->route('crm.design_jobs.index')->with('success', 'Job ' . $jobNumber . ' deleted.');
     }

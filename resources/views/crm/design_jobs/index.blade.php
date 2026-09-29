@@ -79,7 +79,7 @@
     .dj-card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;
         box-shadow:0 1px 3px rgba(20,23,33,.04), 0 18px 40px -30px rgba(20,23,33,.25); }
     .dj-wrap { overflow-x:auto; }
-    .dj-table { width:100%; border-collapse:collapse; min-width:1040px; }
+    .dj-table { width:100%; border-collapse:collapse; min-width:1180px; }
     .dj-table thead th { background:#fafafb; font-size:.66rem; text-transform:uppercase; letter-spacing:.09em;
         font-weight:700; color:#9096a1; text-align:left; padding:.85rem 1.15rem; border-bottom:1px solid var(--line); }
     .dj-table tbody td { padding:1rem 1.15rem; border-bottom:1px solid var(--line); font-size:.88rem; vertical-align:middle; }
@@ -111,6 +111,10 @@
     .dj-status-select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
     .dj-deliv { font-size:.82rem; color:#3b3f48; white-space:nowrap; }
     .dj-deliv .none { color:#c3c7cf; }
+    .dj-files{display:grid;gap:.3rem;max-width:170px;font-size:.73rem}
+    .dj-files a{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);text-decoration:none;font-weight:650}
+    .dj-files a:hover{text-decoration:underline}
+    .dj-files details summary{color:#607086;cursor:pointer;font-weight:700}
     .dj-track { display:inline-flex; align-items:center; gap:.4rem; font-size:.78rem; font-weight:600; text-decoration:none;
         color:#5b616e; border:1px solid var(--line); border-radius:9px; padding:.42rem .75rem; transition:all .14s; white-space:nowrap; }
     .dj-track:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
@@ -162,6 +166,7 @@
                 <th>Designer</th>
                 <th>Delivery</th>
                 <th>Due</th>
+                <th>Attachments</th>
                 <th></th>
             </tr></thead>
             <tbody>
@@ -202,6 +207,23 @@
                             </span>
                         @else<span class="none">—</span>@endif
                     </td>
+                    <td>
+                        @php($files = $job->jobCard ? $job->jobCard->attachments : collect())
+                        @if($files->isNotEmpty())
+                            <div class="dj-files">
+                                @foreach($files->take(2) as $file)
+                                    <a href="{{ route('crm.design_jobs.attachments.download', [$job->id, $file->id]) }}" title="{{ $file->original_name }}" data-no-ajax-nav><i class="fas fa-paperclip"></i> {{ $file->original_name }}</a>
+                                @endforeach
+                                @if($files->count() > 2)
+                                    <details><summary>+{{ $files->count() - 2 }} more</summary>
+                                        @foreach($files->skip(2) as $file)
+                                            <a href="{{ route('crm.design_jobs.attachments.download', [$job->id, $file->id]) }}" title="{{ $file->original_name }}" data-no-ajax-nav><i class="fas fa-paperclip"></i> {{ $file->original_name }}</a>
+                                        @endforeach
+                                    </details>
+                                @endif
+                            </div>
+                        @else<span class="dj-deliv none">—</span>@endif
+                    </td>
                     <td><div class="dj-actions">
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}?print=1" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
@@ -216,7 +238,7 @@
                     </div></td>
                 </tr>
             @empty
-                <tr><td colspan="8"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
+                <tr><td colspan="9"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
             @endforelse
             </tbody>
         </table>

@@ -21,6 +21,7 @@ class DesignJobCard extends Model
         'Pasting',
         'Quality Check',
         'Job Timeline',
+        'Attachments',
     ];
 
     protected $guarded = ['id'];
@@ -80,5 +81,10 @@ class DesignJobCard extends Model
     public function stocks()
     {
         return $this->hasMany(DesignJobCardStock::class)->orderBy('position');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(DesignJobCardAttachment::class)->orderByDesc('id');
     }
 }

@@ -84,6 +84,13 @@ textarea.jc-control{min-height:74px;resize:vertical}
 .jc-foil-card .jc-timestrip,.jc-corr-card .jc-timestrip{margin-top:.65rem;padding:.6rem}
 .jc-qc-card .jc-grid,.jc-timeline-card .jc-grid{gap:.7rem .9rem}
 .jc-qc-card textarea.jc-control,.jc-timeline-card textarea.jc-control{min-height:64px}
+.jc-attachment-upload{display:block;width:100%;padding:1rem;border:1px dashed #aebfd0;border-radius:10px;background:#f8fafc;color:#475569;font-size:.8rem}
+.jc-attachment-hint{margin:.5rem 0 0;color:#718096;font-size:.72rem}
+.jc-attachment-list{display:grid;gap:.45rem;margin-top:.9rem}
+.jc-attachment-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.65rem .8rem;border:1px solid #e1e8f0;border-radius:9px;background:#fbfcfe;font-size:.8rem}
+.jc-attachment-row a{min-width:0;overflow-wrap:anywhere;color:var(--primary-purple);font-weight:750;text-decoration:none}
+.jc-attachment-row small{color:#8390a1;white-space:nowrap}
+.jc-attachment-row label{white-space:nowrap;color:#b91c1c;font-size:.72rem;font-weight:700}
 .jc-timestrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;margin-top:.75rem;padding:.75rem;border:1px solid #dce5ee;border-radius:9px;background:#f8fafc}
 .jc-timestrip label{color:#526174}
 .jc-timestrip .jc-control{min-height:36px}
@@ -114,7 +121,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
 @media print{
   @page{size:A4 portrait;margin:5mm}
   body{display:block!important;height:auto!important;overflow:visible!important;background:#fff!important;color:#111!important}
-  .custom-sidebar,.sidebar-overlay,.top-bar,.jc-actions,.jc-step-choice,.jc-step-next,.jc-flash,.jc-errors,.jc-add,.jc-remove{display:none!important}
+  .custom-sidebar,.sidebar-overlay,.top-bar,.jc-actions,.jc-step-choice,.jc-step-next,.jc-flash,.jc-errors,.jc-add,.jc-remove,.jc-attachment-card{display:none!important}
   .main-area{height:auto!important;overflow:visible!important;padding:0!important;width:100%!important}
   .jc-page{max-width:none!important}
   .jc-hero{box-shadow:none!important;background:#fff!important;border:0!important;border-bottom:2px solid #222!important;border-radius:0!important;padding:0 0 4mm!important;margin-bottom:4mm!important}
@@ -237,8 +244,8 @@ textarea.jc-control{min-height:74px;resize:vertical}
 @if(session('success'))<div class="jc-flash"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>@endif
 @if($errors->any())<div class="jc-errors"><strong>Please check the form:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-<form id="jcForm" method="POST" novalidate action="{{ $job->exists ? route('crm.design_jobs.job_card.update', $job->id) : route('crm.design_jobs.store') }}">{{ csrf_field() }}
-<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 13 : -1)) }}">
+<form id="jcForm" method="POST" enctype="multipart/form-data" novalidate action="{{ $job->exists ? route('crm.design_jobs.job_card.update', $job->id) : route('crm.design_jobs.store') }}">{{ csrf_field() }}
+<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 14 : -1)) }}">
 <input type="hidden" name="wizard_current_step" value="{{ old('wizard_current_step', ($card->section_choices ?? [])['__active_step'] ?? 0) }}">
 
 {{-- Card 1 — Job header --}}
@@ -504,6 +511,25 @@ textarea.jc-control{min-height:74px;resize:vertical}
     </div>
 </div>
 
+{{-- Card 15 — Attachments --}}
+<div class="jc-card jc-attachment-card">
+    <h4 class="jc-title"><i class="fas fa-paperclip"></i> Attachments</h4>
+    <label class="jc-briefing-heading" for="jcAttachments">Add files</label>
+    <input class="jc-attachment-upload" id="jcAttachments" type="file" name="attachments[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.ai,.psd,.eps,.zip">
+    <p class="jc-attachment-hint">Up to 10 files per save, 20 MB each, 40 MB total. PDF, images, Office, AI, PSD, EPS or ZIP.</p>
+    @if($attachments->isNotEmpty())
+        <div class="jc-attachment-list">
+            @foreach($attachments as $attachment)
+                <div class="jc-attachment-row">
+                    <a href="{{ route('crm.design_jobs.attachments.download', [$job->id, $attachment->id]) }}" data-no-ajax-nav><i class="fas fa-paperclip"></i> {{ $attachment->original_name }}</a>
+                    <small>{{ number_format($attachment->size / 1024, 1) }} KB</small>
+                    <label><input type="checkbox" name="remove_attachments[]" value="{{ $attachment->id }}"> Remove on save</label>
+                </div>
+            @endforeach
+        </div>
+    @endif
+</div>
+
 <div class="jc-actions">
     <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}">Cancel</a>
     <span class="jc-form-error" id="jcFormError" role="alert"></span>
@@ -578,7 +604,7 @@ function jcInitJobCard(){
     if(!form||form.dataset.jcInitialized==='1')return;
     form.dataset.jcInitialized='1';
     jcToggleQc();
-    var keys=['header','dummy','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline'];
+    var keys=['header','dummy','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline','attachments'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
     var printMode=new URLSearchParams(window.location.search).has('print');
@@ -586,7 +612,7 @@ function jcInitJobCard(){
     var legacy=@json($job->exists)&&savedChoices.__completed_step===undefined;
     if(legacy&&!Object.keys(savedChoices).length){keys.slice(1).forEach(function(key){savedChoices[key]='yes';});}
     var completedStep=parseInt(form.elements.wizard_completed_step.value,10);
-    if(isNaN(completedStep))completedStep=legacy?13:-1;
+    if(isNaN(completedStep))completedStep=legacy?14:-1;
     var activeStep=parseInt(form.elements.wizard_current_step.value,10);
     if(isNaN(activeStep))activeStep=0;
     activeStep=Math.max(0,Math.min(activeStep,keys.length-1));
@@ -599,17 +625,18 @@ function jcInitJobCard(){
     try{cached=JSON.parse(sessionStorage.getItem(cacheKey)||'null');}catch(error){}
     if(cached&&cached.fields){
         // Preserve unsaved browser data from before Foam was inserted after Stock.
-        if(Array.isArray(cached.done)&&cached.done.length===keys.length-1){
+        if(Array.isArray(cached.done)&&cached.done.length===keys.length-2){
             cached.done.splice(4,0,!!cached.done[1]);
             if(typeof cached.activeStep==='number'&&cached.activeStep>=4)cached.activeStep++;
         }
+        if(Array.isArray(cached.done)&&cached.done.length===keys.length-1)cached.done.push(!!cached.done[1]);
         Object.keys(cached.rows||{}).forEach(function(id){
             var box=document.getElementById(id),config=cached.rows[id];
             if(!box||!config||!config.name)return;
             while(box.querySelectorAll('.jc-item').length<config.count)jcAddRow(id,config.name);
         });
         form.querySelectorAll('input,select,textarea').forEach(function(field){
-            if(!field.name||field.name==='_token'||field.name==='save_mode')return;
+            if(!field.name||field.name==='_token'||field.name==='save_mode'||field.type==='file')return;
             var entry=cached.fields[field.name];if(entry===undefined)return;
             if(field.type==='radio'||field.type==='checkbox')field.checked=Array.isArray(entry)&&entry.includes(field.value);
             else field.value=entry;
@@ -629,7 +656,7 @@ function jcInitJobCard(){
         syncProgress();
         var fields={},rows={};
         form.querySelectorAll('input,select,textarea').forEach(function(field){
-            if(!field.name||field.name==='_token'||field.name==='save_mode')return;
+            if(!field.name||field.name==='_token'||field.name==='save_mode'||field.type==='file')return;
             if(field.type==='radio'||field.type==='checkbox'){
                 if(!fields[field.name])fields[field.name]=[];
                 if(field.checked)fields[field.name].push(field.value);

@@ -10,12 +10,14 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class DesignJobCardController extends Controller
 {
     private const OPTIONAL_SECTIONS = [
         'briefing', 'stock', 'foam', 'printing', 'lamination',
-        'screen', 'foiling', 'corrugation', 'diecutting', 'pasting', 'quality', 'timeline',
+        'screen', 'foiling', 'corrugation', 'diecutting', 'pasting', 'quality', 'timeline', 'attachments',
     ];
 
     /** Single-value fields saved straight from the request. */
@@ -75,13 +77,30 @@ class DesignJobCardController extends Controller
     {
         $this->requireAccess();
         $job = $this->findJob($id);
-        $card = $job->jobCard()->with('stocks')->first()
+        $card = $job->jobCard()->with('stocks', 'attachments')->first()
             ?: new DesignJobCard(['design_job_id' => $job->id]);
 
         return view('crm.design_jobs.job_card', [
             'job' => $job,
             'card' => $card,
             'stocks' => $card->exists ? $card->stocks : collect(),
+            'attachments' => $card->exists ? $card->attachments : collect(),
+        ]);
+    }
+
+    public function downloadAttachment($id, $attachmentId)
+    {
+        $this->requireAccess();
+        $job = $this->findJob($id);
+        $card = $job->jobCard;
+        abort_unless($card, 404);
+        $attachment = $card->attachments()->findOrFail($attachmentId);
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($attachment->path), 404);
+
+        return response()->download($disk->path($attachment->path), $attachment->original_name, [
+            'Content-Type' => 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
@@ -110,23 +129,31 @@ class DesignJobCardController extends Controller
         $this->validateCard($request, null, $draft);
         $request->validate(['product' => ($draft ? 'nullable' : 'required') . '|string|max:255']);
 
-        $job = DB::transaction(function () use ($request, $user, $draft) {
-            $jobNumber = $this->nullIfBlank($request->input('job_no')) ?: $this->newJobNumber();
-            $job = DesignJob::create([
-                'job_number' => $jobNumber,
-                'workspace_id' => CrmWorkspaceContext::id(),
-                'designer_id' => $user->id,
-                'title' => $this->nullIfBlank($request->input('product')) ?: 'Untitled Job',
-                'estimate_number' => $this->nullIfBlank($request->input('estimate_number')),
-                'estimated_delivery_date' => $this->nullIfBlank($request->input('estimated_delivery_date')),
-                'due_date' => $this->nullIfBlank($request->input('due_date')),
-                'status' => 'designing',
-                'status_updated_at' => now(),
-            ]);
-            $this->saveCard($request, $job, $draft);
+        $uploadedPaths = [];
+        $removedPaths = [];
+        try {
+            $job = DB::transaction(function () use ($request, $user, $draft, &$uploadedPaths, &$removedPaths) {
+                $jobNumber = $this->nullIfBlank($request->input('job_no')) ?: $this->newJobNumber();
+                $job = DesignJob::create([
+                    'job_number' => $jobNumber,
+                    'workspace_id' => CrmWorkspaceContext::id(),
+                    'designer_id' => $user->id,
+                    'title' => $this->nullIfBlank($request->input('product')) ?: 'Untitled Job',
+                    'estimate_number' => $this->nullIfBlank($request->input('estimate_number')),
+                    'estimated_delivery_date' => $this->nullIfBlank($request->input('estimated_delivery_date')),
+                    'due_date' => $this->nullIfBlank($request->input('due_date')),
+                    'status' => 'designing',
+                    'status_updated_at' => now(),
+                ]);
+                $card = $this->saveCard($request, $job, $draft);
+                $this->syncAttachments($request, $card, $uploadedPaths, $removedPaths);
 
-            return $job;
-        });
+                return $job;
+            });
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($uploadedPaths);
+            throw $e;
+        }
 
         return redirect()->route('crm.design_jobs.index')
             ->with('success', 'Job ' . $job->job_number . ' saved.');
@@ -144,9 +171,18 @@ class DesignJobCardController extends Controller
         $draft = $request->input('save_mode') === 'draft';
         $this->validateCard($request, $job->id, $draft);
 
-        DB::transaction(function () use ($request, $job, $draft) {
-            $this->saveCard($request, $job, $draft);
-        });
+        $uploadedPaths = [];
+        $removedPaths = [];
+        try {
+            DB::transaction(function () use ($request, $job, $draft, &$uploadedPaths, &$removedPaths) {
+                $card = $this->saveCard($request, $job, $draft);
+                $this->syncAttachments($request, $card, $uploadedPaths, $removedPaths);
+            });
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($uploadedPaths);
+            throw $e;
+        }
+        Storage::disk('local')->delete($removedPaths);
 
         return redirect()->route('crm.design_jobs.index')
             ->with('success', 'Job ' . $job->job_number . ' saved.');
@@ -180,8 +216,12 @@ class DesignJobCardController extends Controller
             'qc_comments' => 'nullable|string',
             'qc_rejection_comments' => $draft ? 'nullable|string' : 'nullable|required_if:qc_result,rejected|string',
             'delay_reason' => 'nullable|string',
-            'wizard_completed_step' => 'nullable|integer|between:-1,13',
-            'wizard_current_step' => 'nullable|integer|between:0,13',
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|extensions:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,ai,psd,eps,zip|max:20480',
+            'remove_attachments' => 'nullable|array|max:50',
+            'remove_attachments.*' => 'integer|distinct',
+            'wizard_completed_step' => 'nullable|integer|between:-1,14',
+            'wizard_current_step' => 'nullable|integer|between:0,14',
         ];
         if (!$draft) {
             $rules['dummy_sent_on'] = 'required|date';
@@ -189,6 +229,15 @@ class DesignJobCardController extends Controller
             $rules['dummy_approved_by'] = 'required|string|max:255';
         }
         $request->validate($rules);
+
+        $totalUploadBytes = array_sum(array_map(function ($file) {
+            return $file->getSize();
+        }, $request->file('attachments', [])));
+        if ($totalUploadBytes > 40 * 1024 * 1024) {
+            throw ValidationException::withMessages([
+                'attachments' => 'Attachments must be 40 MB or less in total per save.',
+            ]);
+        }
     }
 
     private function saveCard(Request $request, DesignJob $job, $draft = false)
@@ -205,7 +254,7 @@ class DesignJobCardController extends Controller
         $choices = array_fill_keys(self::OPTIONAL_SECTIONS, 'yes');
         $choices['dummy'] = 'yes';
         $choices['__draft'] = $draft;
-        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 13;
+        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 14;
         $choices['__active_step'] = (int) $request->input('wizard_current_step', 0);
         $card->section_choices = $choices;
         $card->job_no = $card->job_no ?: $job->job_number;
@@ -243,6 +292,34 @@ class DesignJobCardController extends Controller
 
         // Procurement is a separate paper/form; retain any previously saved rows.
         $this->syncStocks($card, $request->input('stocks', []));
+
+        return $card;
+    }
+
+    private function syncAttachments(Request $request, DesignJobCard $card, array &$uploadedPaths, array &$removedPaths)
+    {
+        $removeIds = $request->input('remove_attachments', []);
+        if ($removeIds) {
+            foreach ($card->attachments()->whereIn('id', $removeIds)->get() as $attachment) {
+                $removedPaths[] = $attachment->path;
+                $attachment->delete();
+            }
+        }
+
+        foreach ($request->file('attachments', []) as $file) {
+            $path = $file->store('design-job-cards/' . $card->id, 'local');
+            if (!$path) {
+                throw new \RuntimeException('Could not store the job attachment.');
+            }
+            $uploadedPaths[] = $path;
+            $name = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+            $card->attachments()->create([
+                'path' => $path,
+                'original_name' => mb_substr($name, 0, 255),
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+            ]);
+        }
     }
 
     private function newJobNumber()
