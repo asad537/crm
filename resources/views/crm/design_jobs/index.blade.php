@@ -112,6 +112,7 @@
     .dj-track { display:inline-flex; align-items:center; gap:.4rem; font-size:.78rem; font-weight:600; text-decoration:none;
         color:#5b616e; border:1px solid var(--line); border-radius:9px; padding:.42rem .75rem; transition:all .14s; white-space:nowrap; }
     .dj-track:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+    .dj-actions { display:flex; align-items:center; gap:.4rem; }
     .dj-empty { text-align:center; padding:3.5rem 1rem; color:var(--muted); font-size:.9rem; }
     .dj-pagination { padding:1rem; display:flex; justify-content:center; }
     /* NOTE: this button renders in the layout top bar, OUTSIDE .dj — must use theme vars, not .dj-scoped --accent */
@@ -123,9 +124,7 @@
 
 @if($canCreate)
     @section('header_actions')
-        <form method="POST" action="{{ route('crm.design_jobs.store') }}" style="display:inline">{{ csrf_field() }}
-            <button type="submit" class="dj-new"><i class="fas fa-plus"></i> New Job</button>
-        </form>
+        <a href="{{ route('crm.design_jobs.create') }}" class="dj-new"><i class="fas fa-plus"></i> New Job</a>
     @endsection
 @endif
 
@@ -196,7 +195,11 @@
                             </span>
                         @else<span class="none">—</span>@endif
                     </td>
-                    <td><a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-clipboard-list"></i> Job Card</a></td>
+                    <td><div class="dj-actions">
+                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
+                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}?print=1" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
+                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}"><i class="fas fa-file-pdf"></i> PDF</a>
+                    </div></td>
                 </tr>
             @empty
                 <tr><td colspan="7"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>

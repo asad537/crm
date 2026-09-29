@@ -42,31 +42,16 @@ class DesignJobController extends Controller
         return view('crm.design_jobs.index', compact('jobs', 'status', 'statusCounts'));
     }
 
-    /**
-     * Create a blank design job and go straight to its job card.
-     * (The "New Job" button posts here — no separate create form.)
-     */
-    public function store(Request $request)
+    /** Show the job card before creating a job or assigning its number. */
+    public function create()
     {
-        $user = $this->requireDesigner();
-        $workspaceId = \App\Support\CrmWorkspaceContext::id();
+        $this->requireDesigner();
 
-        // Unique auto job number.
-        do {
-            $jobNumber = 'JOB-' . now()->format('ymd') . '-' . strtoupper(substr(uniqid(), -5));
-        } while (DesignJob::where('job_number', $jobNumber)->exists());
-
-        $job = DesignJob::create([
-            'job_number' => $jobNumber,
-            'workspace_id' => $workspaceId,
-            'designer_id' => $user->id,
-            'title' => 'Untitled Job',
-            'status' => 'designing',
-            'status_updated_at' => now(),
+        return view('crm.design_jobs.job_card', [
+            'job' => new DesignJob(),
+            'card' => new \App\DesignJobCard(),
+            'stocks' => collect(),
         ]);
-
-        return redirect()->route('crm.design_jobs.job_card.edit', $job->id)
-            ->with('success', 'Job ' . $job->job_number . ' created. Fill in its job card below.');
     }
 
     public function updateStatus(Request $request, $id)

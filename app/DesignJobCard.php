@@ -8,11 +8,13 @@ class DesignJobCard extends Model
 {
     protected $guarded = ['id'];
 
-    protected $dates = [
-        'job_date', 'priority_date', 'dummy_sent_on', 'dummy_approved_on',
-    ];
-
     protected $casts = [
+        'job_date' => 'date',
+        'job_start_on' => 'date',
+        'priority_date' => 'date',
+        'dummy_sent_on' => 'date',
+        'dummy_approved_on' => 'date',
+        'section_choices' => 'array',
         'priority_urgent' => 'boolean',
         'priority_critical' => 'boolean',
         'priority_substandard' => 'boolean',

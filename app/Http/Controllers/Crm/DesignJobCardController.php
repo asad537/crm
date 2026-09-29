@@ -6,19 +6,22 @@ use App\DesignJob;
 use App\DesignJobCard;
 use App\Http\Controllers\Controller;
 use App\Support\CrmWorkspaceContext;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class DesignJobCardController extends Controller
 {
-    /** Timed stages sharing the {prefix}_start / {prefix}_end / {prefix}_total_minutes convention. */
-    private $timedStages = ['printing', 'lam', 'screen', 'foil', 'corr', 'die'];
+    private const OPTIONAL_SECTIONS = [
+        'dummy', 'briefing', 'stock', 'printing', 'lamination',
+        'screen', 'foiling', 'corrugation', 'diecutting', 'pasting', 'quality', 'timeline',
+    ];
 
     /** Single-value fields saved straight from the request. */
     private $scalarFields = [
         // Header
-        'job_date', 'job_no', 'product', 'order_qty', 'priority_date',
+        'job_date', 'job_no', 'product', 'order_qty', 'job_start_on',
         // Dummy / sample approval
         'dummy_sent_on', 'dummy_approved_on', 'dummy_approved_by',
         // Job briefing
@@ -36,13 +39,12 @@ class DesignJobCardController extends Controller
         // Pasting
         'paste_other_text', 'paste_other_qty',
         // Quality check
-        'qc_result', 'qc_comments', 'qc_approved_by',
+        'qc_result', 'qc_comments', 'qc_rejection_comments', 'qc_approved_by',
         // Timeline
-        'timeline_status', 'delay_days', 'delay_reason',
+        'timeline_status', 'delay_reason',
     ];
 
     private $booleanFields = [
-        'priority_urgent', 'priority_critical', 'priority_substandard',
         'coating_uv', 'coating_coating', 'coating_varnish', 'coating_other',
         'lam_gloss', 'lam_matte', 'lam_soft_touch', 'lam_other',
         'screen_uv',
@@ -71,15 +73,60 @@ class DesignJobCardController extends Controller
     {
         $this->requireAccess();
         $job = $this->findJob($id);
-        $card = $job->jobCard()->with(['materials', 'stocks'])->first()
+        $card = $job->jobCard()->with('stocks')->first()
             ?: new DesignJobCard(['design_job_id' => $job->id]);
 
         return view('crm.design_jobs.job_card', [
             'job' => $job,
             'card' => $card,
-            'materials' => $card->exists ? $card->materials : collect(),
             'stocks' => $card->exists ? $card->stocks : collect(),
         ]);
+    }
+
+    public function pdf($id)
+    {
+        $this->requireAccess();
+        $job = $this->findJob($id);
+        $card = $job->jobCard()->with('stocks')->first()
+            ?: new DesignJobCard(['design_job_id' => $job->id]);
+
+        $filename = preg_replace('/[^A-Za-z0-9_-]+/', '-', $job->job_number ?: 'job-' . $job->id);
+
+        return Pdf::loadView('crm.design_jobs.job_card_pdf', [
+            'job' => $job,
+            'card' => $card,
+            'stocks' => $card->exists ? $card->stocks : collect(),
+        ])->setPaper('a4')->download($filename . '-job-card.pdf');
+    }
+
+    public function store(Request $request)
+    {
+        $user = $this->requireAccess();
+        abort_unless($user->isAdmin() || $user->isDesigner(), 403, 'Only designers can create job cards.');
+
+        $this->validateCard($request, null);
+        $request->validate(['product' => 'required|string|max:255']);
+
+        $job = DB::transaction(function () use ($request, $user) {
+            $jobNumber = $this->nullIfBlank($request->input('job_no')) ?: $this->newJobNumber();
+            $job = DesignJob::create([
+                'job_number' => $jobNumber,
+                'workspace_id' => CrmWorkspaceContext::id(),
+                'designer_id' => $user->id,
+                'title' => trim($request->input('product')),
+                'estimate_number' => $this->nullIfBlank($request->input('estimate_number')),
+                'estimated_delivery_date' => $this->nullIfBlank($request->input('estimated_delivery_date')),
+                'due_date' => $this->nullIfBlank($request->input('due_date')),
+                'status' => 'designing',
+                'status_updated_at' => now(),
+            ]);
+            $this->saveCard($request, $job);
+
+            return $job;
+        });
+
+        return redirect()->route('crm.design_jobs.index')
+            ->with('success', 'Job ' . $job->job_number . ' created.');
     }
 
     public function update(Request $request, $id)
@@ -91,85 +138,103 @@ class DesignJobCardController extends Controller
             abort(403, 'Only designers can edit the job card.');
         }
 
-        $request->validate([
-            'job_no' => 'nullable|string|max:255|unique:design_jobs,job_number,' . $job->id,
+        $this->validateCard($request, $job->id);
+
+        DB::transaction(function () use ($request, $job) {
+            $this->saveCard($request, $job);
+        });
+
+        return redirect()->route('crm.design_jobs.index')
+            ->with('success', 'Job ' . $job->job_number . ' saved.');
+    }
+
+    private function validateCard(Request $request, $jobId)
+    {
+        $rules = [
+            'job_no' => 'nullable|string|max:255|unique:design_jobs,job_number' . ($jobId ? ',' . $jobId : ''),
+            'job_date' => 'nullable|date',
+            'job_start_on' => 'nullable|date',
+            'priority_level' => 'required|in:regular,urgent,critical',
+            'estimate_number' => 'nullable|string|max:255',
+            'estimated_delivery_date' => 'nullable|date',
+            'due_date' => 'nullable|date',
             'box_unit' => 'nullable|in:cm,inches,mm',
             'box_type' => 'nullable|in:hard,soft,other',
             'printing_method' => 'nullable|in:offset,digital,other',
             'corr_color' => 'nullable|in:brown,white,other',
             'qc_result' => 'nullable|in:approved,rejected',
             'timeline_status' => 'nullable|in:on_time,delayed',
-            'qc_comments' => 'nullable|required_if:qc_result,rejected|string',
-            'delay_days' => 'nullable|required_if:timeline_status,delayed|integer|min:0',
-            'delay_reason' => 'nullable|required_if:timeline_status,delayed|string',
-        ]);
-
-        DB::transaction(function () use ($request, $job) {
-            $card = $job->jobCard ?: new DesignJobCard();
-            $card->design_job_id = $job->id;
-
-            foreach ($this->scalarFields as $field) {
-                $card->{$field} = $this->nullIfBlank($request->input($field));
-            }
-            foreach ($this->booleanFields as $field) {
-                $card->{$field} = $request->boolean($field);
-            }
-
-            // Total plates: keep the submitted (auto) value, falling back to the CTP plate count.
-            $card->total_plates = $this->nullIfBlank($request->input('total_plates'))
-                ?? $this->nullIfBlank($request->input('ctp_plates'));
-
-            foreach ($this->timedStages as $prefix) {
-                $start = $this->nullIfBlank($request->input($prefix . '_start'));
-                $end = $this->nullIfBlank($request->input($prefix . '_end'));
-                $card->{$prefix . '_start'} = $start;
-                $card->{$prefix . '_end'} = $end;
-                $card->{$prefix . '_total_minutes'} = $this->minutesBetween($start, $end);
-            }
-
-            $card->save();
-
-            // Sync the design job's title (from product) and job number (from Job No)
-            // so the list reflects what the user typed in the card.
-            $jobUpdates = [];
-            $product = $this->nullIfBlank($request->input('product'));
-            if ($product !== null && $product !== $job->title) {
-                $jobUpdates['title'] = $product;
-            }
-            $jobNo = $this->nullIfBlank($request->input('job_no'));
-            if ($jobNo !== null && $jobNo !== $job->job_number) {
-                $jobUpdates['job_number'] = $jobNo;
-            }
-            if ($jobUpdates) {
-                $job->update($jobUpdates);
-            }
-
-            $this->syncMaterials($card, $request->input('materials', []));
-            $this->syncStocks($card, $request->input('stocks', []));
-        });
-
-        return redirect()
-            ->route('crm.design_jobs.job_card.edit', $job->id)
-            ->with('success', 'Job card saved.');
+            'qc_comments' => 'nullable|string',
+            'qc_rejection_comments' => 'nullable|required_if:qc_result,rejected|string',
+            'delay_reason' => 'nullable|string',
+        ];
+        foreach (self::OPTIONAL_SECTIONS as $section) {
+            $rules['sections.' . $section] = 'required|in:yes,no';
+        }
+        if ($request->input('sections.dummy') === 'yes') {
+            $rules['dummy_sent_on'] = 'required|date';
+            $rules['dummy_approved_on'] = 'required|date';
+            $rules['dummy_approved_by'] = 'required|string|max:255';
+        }
+        $request->validate($rules);
     }
 
-    private function syncMaterials(DesignJobCard $card, array $rows)
+    private function saveCard(Request $request, DesignJob $job)
     {
-        $card->materials()->delete();
-        $position = 0;
-        foreach ($rows as $row) {
-            if ($this->rowIsEmpty($row, ['item', 'specs', 'qty', 'needed_by', 'remarks'])) {
-                continue;
-            }
-            $card->materials()->create([
-                'position' => $position++,
-                'item' => $this->nullIfBlank($row['item'] ?? null),
-                'specs' => $this->nullIfBlank($row['specs'] ?? null),
-                'qty' => $this->nullIfBlank($row['qty'] ?? null),
-                'needed_by' => $this->nullIfBlank($row['needed_by'] ?? null),
-                'remarks' => $this->nullIfBlank($row['remarks'] ?? null),
-            ]);
+        $card = $job->jobCard ?: new DesignJobCard();
+        $card->design_job_id = $job->id;
+
+        foreach ($this->scalarFields as $field) {
+            $card->{$field} = $this->nullIfBlank($request->input($field));
         }
+        if (!$card->job_date) {
+            $card->job_date = optional($job->created_at)->toDateString() ?: now()->toDateString();
+        }
+        $card->section_choices = $request->input('sections');
+        $card->job_no = $card->job_no ?: $job->job_number;
+        foreach ($this->booleanFields as $field) {
+            $card->{$field} = $request->boolean($field);
+        }
+        $card->priority_urgent = $request->input('priority_level') === 'urgent';
+        $card->priority_critical = $request->input('priority_level') === 'critical';
+
+        // Total plates: keep the submitted (auto) value, falling back to the CTP plate count.
+        $card->total_plates = $this->nullIfBlank($request->input('total_plates'))
+            ?? $this->nullIfBlank($request->input('ctp_plates'));
+
+        $card->save();
+
+        // Sync the design job's title (from product) and job number (from Job No)
+        // so the list reflects what the user typed in the card.
+        $jobUpdates = [];
+        $product = $this->nullIfBlank($request->input('product'));
+        if ($product !== null && $product !== $job->title) {
+            $jobUpdates['title'] = $product;
+        }
+        $jobNo = $this->nullIfBlank($request->input('job_no'));
+        if ($jobNo !== null && $jobNo !== $job->job_number) {
+            $jobUpdates['job_number'] = $jobNo;
+        }
+        foreach (['estimate_number', 'estimated_delivery_date', 'due_date'] as $field) {
+            if ($request->has($field)) {
+                $jobUpdates[$field] = $this->nullIfBlank($request->input($field));
+            }
+        }
+        if ($jobUpdates) {
+            $job->update($jobUpdates);
+        }
+
+        // Procurement is a separate paper/form; retain any previously saved rows.
+        $this->syncStocks($card, $request->input('stocks', []));
+    }
+
+    private function newJobNumber()
+    {
+        do {
+            $jobNumber = 'JOB-' . now()->format('ymd') . '-' . strtoupper(substr(uniqid(), -5));
+        } while (DesignJob::where('job_number', $jobNumber)->exists());
+
+        return $jobNumber;
     }
 
     private function syncStocks(DesignJobCard $card, array $rows)
@@ -215,29 +280,4 @@ class DesignJobCardController extends Controller
         return $value === '' ? null : $value;
     }
 
-    /** Minutes between two HH:MM times; wraps past midnight when end is earlier than start. */
-    private function minutesBetween($start, $end)
-    {
-        if (!$start || !$end) {
-            return null;
-        }
-        $s = $this->toMinutes($start);
-        $e = $this->toMinutes($end);
-        if ($s === null || $e === null) {
-            return null;
-        }
-        $diff = $e - $s;
-        if ($diff < 0) {
-            $diff += 24 * 60;
-        }
-        return $diff;
-    }
-
-    private function toMinutes($time)
-    {
-        if (!preg_match('/^(\d{1,2}):(\d{2})/', $time, $m)) {
-            return null;
-        }
-        return ((int) $m[1]) * 60 + (int) $m[2];
-    }
 }

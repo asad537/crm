@@ -8,7 +8,7 @@ class DesignJobCardMaterial extends Model
 {
     protected $guarded = ['id'];
 
-    protected $dates = ['needed_by'];
+    protected $casts = ['needed_by' => 'date'];
 
     public function jobCard()
     {
