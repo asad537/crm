@@ -117,7 +117,8 @@ class DesignJobCardController extends Controller
             'job' => $job,
             'card' => $card,
             'stocks' => $card->exists ? $card->stocks : collect(),
-        ])->setPaper('a4')->download($filename . '-job-card.pdf');
+        ])->setPaper('a4')->setOption('enable_font_subsetting', true)
+            ->download($filename . '-job-card.pdf');
     }
 
     public function store(Request $request)
