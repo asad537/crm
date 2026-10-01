@@ -30,20 +30,6 @@
     $durationRow = [];
 
     $sections = [
-        'dummy' => [
-            'Dummy / Sample Approval',
-            [
-                [
-                    ['Dummy Sent On', $date($card->dummy_sent_on)],
-                    ['Dummy Approved On', $date($card->dummy_approved_on)]
-                ],
-                [
-                    ['Approved By / Signature', $card->dummy_approved_by],
-                    ['', '']
-                ],
-            ]
-        ],
-
         'briefing' => [
             'Job Briefing',
             [
@@ -280,6 +266,20 @@
             ]
         ],
 
+        'dummy' => [
+            'Dummy / Sample Approval',
+            [
+                [
+                    ['Dummy Sent On', $date($card->dummy_sent_on)],
+                    ['Dummy Approved On', $date($card->dummy_approved_on)]
+                ],
+                [
+                    ['Approved By / Signature', $card->dummy_approved_by],
+                    ['', '']
+                ],
+            ]
+        ],
+
         'quality' => [
             'Quality Check',
             [
@@ -392,7 +392,10 @@
     ], fn($p) => $hasValue($p[1])));
     $jobInfoChunks = array_chunk($jobInfo, 2);
 
-    $logoSrc = public_path('al-massa-packaging-logo-pdf.jpg');
+    $print = $print ?? false;
+    $logoSrc = $print
+        ? asset('al-massa-packaging-logo-pdf.jpg')
+        : public_path('al-massa-packaging-logo-pdf.jpg');
     $orderNo = $card->job_no ?: $job->job_number;
     $orderDate = $date($card->job_date ?: $job->created_at);
 
@@ -613,6 +616,14 @@
         <td><div class="sl">Final Approval</div></td>
     </tr>
 </table>
+
+@if($print)
+    <script>
+        window.addEventListener('load', function () {
+            setTimeout(function () { window.print(); }, 300);
+        });
+    </script>
+@endif
 
 </body>
 </html>

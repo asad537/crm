@@ -121,6 +121,22 @@ class DesignJobCardController extends Controller
             ->download($filename . '-job-card.pdf');
     }
 
+    /** On-screen job card (same layout as the PDF) that opens the print dialog. */
+    public function print($id)
+    {
+        $this->requireAccess();
+        $job = $this->findJob($id);
+        $card = $job->jobCard()->with('stocks')->first()
+            ?: new DesignJobCard(['design_job_id' => $job->id]);
+
+        return view('crm.design_jobs.job_card_pdf', [
+            'job' => $job,
+            'card' => $card,
+            'stocks' => $card->exists ? $card->stocks : collect(),
+            'print' => true,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $user = $this->requireAccess();
@@ -224,11 +240,7 @@ class DesignJobCardController extends Controller
             'wizard_completed_step' => 'nullable|integer|between:-1,14',
             'wizard_current_step' => 'nullable|integer|between:0,14',
         ];
-        if (!$draft) {
-            $rules['dummy_sent_on'] = 'required|date';
-            $rules['dummy_approved_on'] = 'required|date';
-            // Signature (approved by) stays optional.
-        }
+        // Dummy / Sample Approval is fully optional — no required fields.
         $request->validate($rules);
 
         $totalUploadBytes = array_sum(array_map(function ($file) {

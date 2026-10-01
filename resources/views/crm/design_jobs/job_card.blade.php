@@ -266,17 +266,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
     </div>
 </div>
 
-{{-- Card 2 — Dummy / Sample approval --}}
-<div class="jc-card">
-    <h4 class="jc-title"><i class="fas fa-stamp"></i> Dummy / Sample Approval</h4>
-    <div class="jc-grid">
-        <div class="jc-field jc-4"><label>Dummy sent on</label><input class="jc-control" type="date" name="dummy_sent_on" value="{{ $dv('dummy_sent_on') }}"></div>
-        <div class="jc-field jc-4"><label>Dummy approved on</label><input class="jc-control" type="date" name="dummy_approved_on" value="{{ $dv('dummy_approved_on') }}"></div>
-        <div class="jc-field jc-4"><label>Approved by (signature)</label><input class="jc-control" name="dummy_approved_by" value="{{ $val('dummy_approved_by') }}"></div>
-    </div>
-</div>
-
-{{-- Card 3 — Job briefing --}}
+{{-- Card — Job briefing --}}
 <div class="jc-card">
     <h4 class="jc-title"><i class="fas fa-ruler-combined"></i> Job Briefing</h4>
     <div class="jc-briefing-layout">
@@ -483,7 +473,17 @@ textarea.jc-control{min-height:74px;resize:vertical}
     </div>
 </div>
 
-{{-- Card 13 — Quality check --}}
+{{-- Dummy / Sample approval (moved above Quality Check) --}}
+<div class="jc-card">
+    <h4 class="jc-title"><i class="fas fa-stamp"></i> Dummy / Sample Approval</h4>
+    <div class="jc-grid">
+        <div class="jc-field jc-4"><label>Dummy sent on</label><input class="jc-control" type="date" name="dummy_sent_on" value="{{ $dv('dummy_sent_on') }}"></div>
+        <div class="jc-field jc-4"><label>Dummy approved on</label><input class="jc-control" type="date" name="dummy_approved_on" value="{{ $dv('dummy_approved_on') }}"></div>
+        <div class="jc-field jc-4"><label>Approved by (signature)</label><input class="jc-control" name="dummy_approved_by" value="{{ $val('dummy_approved_by') }}"></div>
+    </div>
+</div>
+
+{{-- Card — Quality check --}}
 <div class="jc-card jc-qc-card">
     <h4 class="jc-title"><i class="fas fa-clipboard-check"></i> Quality Check</h4>
     <div class="jc-grid">
@@ -533,7 +533,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
 <div class="jc-actions">
     <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}">Cancel</a>
     <span class="jc-form-error" id="jcFormError" role="alert"></span>
-    @if($job->exists)<button class="jc-btn jc-btn-light jc-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> Print Form</button>@endif
+    @if($job->exists)<a class="jc-btn jc-btn-light jc-print" href="{{ route('crm.design_jobs.job_card.print', $job->id) }}" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print Form</a>@endif
     <button class="jc-btn jc-btn-light jc-draft" type="submit" name="save_mode" value="draft"><i class="fas fa-save"></i> Save</button>
     <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> Complete Job Card</button>
 </div>
@@ -604,7 +604,7 @@ function jcInitJobCard(){
     if(!form||form.dataset.jcInitialized==='1')return;
     form.dataset.jcInitialized='1';
     jcToggleQc();
-    var keys=['header','dummy','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','quality','timeline','attachments'];
+    var keys=['header','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','dummy','quality','timeline','attachments'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
     var printMode=new URLSearchParams(window.location.search).has('print');
@@ -620,7 +620,7 @@ function jcInitJobCard(){
     var saveButton=form.querySelector('.jc-complete');
     var printButton=form.querySelector('.jc-print');
     var formError=document.getElementById('jcFormError');
-    var cacheKey='crm-job-card-'+@json($job->exists ? (string) $job->id : 'new');
+    var cacheKey='crm-job-card-v2-'+@json($job->exists ? (string) $job->id : 'new');
     var cached=null;
     try{cached=JSON.parse(sessionStorage.getItem(cacheKey)||'null');}catch(error){}
     if(cached&&cached.fields){
@@ -645,7 +645,7 @@ function jcInitJobCard(){
         if(typeof cached.activeStep==='number')activeStep=Math.max(0,Math.min(cached.activeStep,keys.length-1));
         jcToggleQc();
     }
-    for(var sectionIndex=2;sectionIndex<done.length;sectionIndex++)done[sectionIndex]=!!done[1];
+    for(var sectionIndex=1;sectionIndex<done.length;sectionIndex++)done[sectionIndex]=!!done[0];
     function syncProgress(){
         completedStep=-1;
         for(var i=0;i<done.length&&done[i];i++)completedStep=i;
@@ -671,9 +671,9 @@ function jcInitJobCard(){
 
     function refreshSteps(){
         cards.forEach(function(card,index){
-            card.classList.toggle('jc-step-hidden',index===1?!done[0]:index>1?!done[0]||!done[1]:false);
+            card.classList.toggle('jc-step-hidden',index>0?!done[0]:false);
         });
-        saveButton.disabled=!done[0]||!done[1];
+        saveButton.disabled=!done[0];
         saveButton.style.opacity=saveButton.disabled?'0.5':'1';
         if(printButton){printButton.disabled=saveButton.disabled;printButton.style.opacity=saveButton.style.opacity;}
         syncProgress();
@@ -697,35 +697,22 @@ function jcInitJobCard(){
             var input=document.createElement('input');input.type='hidden';input.name='sections['+key+']';input.value='yes';head.appendChild(input);
             card.dataset.choice='yes';
         }
-        if(index<2){
+        if(index===0){
             var next=document.createElement('button');next.type='button';next.className='jc-btn jc-btn-primary jc-step-next';
-            next.textContent=index===0?'Continue to Dummy':'Continue to Job Details';
+            next.textContent='Continue to Job Details';
             next.addEventListener('click',function(){
-                if(index===0){
-                    var product=form.querySelector('[name="product"]');
-                    if(!product.value.trim()){product.setCustomValidity('Enter a product before continuing.');product.reportValidity();return;}
-                    product.setCustomValidity('');
-                }else{
-                    var required=['dummy_sent_on','dummy_approved_on'];
-                    for(var i=0;i<required.length;i++){
-                        var field=body.querySelector('[name="'+required[i]+'"]');
-                        field.required=true;
-                        if(!field.reportValidity())return;
-                    }
-                }
-                done[index]=true;body.hidden=true;
-                activeStep=index+1;
-                if(index===0){
-                    choices.querySelector('button').textContent='Open';
-                    cards[1].querySelector('.jc-step-body').hidden=false;
-                }else{
-                    for(var i=2;i<cards.length;i++){
-                        done[i]=true;
-                        cards[i].querySelector('.jc-step-body').hidden=false;
-                    }
+                var product=form.querySelector('[name="product"]');
+                if(!product.value.trim()){product.setCustomValidity('Enter a product before continuing.');product.reportValidity();return;}
+                product.setCustomValidity('');
+                done[0]=true;body.hidden=true;
+                choices.querySelector('button').textContent='Open';
+                activeStep=1;
+                for(var i=1;i<cards.length;i++){
+                    done[i]=true;
+                    cards[i].querySelector('.jc-step-body').hidden=false;
                 }
                 refreshSteps();remember();
-                if(cards[index+1])cards[index+1].scrollIntoView({behavior:'smooth',block:'center'});
+                if(cards[1])cards[1].scrollIntoView({behavior:'smooth',block:'center'});
             });
             body.appendChild(next);
         }
@@ -740,21 +727,13 @@ function jcInitJobCard(){
     product.addEventListener('input',function(){product.setCustomValidity('');if(!product.value.trim()){done[0]=false;refreshSteps();}});
     ['dummy_sent_on','dummy_approved_on','dummy_approved_by'].forEach(function(name){
         var field=form.querySelector('[name="'+name+'"]');
-        field.required=false;
-        field.addEventListener('input',function(){
-            if(!field.value.trim()){done[1]=false;refreshSteps();}
-        });
+        if(field)field.required=false;
     });
-    // After Dummy, every production card stays visible; restore the active card position.
-    if(done[1]){
-        cards.slice(2).forEach(function(card){card.querySelector('.jc-step-body').hidden=false;});
-        if(activeStep===0){cards[0].querySelector('.jc-step-body').hidden=false;cards[0].querySelector('.jc-step-choice button').textContent='Close';}
-        if(activeStep===1)cards[1].querySelector('.jc-step-body').hidden=false;
-    }else if(done[0]){
-        cards[1].querySelector('.jc-step-body').hidden=false;
-    }else{
-        cards[0].querySelector('.jc-step-body').hidden=false;
-        cards[0].querySelector('.jc-step-choice button').textContent='Close';
+    // Once the Job Header is done, every other card stays visible.
+    cards[0].querySelector('.jc-step-body').hidden=false;
+    cards[0].querySelector('.jc-step-choice button').textContent='Close';
+    if(done[0]){
+        cards.slice(1).forEach(function(card){card.querySelector('.jc-step-body').hidden=false;});
     }
     // Existing jobs open the header immediately, even when editing resumes at a later card.
     if(@json($job->exists)){
@@ -770,11 +749,10 @@ function jcInitJobCard(){
             try{sessionStorage.removeItem(cacheKey);}catch(error){}
             return;
         }
-        if(!done[0]||!done[1]){
+        if(!done[0]){
             event.preventDefault();
-            var pending=done[0]?1:0;
-            formError.textContent='Complete Header and Dummy before finishing the job card.';
-            cards[pending].scrollIntoView({behavior:'smooth',block:'center'});
+            formError.textContent='Complete the Job Header before finishing the job card.';
+            cards[0].scrollIntoView({behavior:'smooth',block:'center'});
             return;
         }
         var invalid=Array.from(form.elements).find(function(field){return field.willValidate&&!field.checkValidity();});
@@ -793,7 +771,7 @@ function jcInitJobCard(){
     form.addEventListener('click',function(event){if(event.target.closest('.jc-add,.jc-remove'))setTimeout(remember,0);});
     refreshSteps();
     document.querySelector('.jc-page').classList.add('jc-ready');
-    if(!printMode&&activeStep>0&&((activeStep===1&&done[0])||(activeStep>1&&done[1]))){
+    if(!printMode&&activeStep>0&&done[0]){
         requestAnimationFrame(function(){cards[activeStep].scrollIntoView({block:'center'});});
     }
     var serverErrors=@json($errors->all());
