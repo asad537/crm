@@ -706,7 +706,7 @@ function jcInitJobCard(){
                     if(!product.value.trim()){product.setCustomValidity('Enter a product before continuing.');product.reportValidity();return;}
                     product.setCustomValidity('');
                 }else{
-                    var required=['dummy_sent_on','dummy_approved_on','dummy_approved_by'];
+                    var required=['dummy_sent_on','dummy_approved_on'];
                     for(var i=0;i<required.length;i++){
                         var field=body.querySelector('[name="'+required[i]+'"]');
                         field.required=true;

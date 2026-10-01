@@ -226,7 +226,7 @@ class DesignJobCardController extends Controller
         if (!$draft) {
             $rules['dummy_sent_on'] = 'required|date';
             $rules['dummy_approved_on'] = 'required|date';
-            $rules['dummy_approved_by'] = 'required|string|max:255';
+            // Signature (approved by) stays optional.
         }
         $request->validate($rules);
 

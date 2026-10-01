@@ -8,13 +8,11 @@
 
     $flags = function (array $choices) use ($card) {
         $selected = [];
-
         foreach ($choices as $field => $label) {
             if ($card->{$field}) {
                 $selected[] = $label;
             }
         }
-
         return implode(', ', $selected);
     };
 
@@ -26,15 +24,10 @@
         return ($card->section_choices[$section] ?? 'yes') !== 'no';
     };
 
-    $timeRow = [
-        ['Start Time', '________________'],
-        ['End Time', '________________']
-    ];
-
-    $durationRow = [
-        ['Total Time (hr)', '________'],
-        ['Total Time (min)', '________']
-    ];
+    // Only manually-filled data is shown, so the on-paper time/duration
+    // placeholders are dropped.
+    $timeRow = [];
+    $durationRow = [];
 
     $sections = [
         'dummy' => [
@@ -161,8 +154,6 @@
                     ['Total Plates', $card->total_plates],
                     ['', '']
                 ],
-                $timeRow,
-                $durationRow,
             ]
         ],
 
@@ -187,8 +178,6 @@
                     ],
                     ['Other Qty', $card->lam_other_qty]
                 ],
-                $timeRow,
-                $durationRow,
             ]
         ],
 
@@ -197,10 +186,8 @@
             [
                 [
                     ['Colors', $card->screen_colors],
-                    ['Spot UV', $card->screen_uv ? 'Yes' : 'No']
+                    ['Spot UV', $card->screen_uv ? 'Yes' : '']
                 ],
-                $timeRow,
-                $durationRow,
             ]
         ],
 
@@ -210,28 +197,20 @@
                 [
                     [
                         'Gold',
-                        $card->foil_gold
-                            ? ($card->foil_gold_shade ?: 'Yes')
-                            : 'No'
+                        $card->foil_gold ? ($card->foil_gold_shade ?: 'Yes') : ''
                     ],
                     [
                         'Silver',
-                        $card->foil_silver
-                            ? ($card->foil_silver_shade ?: 'Yes')
-                            : 'No'
+                        $card->foil_silver ? ($card->foil_silver_shade ?: 'Yes') : ''
                     ]
                 ],
                 [
                     [
                         'Other',
-                        $card->foil_other
-                            ? ($card->foil_other_shade ?: 'Yes')
-                            : 'No'
+                        $card->foil_other ? ($card->foil_other_shade ?: 'Yes') : ''
                     ],
                     ['', '']
                 ],
-                $timeRow,
-                $durationRow,
             ]
         ],
 
@@ -255,8 +234,6 @@
                     ],
                     ['Ply', $card->corr_ply]
                 ],
-                $timeRow,
-                $durationRow,
             ]
         ],
 
@@ -275,8 +252,6 @@
                     ],
                     ['', '']
                 ],
-                $timeRow,
-                $durationRow,
             ]
         ],
 
@@ -342,577 +317,244 @@
         ],
     ];
 
+    // Flatten each section to only the pairs that actually have a value.
+    // Process sections always keep the four manual time-tracking blanks.
+    $BLANK = '__BLANK__';
+    $timeSections = ['printing', 'lamination', 'screen', 'foiling', 'corrugation', 'diecutting'];
+    $timeFields = ['Start Time', 'End Time', 'Total Time (hr)', 'Total Time (min)'];
+    // These always appear (even empty, as fillable blanks) and are placed last.
+    $mandatorySections = ['quality', 'timeline'];
+    $hasValue = fn($v) => $v !== null && $v !== '';
+    $filledSections = [];
+    foreach ($sections as $key => [$title, $rows]) {
+        $isMandatory = in_array($key, $mandatorySections, true);
+        $pairs = [];
+        foreach ($rows as $row) {
+            foreach ($row as [$label, $value]) {
+                if ($label === '') {
+                    continue;
+                }
+                if ($hasValue($value)) {
+                    $pairs[] = [$label, $value];
+                } elseif ($isMandatory) {
+                    $pairs[] = [$label, $BLANK];
+                }
+            }
+        }
+        // Time-tracking blanks only appear when the section is actually used.
+        if ($pairs && in_array($key, $timeSections, true)) {
+            foreach ($timeFields as $tf) {
+                $pairs[] = [$tf, $BLANK];
+            }
+        }
+        if ($pairs) {
+            $filledSections[$key] = [$title, array_chunk($pairs, 2)];
+        }
+    }
+
+    // Render order: sections in order with the stock table right after Job
+    // Briefing, then Quality Check and Job Timeline at the very end.
+    $renderOrder = [];
+    foreach ($filledSections as $key => $v) {
+        if (in_array($key, $mandatorySections, true)) {
+            continue;
+        }
+        $renderOrder[] = $key;
+        if ($key === 'briefing') {
+            $renderOrder[] = '__stock__';
+        }
+    }
+    if (!in_array('__stock__', $renderOrder, true)) {
+        $renderOrder[] = '__stock__';
+    }
+    foreach ($mandatorySections as $mk) {
+        if (isset($filledSections[$mk])) {
+            $renderOrder[] = $mk;
+        }
+    }
+
+    // Job information — keep only filled entries (priority always shown).
     $priority = $card->priority_critical
         ? 'CRITICAL'
         : ($card->priority_urgent ? 'URGENT' : 'REGULAR');
-
     $priorityClass = $card->priority_critical
         ? 'badge-danger'
         : ($card->priority_urgent ? 'badge-warning' : 'badge-success');
+
+    $jobInfo = array_values(array_filter([
+        ['Job Assigned Date', $date($card->job_date ?: $job->created_at)],
+        ['Job No.', $card->job_no ?: $job->job_number],
+        ['Product', $card->product ?: $job->title],
+        ['Order Qty', $card->order_qty],
+        ['Job Start On', $date($card->job_start_on)],
+        ['Deadline', $date($job->due_date)],
+        ['Designer', $job->designer->name ?? ''],
+    ], fn($p) => $hasValue($p[1])));
+    $jobInfoChunks = array_chunk($jobInfo, 2);
+
+    $logoSrc = public_path('al-massa-packaging-logo-pdf.jpg');
+    $orderNo = $card->job_no ?: $job->job_number;
+    $orderDate = $date($card->job_date ?: $job->created_at);
+
+    // Deterministic faux-barcode bars from the job number.
+    $seed = crc32((string) ($orderNo ?: 'job'));
+    $bars = [];
+    for ($i = 0; $i < 46; $i++) {
+        $seed = ($seed * 1103515245 + 12345) & 0x7fffffff;
+        $bars[] = 1 + ($seed % 3);
+    }
+
+    $hasStocks = $stocks->isNotEmpty();
 @endphp
 
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-
-    <title>
-        Production Job Card - {{ $job->job_number }}
-    </title>
-
+    <title>Job Card - {{ $orderNo }}</title>
     <style>
-        @page {
-            margin: 10mm 10mm 12mm 10mm;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
+        @page { margin: 6mm 7mm 6mm 7mm; }
+        * { box-sizing: border-box; }
         body {
-            margin: 0;
-            padding: 0;
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 8pt;
-            line-height: 1.45;
-            color: #182436;
-            background: #ffffff;
+            margin: 0; padding: 0;
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 9pt; line-height: 1.32; color: #182436; background: #fff;
         }
+        table { border-collapse: collapse; width: 100%; }
+        td, th { vertical-align: top; }
 
-        .page {
-            width: 100%;
-        }
+        /* ===== HEADER ===== */
+        .hdr td { vertical-align: middle; }
+        .logo { height: 15mm; width: auto; }
+        .co-name { font-size: 11pt; font-weight: 700; color: #1f2a4d; margin: 0; }
+        .co-sub { font-size: 6.3pt; color: #444; margin: 1px 0 0; }
+        .jc-title { font-size: 16pt; font-weight: 800; letter-spacing: 3px; color: #1f2a4d; margin: 0 0 3px; text-align: right; }
+        .barcode { text-align: right; white-space: nowrap; line-height: 0; }
+        .barcode span { display: inline-block; height: 24px; background: #111; vertical-align: bottom; }
+        .barcode span.g { background: transparent; }
+        .no-date { border: 1px solid #1f2a4d; padding: 4px 7px; margin-top: 4px; font-size: 9pt; text-align: right; }
+        .no-date .lbl { font-weight: 700; }
+        .ln { display: inline-block; min-width: 55px; border-bottom: 1px solid #777; padding: 0 3px; }
 
-        /* =========================
-           HEADER
-        ========================== */
+        /* ===== SUMMARY CARDS ===== */
+        .summary { border-collapse: separate; border-spacing: 4px 0; margin: 6px -4px 6px -4px; }
+        .summary td { width: 25%; padding: 6px 9px; border: 1px solid #c9d2e3; background: #f4f6fb; }
+        .summary-label { display: block; font-size: 7pt; text-transform: uppercase; color: #6b7792; font-weight: 700; letter-spacing: .4px; margin-bottom: 2px; }
+        .summary-value { font-size: 10.5pt; color: #1f2a4d; font-weight: 700; }
+        .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 8.5pt; font-weight: 700; }
+        .badge-danger { color: #991b1b; background: #fee2e2; }
+        .badge-warning { color: #92400e; background: #fef3c7; }
+        .badge-success { color: #166534; background: #dcfce7; }
 
-        .top-header {
-            width: 100%;
-            margin-bottom: 11px;
-        }
+        /* ===== SECTIONS ===== */
+        .section { margin-bottom: 5px; border: 1px solid #9aa3b8; page-break-inside: avoid; }
+        .bar { background: #2b3a67; color: #fff; font-weight: 700; font-size: 8.7pt; padding: 4px 9px; text-transform: uppercase; letter-spacing: .4px; }
 
-        .top-header-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+        /* ===== DETAILS TABLE ===== */
+        .details { table-layout: fixed; }
+        .details th, .details td { padding: 6px 9px; border-bottom: 1px solid #e3e7ee; text-align: left; vertical-align: middle; overflow-wrap: break-word; }
+        .details tr:last-child th, .details tr:last-child td { border-bottom: 0; }
+        .details th { width: 20%; color: #51607a; font-size: 7.6pt; text-transform: uppercase; font-weight: 700; background: #eef1f7; border-right: 1px solid #e3e7ee; }
+        .details td { width: 30%; color: #1f2a4d; font-size: 9.6pt; font-weight: 600; white-space: pre-line; border-right: 1px solid #e3e7ee; }
+        .details td:last-child { border-right: 0; }
 
-        .top-header-table td {
-            vertical-align: middle;
-        }
+        /* ===== STOCK TABLE ===== */
+        .stock-wrap { padding: 6px; }
+        .stocks { table-layout: fixed; }
+        .stocks th { padding: 6px 6px; background: #2b3a67; color: #fff; font-size: 7.5pt; text-transform: uppercase; font-weight: 700; line-height: 1.3; text-align: left; border: 1px solid #2b3a67; }
+        .stocks td { padding: 7px 6px; border: 1px solid #c9d2e3; color: #27364a; font-size: 9pt; vertical-align: middle; overflow-wrap: break-word; }
+        .stocks tbody tr:nth-child(even) { background: #f4f6fb; }
 
-        .title-area {
-            width: 66%;
-        }
-
-        .title-label {
-            font-size: 7pt;
-            text-transform: uppercase;
-            letter-spacing: 1.4px;
-            color: #ef5b2a;
-            font-weight: 700;
-            margin-bottom: 2px;
-        }
-
-        .title {
-            margin: 0;
-            color: #132033;
-            font-size: 19pt;
-            line-height: 1.05;
-            font-weight: 700;
-        }
-
-        .subtitle {
-            margin-top: 4px;
-            color: #69778a;
-            font-size: 7.5pt;
-        }
-
-        .job-number-box {
-            width: 34%;
-            text-align: right;
-        }
-
-        .job-number-card {
-            display: inline-block;
-            border: 1px solid #dde4ec;
-            background: #f7f9fb;
-            padding: 8px 11px;
-            min-width: 155px;
-            text-align: left;
-            border-radius: 4px;
-        }
-
-        .job-number-label {
-            font-size: 6.5pt;
-            color: #8894a4;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: .7px;
-        }
-
-        .job-number {
-            color: #152238;
-            font-size: 11pt;
-            font-weight: 700;
-            margin-top: 1px;
-        }
-
-        .accent-line {
-            height: 3px;
-            background: #ef5b2a;
-            margin-top: 7px;
-        }
-
-        /* =========================
-           SUMMARY CARDS
-        ========================== */
-
-        .summary {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 4px 0;
-            margin: 0 -4px 11px -4px;
-        }
-
-        .summary td {
-            width: 25%;
-            padding: 7px 8px;
-            border: 1px solid #e0e6ed;
-            background: #f8fafc;
-            vertical-align: top;
-        }
-
-        .summary-label {
-            display: block;
-            font-size: 6.3pt;
-            text-transform: uppercase;
-            color: #8490a0;
-            font-weight: 700;
-            letter-spacing: .4px;
-            margin-bottom: 2px;
-        }
-
-        .summary-value {
-            font-size: 8.5pt;
-            color: #172337;
-            font-weight: 700;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 3px 7px;
-            border-radius: 10px;
-            font-size: 6.5pt;
-            font-weight: 700;
-            letter-spacing: .3px;
-        }
-
-        .badge-danger {
-            color: #991b1b;
-            background: #fee2e2;
-        }
-
-        .badge-warning {
-            color: #92400e;
-            background: #fef3c7;
-        }
-
-        .badge-success {
-            color: #166534;
-            background: #dcfce7;
-        }
-
-        /* =========================
-           SECTIONS
-        ========================== */
-
-        .section {
-            margin-bottom: 8px;
-            border: 1px solid #dde4eb;
-            border-radius: 3px;
-            page-break-inside: avoid;
-            overflow: hidden;
-        }
-
-        .section-title {
-            width: 100%;
-            border-collapse: collapse;
-            background: #f4f6f8;
-        }
-
-        .section-title td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #dde4eb;
-        }
-
-        .section-title-accent {
-            width: 4px;
-            background: #ef5b2a;
-            padding: 0 !important;
-        }
-
-        .section-title-text {
-            font-size: 8.7pt;
-            color: #172337;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: .35px;
-        }
-
-        /* =========================
-           DETAILS TABLE
-        ========================== */
-
-        .details {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
-        .details tr:nth-child(even) {
-            background: #fbfcfd;
-        }
-
-        .details th,
-        .details td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #edf0f3;
-            vertical-align: top;
-            text-align: left;
-            overflow-wrap: break-word;
-        }
-
-        .details tr:last-child th,
-        .details tr:last-child td {
-            border-bottom: 0;
-        }
-
-        .details th {
-            width: 18%;
-            color: #667489;
-            font-size: 6.8pt;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: .2px;
-            background: #fafbfd;
-        }
-
-        .details td {
-            width: 32%;
-            color: #172337;
-            font-size: 8pt;
-            font-weight: 600;
-            white-space: pre-line;
-        }
-
-        /* =========================
-           STOCK TABLE
-        ========================== */
-
-        .stock-wrap {
-            padding: 7px;
-        }
-
-        .stocks {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
-        .stocks th {
-            padding: 6px 5px;
-            background: #25344a;
-            color: #ffffff;
-            font-size: 6.2pt;
-            text-transform: uppercase;
-            font-weight: 700;
-            line-height: 1.35;
-            text-align: left;
-            border: 1px solid #25344a;
-        }
-
-        .stocks td {
-            padding: 6px 5px;
-            border: 1px solid #dfe5eb;
-            color: #27364a;
-            font-size: 7pt;
-            vertical-align: middle;
-            overflow-wrap: break-word;
-        }
-
-        .stocks tbody tr:nth-child(even) {
-            background: #f7f9fb;
-        }
-
-        /* =========================
-           BLANK FIELDS
-        ========================== */
-
-        .blank {
-            display: inline-block;
-            min-width: 85px;
-            min-height: 10px;
-            border-bottom: 1px solid #9ba7b6;
-        }
-
-        /* =========================
-           FOOTER NOTE
-        ========================== */
-
-        .footer-note {
-            margin-top: 11px;
-            padding: 7px 9px;
-            background: #fff7f3;
-            border-left: 3px solid #ef5b2a;
-            color: #69778a;
-            font-size: 6.8pt;
-        }
-
-        .footer-table {
-            width: 100%;
-            margin-top: 14px;
-            border-collapse: collapse;
-        }
-
-        .footer-table td {
-            width: 33.33%;
-            padding: 0 8px;
-            text-align: center;
-            vertical-align: bottom;
-        }
-
-        .signature-line {
-            border-top: 1px solid #8995a5;
-            padding-top: 4px;
-            margin-top: 20px;
-            color: #788495;
-            font-size: 6.5pt;
-            text-transform: uppercase;
-        }
-
-        .muted {
-            color: #8290a2;
-        }
-
-        .text-orange {
-            color: #ef5b2a;
-        }
+        /* ===== SIGNATURES / FOOTER ===== */
+        .sign { margin-top: 10px; }
+        .sign td { width: 33.33%; padding: 0 10px; text-align: center; vertical-align: bottom; }
+        .sign .sl { border-top: 1px solid #1f2a4d; padding-top: 4px; margin-top: 18px; color: #51607a; font-size: 8pt; text-transform: uppercase; font-weight: 700; }
+        .blank { display: inline-block; min-width: 90px; min-height: 10px; border-bottom: 1px solid #9ba7b6; }
+        .text-navy { color: #2b3a67; }
+        .deadline { color: #c62828; font-weight: 700; }
     </style>
 </head>
-
 <body>
-<div class="page">
 
-    {{-- HEADER --}}
-    <div class="top-header">
-        <table class="top-header-table">
-            <tr>
-                <td class="title-area">
-                    <div class="title-label">
-                        Production Department
-                    </div>
-
-                    <h1 class="title">
-                        Production Job Card
-                    </h1>
-
-                    <div class="subtitle">
-                        Complete production specification, process tracking
-                        and quality control record
-                    </div>
-                </td>
-
-                <td class="job-number-box">
-                    <div class="job-number-card">
-                        <div class="job-number-label">
-                            Job Number
-                        </div>
-
-                        <div class="job-number">
-                            {{ $card->job_no ?: $job->job_number }}
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <div class="accent-line"></div>
-    </div>
-
-
-    {{-- SUMMARY --}}
-    <table class="summary">
-        <tr>
-            <td>
-                <span class="summary-label">
-                    Product
-                </span>
-
-                <span class="summary-value">
-                    {{ $card->product ?: $job->title ?: '—' }}
-                </span>
-            </td>
-
-            <td>
-                <span class="summary-label">
-                    Order Quantity
-                </span>
-
-                <span class="summary-value">
-                    {{ $card->order_qty ?: '—' }}
-                </span>
-            </td>
-
-            <td>
-                <span class="summary-label">
-                    Priority
-                </span>
-
-                <span class="badge {{ $priorityClass }}">
-                    {{ $priority }}
-                </span>
-            </td>
-
-            <td>
-                <span class="summary-label">
-                    Deadline
-                </span>
-
-                <span class="summary-value">
-                    {{ $date($job->due_date) ?: '—' }}
-                </span>
-            </td>
-        </tr>
-    </table>
-
-
-    {{-- JOB HEADER --}}
-    <div class="section">
-
-        <table class="section-title">
-            <tr>
-                <td class="section-title-accent"></td>
-
-                <td class="section-title-text">
-                    Job Information
-                </td>
-            </tr>
-        </table>
-
-        <table class="details">
-            <tr>
-                <th>Job Assigned Date</th>
+{{-- HEADER --}}
+<table class="hdr">
+    <tr>
+        <td style="width: 52%;">
+            <table><tr>
+                <td style="width: 22mm;"><img class="logo" src="{{ $logoSrc }}" alt="AL MASSA"></td>
                 <td>
-                    {{ $date($card->job_date ?: $job->created_at) }}
+                    <p class="co-name">AL MASSA AL MALAKIYA</p>
+                    <p class="co-sub">BOXES AND PACKING IND. LLC</p>
+                    <p class="co-sub">All Cosmetics &amp; Perfumes Hard, Soft Boxes and Paper Bags</p>
                 </td>
-
-                <th>Job No.</th>
-                <td>
-                    {{ $card->job_no ?: $job->job_number }}
-                </td>
-            </tr>
-
-            <tr>
-                <th>Product</th>
-                <td>
-                    {{ $card->product ?: $job->title }}
-                </td>
-
-                <th>Order Qty</th>
-                <td>
-                    {{ $card->order_qty }}
-                </td>
-            </tr>
-
-            <tr>
-                <th>Priority</th>
-                <td>
-                    <span class="badge {{ $priorityClass }}">
-                        {{ $priority }}
-                    </span>
-                </td>
-
-                <th>Job Start On</th>
-                <td>
-                    {{ $date($card->job_start_on) ?: '—' }}
-                </td>
-            </tr>
-
-            <tr>
-                <th>Deadline</th>
-                <td>
-                    {{ $date($job->due_date) ?: '—' }}
-                </td>
-
-                <th>Designer</th>
-                <td>
-                    {{ $job->designer->name ?? '—' }}
-                </td>
-            </tr>
-        </table>
-    </div>
-
-
-    {{-- PRODUCTION SECTIONS --}}
-    @foreach($sections as $key => [$title, $rows])
-
-        @if($enabled($key))
-            <div class="section">
-
-                <table class="section-title">
-                    <tr>
-                        <td class="section-title-accent"></td>
-
-                        <td class="section-title-text">
-                            {{ $title }}
-                        </td>
-                    </tr>
-                </table>
-
-                <table class="details">
-                    @foreach($rows as $row)
-                        <tr>
-                            @foreach($row as [$label, $value])
-
-                                <th>
-                                    {{ $label }}
-                                </th>
-
-                                <td>
-                                    @if($value !== null && $value !== '')
-                                        {{ $value }}
-                                    @else
-                                        <span class="blank"></span>
-                                    @endif
-                                </td>
-
-                            @endforeach
-                        </tr>
-                    @endforeach
-                </table>
+            </tr></table>
+        </td>
+        <td style="width: 48%; text-align: right;">
+            <div class="jc-title">JOB CARD</div>
+            <div class="barcode">
+                @foreach($bars as $i => $w)
+                    <span class="{{ $i % 2 ? 'g' : '' }}" style="width: {{ $w }}px;"></span>
+                @endforeach
             </div>
+            <div class="no-date">
+                <span class="lbl">Job No:</span> <span class="ln" style="min-width:75px">{{ $orderNo }}</span>
+                &nbsp;&nbsp;<span class="lbl">Date:</span> <span class="ln" style="min-width:60px">{{ $orderDate }}</span>
+            </div>
+        </td>
+    </tr>
+</table>
+
+{{-- SUMMARY (only filled) --}}
+<table class="summary">
+    <tr>
+        @if($hasValue($card->product ?: $job->title))
+            <td><span class="summary-label">Product</span><span class="summary-value">{{ $card->product ?: $job->title }}</span></td>
         @endif
+        @if($hasValue($card->order_qty))
+            <td><span class="summary-label">Order Quantity</span><span class="summary-value">{{ $card->order_qty }}</span></td>
+        @endif
+        <td><span class="summary-label">Priority</span><span class="badge {{ $priorityClass }}">{{ $priority }}</span></td>
+        @if($hasValue($date($job->due_date)))
+            <td><span class="summary-label">Deadline</span><span class="summary-value deadline">{{ $date($job->due_date) }}</span></td>
+        @endif
+    </tr>
+</table>
 
+{{-- JOB INFORMATION (only filled) --}}
+@if(count($jobInfo))
+<div class="section">
+    <div class="bar">Job Information</div>
+    <table class="details">
+        @foreach($jobInfoChunks as $chunk)
+            <tr>
+                @foreach($chunk as [$label, $value])
+                    <th>{{ $label }}</th>
+                    <td>
+                        @if($label === 'Priority')
+                            <span class="badge {{ $priorityClass }}">{{ $priority }}</span>
+                        @elseif($label === 'Deadline')
+                            <span class="deadline">{{ $value }}</span>
+                        @else
+                            {{ $value }}
+                        @endif
+                    </td>
+                @endforeach
+                @if(count($chunk) === 1)<th></th><td></td>@endif
+            </tr>
+        @endforeach
+    </table>
+</div>
+@endif
 
-        {{-- STOCK SECTION --}}
-        @if($key === 'briefing' && $enabled('stock'))
+{{-- PRODUCTION SECTIONS — stock in the middle, Quality + Timeline at the end --}}
+@foreach($renderOrder as $key)
 
+    @if($key === '__stock__')
+        @if($enabled('stock') && $hasStocks)
             <div class="section">
-
-                <table class="section-title">
-                    <tr>
-                        <td class="section-title-accent"></td>
-
-                        <td class="section-title-text">
-                            Paper / Board / Stock
-                        </td>
-                    </tr>
-                </table>
-
+                <div class="bar">Paper / Board / Stock</div>
                 <div class="stock-wrap">
                     <table class="stocks">
-
                         <thead>
                         <tr>
                             <th>Material</th>
@@ -924,100 +566,53 @@
                             <th>Total Sheets</th>
                         </tr>
                         </thead>
-
                         <tbody>
-
-                        @forelse($stocks as $stock)
-
+                        @foreach($stocks as $stock)
                             <tr>
-                                <td>
-                                    {{ $stock->material }}
-                                </td>
-
-                                <td>
-                                    {{ $stock->gsm }}
-                                </td>
-
-                                <td>
-                                    {{ $stock->sheet_l }}
-                                    ×
-                                    {{ $stock->sheet_w }}
-                                </td>
-
-                                <td>
-                                    {{ $stock->sheet_qty }}
-                                </td>
-
-                                <td>
-                                    {{ $stock->wastage }}
-                                </td>
-
-                                <td>
-                                    {{ $stock->cutting_l }}
-                                    ×
-                                    {{ $stock->cutting_w }}
-                                </td>
-
-                                <td>
-                                    {{ $stock->total_sheets }}
-                                </td>
+                                <td>{{ $stock->material }}</td>
+                                <td>{{ $stock->gsm }}</td>
+                                <td>{{ $stock->sheet_l }} × {{ $stock->sheet_w }}</td>
+                                <td>{{ $stock->sheet_qty }}</td>
+                                <td>{{ $stock->wastage }}</td>
+                                <td>{{ $stock->cutting_l }} × {{ $stock->cutting_w }}</td>
+                                <td>{{ $stock->total_sheets }}</td>
                             </tr>
-
-                        @empty
-
-                            <tr>
-                                <td style="height: 28px;"></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-
-                        @endforelse
-
+                        @endforeach
                         </tbody>
                     </table>
                 </div>
             </div>
-
         @endif
+    @elseif($enabled($key))
+        @php
+            [$title, $chunks] = $filledSections[$key];
+        @endphp
+        <div class="section">
+            <div class="bar">{{ $title }}</div>
+            <table class="details">
+                @foreach($chunks as $chunk)
+                    <tr>
+                        @foreach($chunk as [$label, $value])
+                            <th>{{ $label }}</th>
+                            <td>@if($value === '__BLANK__')&nbsp;@else{{ $value }}@endif</td>
+                        @endforeach
+                        @if(count($chunk) === 1)<th></th><td></td>@endif
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
 
-    @endforeach
+@endforeach
 
+{{-- SIGNATURES --}}
+<table class="sign">
+    <tr>
+        <td><div class="sl">Production Supervisor</div></td>
+        <td><div class="sl">Quality Control</div></td>
+        <td><div class="sl">Final Approval</div></td>
+    </tr>
+</table>
 
-    {{-- MANUAL APPROVALS --}}
-    <table class="footer-table">
-        <tr>
-            <td>
-                <div class="signature-line">
-                    Production Supervisor
-                </div>
-            </td>
-
-            <td>
-                <div class="signature-line">
-                    Quality Control
-                </div>
-            </td>
-
-            <td>
-                <div class="signature-line">
-                    Final Approval
-                </div>
-            </td>
-        </tr>
-    </table>
-
-
-    <div class="footer-note">
-        <strong class="text-orange">Production Copy:</strong>
-        Complete blank time, duration and approval fields manually where
-        required. This document serves as the official production workflow
-        and quality-control record for this job.
-    </div>
-
-</div>
 </body>
 </html>
