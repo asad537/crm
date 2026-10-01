@@ -199,6 +199,7 @@ class DesignJobCardController extends Controller
                     'estimated_delivery_date' => $this->nullIfBlank($request->input('estimated_delivery_date')),
                     'due_date' => $this->nullIfBlank($request->input('due_date')),
                     'status' => 'designing',
+                    'production_stage' => 'dummy',
                     'status_updated_at' => now(),
                 ]);
                 $card = $this->saveCard($request, $job, $draft);
