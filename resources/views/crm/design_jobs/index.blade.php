@@ -160,11 +160,11 @@
         <table class="dj-table">
             <thead><tr>
                 <th>Job</th>
-                <th>Estimate</th>
+                {{-- <th>Estimate</th> --}}
                 <th>Title</th>
                 <th>Current Stage</th>
                 <th>Designer</th>
-                <th>Delivery</th>
+                {{-- <th>Delivery</th> --}}
                 <th>Due</th>
                 <th>Attachments</th>
                 <th></th>
@@ -177,14 +177,14 @@
                         <a href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}">{{ $job->job_number }}</a>
                         <div class="sub">{{ $job->created_at->format('d M Y') }}</div>
                     </td>
-                    <td class="dj-est">
+                    {{-- <td class="dj-est">
                         @if($job->ticket)
                             <a href="{{ route('crm.estimate_tickets.show', $job->ticket->id) }}">{{ $job->ticket->ticket_number }}</a>
                             <div class="sub">{{ $job->ticket->client_name }}</div>
                         @elseif($job->estimate_number)
                             <span class="manual">{{ $job->estimate_number }}</span>
                         @else <span class="sub">—</span> @endif
-                    </td>
+                    </td> --}}
                     <td class="dj-title">{{ $job->title }}
                         @if($job->details)<div class="sub">{{ \Illuminate\Support\Str::limit($job->details, 60) }}</div>@endif
                     </td>
@@ -195,9 +195,9 @@
                             <span>{{ $job->designer->name ?? '—' }}</span>
                         </div>
                     </td>
-                    <td class="dj-deliv">
+                    {{-- <td class="dj-deliv">
                         @if($job->estimated_delivery_date){{ $job->estimated_delivery_date->format('d M Y') }}@else<span class="none">—</span>@endif
-                    </td>
+                    </td> --}}
                     <td class="dj-deliv">
                         @php($__dm = $job->dueMeta())
                         @if($job->due_date)
@@ -238,7 +238,7 @@
                     </div></td>
                 </tr>
             @empty
-                <tr><td colspan="9"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
+                <tr><td colspan="7"><div class="dj-empty">No design jobs yet.@if($canCreate) Click "New Job" to create one and fill its job card.@endif</div></td></tr>
             @endforelse
             </tbody>
         </table>
