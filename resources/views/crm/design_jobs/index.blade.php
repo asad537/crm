@@ -97,6 +97,9 @@
     .dj-title .sub { font-size:.74rem; color:var(--muted); margin-top:.2rem; font-weight:400; white-space:normal; max-width:230px; }
     .dj-stage { display:inline-flex;align-items:center;max-width:190px;padding:.36rem .6rem;border:1px solid var(--primary-shadow);border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:.72rem;font-weight:750;line-height:1.25; }
     .dj-stage-muted { border-color:var(--line);background:var(--soft);color:var(--muted); }
+    .dj-stage-form { margin:0; }
+    .dj-stage-select { max-width:200px;padding:.4rem .7rem;border:1px solid var(--primary-shadow);border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:.72rem;font-weight:750;line-height:1.25;cursor:pointer;outline:0; }
+    .dj-stage-select:focus { box-shadow:0 0 0 3px rgba(43,58,103,.12); }
     .dj-designer { display:flex; align-items:center; gap:.55rem; }
     .dj-ava { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:.7rem; font-weight:700;
         background:var(--accent-soft); color:var(--accent); flex:0 0 30px; }
@@ -188,7 +191,17 @@
                     <td class="dj-title">{{ $job->title }}
                         @if($job->details)<div class="sub">{{ \Illuminate\Support\Str::limit($job->details, 60) }}</div>@endif
                     </td>
-                    <td>@if($job->jobCard && $job->jobCard->currentCardLabel())<span class="dj-stage">{{ $job->jobCard->currentCardLabel() }}</span>@else<span class="dj-stage dj-stage-muted">{{ $job->jobCard ? 'Not recorded' : 'Not started' }}</span>@endif</td>
+                    <td>
+                        <form method="POST" action="{{ route('crm.design_jobs.stage', $job->id) }}" class="dj-stage-form">
+                            @csrf
+                            <select name="production_stage" class="dj-stage-select {{ $job->production_stage ? '' : 'dj-stage-muted' }}" onchange="this.form.submit()">
+                                <option value="">— Set stage —</option>
+                                @foreach(\App\DesignJob::STAGES as $stageKey => $stageLabel)
+                                    <option value="{{ $stageKey }}" {{ $job->production_stage === $stageKey ? 'selected' : '' }}>{{ $stageLabel }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    </td>
                     <td>
                         <div class="dj-designer">
                             <span class="dj-ava">{{ $initials($job->designer->name ?? '') }}</span>
@@ -226,6 +239,7 @@
                     </td>
                     <td><div class="dj-actions">
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
+                        <a class="dj-track" href="{{ route('crm.design_jobs.dummy', $job->id) }}"><i class="fas fa-stamp"></i> Dummy</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.print', $job->id) }}" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}" data-no-ajax-nav><i class="fas fa-file-pdf"></i> PDF</a>
                         @if($u->isAdmin() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))

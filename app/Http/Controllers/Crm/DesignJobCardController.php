@@ -137,6 +137,45 @@ class DesignJobCardController extends Controller
         ]);
     }
 
+    /** Dummy / Sample Approval — a separate step done after the job is saved. */
+    public function dummy($id)
+    {
+        $this->requireAccess();
+        $job = $this->findJob($id);
+        $card = $job->jobCard ?: new DesignJobCard(['design_job_id' => $job->id]);
+
+        return view('crm.design_jobs.dummy', [
+            'job' => $job,
+            'card' => $card,
+        ]);
+    }
+
+    public function saveDummy(Request $request, $id)
+    {
+        $user = $this->requireAccess();
+        $job = $this->findJob($id);
+        abort_unless($user->isAdmin() || $user->isDesigner(), 403, 'Only designers can record the dummy.');
+
+        $data = $request->validate([
+            'dummy_sent_on' => 'nullable|date',
+            'dummy_approved_on' => 'nullable|date',
+            'dummy_approved_by' => 'nullable|string|max:255',
+        ]);
+
+        $card = $job->jobCard ?: new DesignJobCard(['design_job_id' => $job->id]);
+        if (!$card->exists) {
+            $card->job_no = $job->job_number;
+            $card->job_date = optional($job->created_at)->toDateString() ?: now()->toDateString();
+        }
+        $card->dummy_sent_on = $this->nullIfBlank($data['dummy_sent_on'] ?? null);
+        $card->dummy_approved_on = $this->nullIfBlank($data['dummy_approved_on'] ?? null);
+        $card->dummy_approved_by = $this->nullIfBlank($data['dummy_approved_by'] ?? null);
+        $card->save();
+
+        return redirect()->route('crm.design_jobs.index')
+            ->with('success', 'Dummy saved for ' . $job->job_number . '.');
+    }
+
     public function store(Request $request)
     {
         $user = $this->requireAccess();

@@ -78,6 +78,24 @@ class DesignJobController extends Controller
         return back()->with('success', $job->job_number . ' moved to ' . DesignJob::STATUSES[$data['status']] . '.');
     }
 
+    /** Update the shop-floor production stage shown on the jobs list. */
+    public function updateStage(Request $request, $id)
+    {
+        $user = $this->requireDesignJobAccess();
+        $job = DesignJob::where('workspace_id', \App\Support\CrmWorkspaceContext::id())->findOrFail($id);
+        if (!$user->isAdmin() && (int) $job->designer_id !== (int) $user->id) {
+            abort(403, 'Only the designer who created this job can update its stage.');
+        }
+        $data = $request->validate([
+            'production_stage' => 'nullable|in:' . implode(',', array_keys(DesignJob::STAGES)),
+        ]);
+        $job->update(['production_stage' => $data['production_stage'] ?: null]);
+
+        $label = $data['production_stage'] ? DesignJob::STAGES[$data['production_stage']] : 'Not set';
+
+        return back()->with('success', $job->job_number . ' stage: ' . $label . '.');
+    }
+
     public function destroy($id)
     {
         $user = $this->requireDesignJobAccess();

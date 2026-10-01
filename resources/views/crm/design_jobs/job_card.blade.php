@@ -473,45 +473,11 @@ textarea.jc-control{min-height:74px;resize:vertical}
     </div>
 </div>
 
-{{-- Dummy / Sample approval (moved above Quality Check) --}}
-<div class="jc-card">
-    <h4 class="jc-title"><i class="fas fa-stamp"></i> Dummy / Sample Approval</h4>
-    <div class="jc-grid">
-        <div class="jc-field jc-4"><label>Dummy sent on</label><input class="jc-control" type="date" name="dummy_sent_on" value="{{ $dv('dummy_sent_on') }}"></div>
-        <div class="jc-field jc-4"><label>Dummy approved on</label><input class="jc-control" type="date" name="dummy_approved_on" value="{{ $dv('dummy_approved_on') }}"></div>
-        <div class="jc-field jc-4"><label>Approved by (signature)</label><input class="jc-control" name="dummy_approved_by" value="{{ $val('dummy_approved_by') }}"></div>
-    </div>
-</div>
+{{-- Dummy / Sample Approval is a separate step after the job is saved
+     (its own screen from the jobs list). Quality Check and Job Timeline are
+     filled by hand on the printed PDF, so none of these show here. --}}
 
-{{-- Card — Quality check --}}
-<div class="jc-card jc-qc-card">
-    <h4 class="jc-title"><i class="fas fa-clipboard-check"></i> Quality Check</h4>
-    <div class="jc-grid">
-        <div class="jc-field jc-4"><label>Result</label><div class="jc-checks">
-            @foreach(['approved' => 'Approved', 'rejected' => 'Rejected'] as $k => $lbl)
-                <label class="jc-check"><input type="radio" name="qc_result" value="{{ $k }}" onchange="jcToggleQc()" {{ (string) $val('qc_result') === (string) $k ? 'checked' : '' }}> {{ $lbl }}</label>
-            @endforeach
-        </div></div>
-        <div class="jc-field jc-8"><label>Approved by (signature)</label><input class="jc-control" name="qc_approved_by" value="{{ $val('qc_approved_by') }}"></div>
-        <div class="jc-field jc-6"><label>Comments</label><textarea class="jc-control" name="qc_comments" rows="2">{{ $val('qc_comments') }}</textarea></div>
-        <div class="jc-field jc-6"><label id="jcQcRejectionLabel">If Rejected, Mention Comments</label><textarea class="jc-control" name="qc_rejection_comments" rows="2">{{ $val('qc_rejection_comments') }}</textarea></div>
-    </div>
-</div>
-
-{{-- Card 14 — Job timeline --}}
-<div class="jc-card jc-timeline-card">
-    <h4 class="jc-title"><i class="fas fa-clock"></i> Job Timeline</h4>
-    <div class="jc-grid">
-        <div class="jc-field jc-4"><label>Status</label><div class="jc-checks">
-            @foreach(['on_time' => 'On time', 'delayed' => 'Delayed'] as $k => $lbl)
-                <label class="jc-check"><input type="radio" name="timeline_status" value="{{ $k }}" {{ (string) $val('timeline_status') === (string) $k ? 'checked' : '' }}> {{ $lbl }}</label>
-            @endforeach
-        </div></div>
-        <div class="jc-field jc-8"><label>If Delayed, Mention Days and Reason <small style="color:#94a3b8">(can be filled later)</small></label><textarea class="jc-control" name="delay_reason" rows="2">{{ $val('delay_reason') }}</textarea></div>
-    </div>
-</div>
-
-{{-- Card 15 — Attachments --}}
+{{-- Card — Attachments --}}
 <div class="jc-card jc-attachment-card">
     <h4 class="jc-title"><i class="fas fa-paperclip"></i> Attachments</h4>
     <label class="jc-briefing-heading" for="jcAttachments">Add files</label>
@@ -535,7 +501,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
     <span class="jc-form-error" id="jcFormError" role="alert"></span>
     @if($job->exists)<a class="jc-btn jc-btn-light jc-print" href="{{ route('crm.design_jobs.job_card.print', $job->id) }}" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print Form</a>@endif
     <button class="jc-btn jc-btn-light jc-draft" type="submit" name="save_mode" value="draft"><i class="fas fa-save"></i> Save</button>
-    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> Complete Job Card</button>
+    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> Create Job Card</button>
 </div>
 </form>
 </div>
@@ -563,7 +529,8 @@ document.getElementById('jcTotalPlates').addEventListener('input',function(){thi
 // QC comments become required when result is Rejected.
 function jcToggleQc(){
     var r=document.querySelector('[name="qc_result"]:checked'),c=document.querySelector('[name="qc_rejection_comments"]'),l=document.getElementById('jcQcRejectionLabel');
-    var need=r&&r.value==='rejected';c.required=need;l.style.color=need?'#b91c1c':'';
+    if(!c)return;
+    var need=r&&r.value==='rejected';c.required=need;if(l)l.style.color=need?'#b91c1c':'';
 }
 // Repeatable rows: clone the first row, clear its inputs, reindex names.
 function jcAddRow(containerId,name){
@@ -604,7 +571,7 @@ function jcInitJobCard(){
     if(!form||form.dataset.jcInitialized==='1')return;
     form.dataset.jcInitialized='1';
     jcToggleQc();
-    var keys=['header','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','dummy','quality','timeline','attachments'];
+    var keys=['header','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','attachments'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
     var printMode=new URLSearchParams(window.location.search).has('print');

@@ -22,9 +22,22 @@ class DesignJob extends Model
         'delivered'   => 'Delivered',
     ];
 
+    // Shop-floor production stages shown on the jobs list (in order).
+    const STAGES = [
+        'dummy'       => 'Dummy',
+        'printing'    => 'Printing',
+        'lamination'  => 'Lamination',
+        'spot_uv'     => 'Spot UV/UV',
+        'foiling'     => 'Foiling',
+        'embossing'   => 'Embossing/Debossing',
+        'die_cutting' => 'Die Cutting',
+        'pasting'     => 'Pasting',
+        'close'       => 'Close Job',
+    ];
+
     protected $fillable = [
         'job_number', 'workspace_id', 'estimate_ticket_id', 'estimate_number', 'designer_id',
-        'title', 'details', 'status', 'status_updated_at', 'estimated_delivery_date',
+        'title', 'details', 'status', 'production_stage', 'status_updated_at', 'estimated_delivery_date',
         'receive_date', 'client_approval_date', 'due_date',
     ];
 
