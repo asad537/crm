@@ -93,6 +93,11 @@ class DesignJob extends Model
         return $this->hasOne(DesignJobCard::class);
     }
 
+    public function challan()
+    {
+        return $this->hasOne(DeliveryChallan::class)->latestOfMany();
+    }
+
     public function attachments()
     {
         return $this->hasManyThrough(DesignJobCardAttachment::class, DesignJobCard::class);

@@ -22,12 +22,18 @@ class DesignJobCard extends Model
         'Quality Check',
         'Job Timeline',
         'Attachments',
+        'Procurement List',
     ];
 
     protected $guarded = ['id'];
 
     public function currentCardLabel(): ?string
     {
+        $label = ($this->section_choices ?? [])['__active_label'] ?? null;
+        if ($label) {
+            return $label;
+        }
+
         $step = ($this->section_choices ?? [])['__active_step'] ?? null;
 
         return is_numeric($step) && isset(self::CARD_STAGES[(int) $step])

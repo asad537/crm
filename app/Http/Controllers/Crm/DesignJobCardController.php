@@ -20,6 +20,12 @@ class DesignJobCardController extends Controller
         'screen', 'foiling', 'corrugation', 'diecutting', 'pasting', 'quality', 'timeline', 'attachments',
     ];
 
+    private const FORM_STAGES = [
+        'Job Header', 'Job Briefing', 'Paper / Board / Stock', 'Foam',
+        'Printing', 'Lamination', 'Screen Printing / Spot UV', 'Foiling',
+        'Corrugation', 'Diecutting', 'Pasting', 'Attachments', 'Procurement List',
+    ];
+
     /** Single-value fields saved straight from the request. */
     private $scalarFields = [
         // Header
@@ -77,13 +83,14 @@ class DesignJobCardController extends Controller
     {
         $this->requireAccess();
         $job = $this->findJob($id);
-        $card = $job->jobCard()->with('stocks', 'attachments')->first()
+        $card = $job->jobCard()->with('stocks', 'materials', 'attachments')->first()
             ?: new DesignJobCard(['design_job_id' => $job->id]);
 
         return view('crm.design_jobs.job_card', [
             'job' => $job,
             'card' => $card,
             'stocks' => $card->exists ? $card->stocks : collect(),
+            'materials' => $card->exists ? $card->materials : collect(),
             'attachments' => $card->exists ? $card->attachments : collect(),
         ]);
     }
@@ -108,7 +115,7 @@ class DesignJobCardController extends Controller
     {
         $this->requireAccess();
         $job = $this->findJob($id);
-        $card = $job->jobCard()->with('stocks')->first()
+        $card = $job->jobCard()->with('stocks', 'materials')->first()
             ?: new DesignJobCard(['design_job_id' => $job->id]);
 
         $filename = preg_replace('/[^A-Za-z0-9_-]+/', '-', $job->job_number ?: 'job-' . $job->id);
@@ -117,8 +124,27 @@ class DesignJobCardController extends Controller
             'job' => $job,
             'card' => $card,
             'stocks' => $card->exists ? $card->stocks : collect(),
+            'materials' => $card->exists ? $card->materials : collect(),
         ])->setPaper('a4')->setOption('enable_font_subsetting', true)
             ->download($filename . '-job-card.pdf');
+    }
+
+    /** Read-only job card within the CRM layout. */
+    public function preview($id)
+    {
+        $this->requireAccess();
+        $job = $this->findJob($id);
+        $card = $job->jobCard()->with('stocks', 'materials', 'attachments')->first()
+            ?: new DesignJobCard(['design_job_id' => $job->id]);
+
+        return view('crm.design_jobs.job_card', [
+            'job' => $job,
+            'card' => $card,
+            'stocks' => $card->exists ? $card->stocks : collect(),
+            'materials' => $card->exists ? $card->materials : collect(),
+            'attachments' => $card->exists ? $card->attachments : collect(),
+            'readOnly' => true,
+        ]);
     }
 
     /** On-screen job card (same layout as the PDF) that opens the print dialog. */
@@ -126,13 +152,14 @@ class DesignJobCardController extends Controller
     {
         $this->requireAccess();
         $job = $this->findJob($id);
-        $card = $job->jobCard()->with('stocks')->first()
+        $card = $job->jobCard()->with('stocks', 'materials')->first()
             ?: new DesignJobCard(['design_job_id' => $job->id]);
 
         return view('crm.design_jobs.job_card_pdf', [
             'job' => $job,
             'card' => $card,
             'stocks' => $card->exists ? $card->stocks : collect(),
+            'materials' => $card->exists ? $card->materials : collect(),
             'print' => true,
         ]);
     }
@@ -277,8 +304,14 @@ class DesignJobCardController extends Controller
             'attachments.*' => 'file|extensions:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,ai,psd,eps,zip|max:20480',
             'remove_attachments' => 'nullable|array|max:50',
             'remove_attachments.*' => 'integer|distinct',
-            'wizard_completed_step' => 'nullable|integer|between:-1,14',
-            'wizard_current_step' => 'nullable|integer|between:0,14',
+            'materials' => 'nullable|array',
+            'materials.*.item' => 'nullable|string|max:255',
+            'materials.*.specs' => 'nullable|string|max:255',
+            'materials.*.qty' => 'nullable|string|max:255',
+            'materials.*.needed_by' => 'nullable|date',
+            'materials.*.remarks' => 'nullable|string|max:255',
+            'wizard_completed_step' => 'nullable|integer|between:-1,15',
+            'wizard_current_step' => 'nullable|integer|between:0,15',
         ];
         // Dummy / Sample Approval is fully optional — no required fields.
         $request->validate($rules);
@@ -307,8 +340,9 @@ class DesignJobCardController extends Controller
         $choices = array_fill_keys(self::OPTIONAL_SECTIONS, 'yes');
         $choices['dummy'] = 'yes';
         $choices['__draft'] = $draft;
-        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 14;
+        $choices['__completed_step'] = $draft ? (int) $request->input('wizard_completed_step', -1) : 12;
         $choices['__active_step'] = (int) $request->input('wizard_current_step', 0);
+        $choices['__active_label'] = self::FORM_STAGES[$choices['__active_step']] ?? null;
         $card->section_choices = $choices;
         $card->job_no = $card->job_no ?: $job->job_number;
         foreach ($this->booleanFields as $field) {
@@ -343,8 +377,8 @@ class DesignJobCardController extends Controller
             $job->update($jobUpdates);
         }
 
-        // Procurement is a separate paper/form; retain any previously saved rows.
         $this->syncStocks($card, $request->input('stocks', []));
+        $this->syncMaterials($card, $request->input('materials', []));
 
         return $card;
     }
@@ -404,6 +438,29 @@ class DesignJobCardController extends Controller
                 'cutting_l' => $this->nullIfBlank($row['cutting_l'] ?? null),
                 'cutting_w' => $this->nullIfBlank($row['cutting_w'] ?? null),
                 'total_sheets' => $this->nullIfBlank($row['total_sheets'] ?? null),
+            ]);
+        }
+    }
+
+    private function syncMaterials(DesignJobCard $card, array $rows)
+    {
+        $card->materials()->delete();
+        $position = 0;
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $keys = ['item', 'specs', 'qty', 'needed_by', 'remarks'];
+            if ($this->rowIsEmpty($row, $keys)) {
+                continue;
+            }
+            $card->materials()->create([
+                'position' => $position++,
+                'item' => $this->nullIfBlank($row['item'] ?? null),
+                'specs' => $this->nullIfBlank($row['specs'] ?? null),
+                'qty' => $this->nullIfBlank($row['qty'] ?? null),
+                'needed_by' => $this->nullIfBlank($row['needed_by'] ?? null),
+                'remarks' => $this->nullIfBlank($row['remarks'] ?? null),
             ]);
         }
     }

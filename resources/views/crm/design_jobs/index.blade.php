@@ -174,8 +174,13 @@
             </tr></thead>
             <tbody>
             @forelse($jobs as $job)
-                @php [$sc, $sb] = $statusColors[$job->status] ?? ['#4b5563', '#eef0f2']; $pct = $job->progressPercent(); @endphp
-                <tr>
+                @php
+                    [$sc, $sb] = $statusColors[$job->status] ?? ['#4b5563', '#eef0f2'];
+                    $pct = $job->progressPercent();
+                    $challan = $job->challan;
+                @endphp
+                <tr data-challan="{{ $challan ? json_encode($challan->only(['challan_date', 'delivery_date', 'vehicle_no', 'customer_name', 'contact_person', 'po_reference', 'delivery_address', 'remarks', 'prepared_by', 'driver_name', 'driver_contact', 'received_by', 'items'])) : '' }}"
+                    data-challan-update-url="{{ $challan ? route('crm.challans.update', $challan->id) : '' }}">
                     <td class="dj-job">
                         <a href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}">{{ $job->job_number }}</a>
                         <div class="sub">{{ $job->created_at->format('d M Y') }}</div>
@@ -194,7 +199,13 @@
                     <td>
                         <form method="POST" action="{{ route('crm.design_jobs.stage', $job->id) }}" class="dj-stage-form">
                             @csrf
-                            <select name="production_stage" class="dj-stage-select {{ $job->production_stage ? '' : 'dj-stage-muted' }}" onchange="this.form.submit()">
+                            <select name="production_stage" class="dj-stage-select {{ $job->production_stage ? '' : 'dj-stage-muted' }}"
+                                    data-prev="{{ $job->production_stage }}"
+                                    data-challan-url="{{ route('crm.design_jobs.challan.store', $job->id) }}"
+                                    data-job-no="{{ $job->job_number }}"
+                                    data-customer="{{ optional($job->ticket)->client_name }}"
+                                    data-title="{{ $job->title }}"
+                                    data-designer="{{ $job->designer->name ?? '' }}">
                                 <option value="">— Set stage —</option>
                                 @foreach(\App\DesignJob::STAGES as $stageKey => $stageLabel)
                                     <option value="{{ $stageKey }}" {{ $job->production_stage === $stageKey ? 'selected' : '' }}>{{ $stageLabel }}</option>
@@ -238,17 +249,27 @@
                         @else<span class="dj-deliv none">—</span>@endif
                     </td>
                     <td><div class="dj-actions">
-                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
+                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.preview', $job->id) }}" aria-label="View job card {{ $job->job_number }}"><i class="fas fa-eye"></i> View</a>
                         <a class="dj-track" href="{{ route('crm.design_jobs.dummy', $job->id) }}"><i class="fas fa-stamp"></i> Dummy</a>
-                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.print', $job->id) }}" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
-                        <a class="dj-track" href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}" data-no-ajax-nav><i class="fas fa-file-pdf"></i> PDF</a>
-                        @if($u->isAdmin() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))
-                            <form method="POST" action="{{ route('crm.design_jobs.destroy', $job->id) }}" onsubmit="return confirm('Delete this job and its job card? This cannot be undone.');">
-                                @csrf
-                                @method('DELETE')
-                                <button class="dj-track dj-delete" type="submit" aria-label="Delete job {{ $job->job_number }}"><i class="fas fa-trash-alt"></i> Delete</button>
-                            </form>
-                        @endif
+                        <div class="dj-menu">
+                            <button type="button" class="dj-track dj-menu-btn" aria-haspopup="true"><i class="fas fa-ellipsis-h"></i> Actions</button>
+                            <div class="dj-menu-list" hidden>
+                                <a href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit</a>
+                                <a href="{{ route('crm.design_jobs.job_card.print', $job->id) }}" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print</a>
+                                <a href="{{ route('crm.design_jobs.job_card.pdf', $job->id) }}" data-no-ajax-nav><i class="fas fa-file-pdf"></i> PDF</a>
+                                @if($challan)
+                                    <button type="button" class="dj-menu-edit-challan"><i class="fas fa-edit"></i> Edit Challan</button>
+                                    <a href="{{ route('crm.challans.print', $challan->id) }}" target="_blank" rel="noopener" data-no-ajax-nav><i class="fas fa-print"></i> Print Challan</a>
+                                @endif
+                                @if($u->isAdmin() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))
+                                    <form method="POST" action="{{ route('crm.design_jobs.destroy', $job->id) }}" onsubmit="return confirm('Delete this job and its job card? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="dj-menu-delete" type="submit" aria-label="Delete job {{ $job->job_number }}"><i class="fas fa-trash-alt"></i> Delete</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
                     </div></td>
                 </tr>
             @empty
@@ -260,4 +281,210 @@
         @if($jobs->hasPages())<div class="dj-pagination">{{ $jobs->links() }}</div>@endif
     </div>
 </div>
+
+{{-- ===== Delivery Challan modal (opens when a job stage is set to "Close Job") ===== --}}
+<div id="djChallanModal" class="djc-overlay" hidden>
+    <div class="djc-modal">
+        <div class="djc-head">
+            <span><i class="fas fa-truck"></i> <span id="djcTitle">Delivery Challan</span></span>
+            <button type="button" class="djc-x" data-djc-close aria-label="Close">&times;</button>
+        </div>
+        <form id="djChallanForm" method="POST" action="">
+            @csrf
+            <input type="hidden" name="_method" value="PUT" id="djcMethod" disabled>
+            <div class="djc-body">
+                <div class="djc-grid">
+                    <div><label>Job No.</label><input name="_job_no_display" id="djcJobNo" readonly></div>
+                    <div><label>Date</label><input type="date" name="challan_date" id="djcDate"></div>
+                    <div><label>Delivery Date</label><input type="date" name="delivery_date"></div>
+                    <div><label>Vehicle No.</label><input name="vehicle_no"></div>
+                    <div><label>Customer Name</label><input name="customer_name" id="djcCustomer"></div>
+                    <div><label>Contact Person</label><input name="contact_person"></div>
+                    <div><label>P.O. / Reference</label><input name="po_reference"></div>
+                    <div class="djc-span2"><label>Delivery Address</label><input name="delivery_address"></div>
+                </div>
+
+                <div class="djc-items-head">
+                    <strong>Items</strong>
+                    <button type="button" class="djc-addrow"><i class="fas fa-plus"></i> Add row</button>
+                </div>
+                <div class="djc-table-wrap">
+                    <table class="djc-items">
+                        <thead><tr>
+                            <th style="width:30px">#</th>
+                            <th>Job / Item Description</th>
+                            <th style="width:90px">Boxes / Carton</th>
+                            <th style="width:80px">Total Cartons</th>
+                            <th style="width:120px">Carton Size (LxWxH)</th>
+                            <th style="width:90px">Actual Wt. (kg)</th>
+                            <th style="width:90px">Volumetric Wt.</th>
+                            <th style="width:34px"></th>
+                        </tr></thead>
+                        <tbody id="djcItemsBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="djc-grid" style="margin-top:.8rem">
+                    <div class="djc-span2"><label>Remarks / Special Instructions</label><input name="remarks"></div>
+                    <div><label>Prepared By</label><input name="prepared_by" id="djcPrepared"></div>
+                    <div><label>Driver Name</label><input name="driver_name"></div>
+                    <div><label>Driver Contact</label><input name="driver_contact"></div>
+                    <div><label>Received By (Customer)</label><input name="received_by"></div>
+                </div>
+            </div>
+            <div class="djc-actions">
+                <button type="button" class="djc-btn djc-btn-light" data-djc-close>Cancel</button>
+                <button type="submit" class="djc-btn djc-btn-primary"><i class="fas fa-check-circle"></i> <span id="djcSubmitLabel">Save Challan</span></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.dj-menu{position:relative;display:inline-block}
+.dj-menu-list{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:150px;background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.14);padding:.3rem;display:flex;flex-direction:column;gap:.15rem}
+.dj-menu-list[hidden]{display:none}
+.dj-menu-list a,.dj-menu-list button{display:flex;align-items:center;gap:.5rem;padding:.5rem .6rem;border-radius:7px;font-size:.78rem;font-weight:700;color:#334155;text-decoration:none;background:none;border:0;width:100%;text-align:left;cursor:pointer}
+.dj-menu-list a:hover{background:var(--primary-soft,#eef2fb);color:var(--primary-purple,#2b3a67)}
+.dj-menu-list button:not(.dj-menu-delete):hover{background:var(--primary-soft,#eef2fb);color:var(--primary-purple,#2b3a67)}
+.dj-menu-delete{color:#b91c1c}.dj-menu-delete:hover{background:#fee2e2}
+.dj-menu-list form{margin:0}
+.djc-overlay{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.5);display:flex;align-items:flex-start;justify-content:center;padding:2.5rem 1rem;overflow:auto}
+.djc-overlay[hidden]{display:none}
+.djc-modal{width:100%;max-width:980px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px rgba(15,23,42,.3)}
+.djc-head{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;background:color-mix(in srgb, var(--primary-purple,#2b3a67) 78%, #fff);color:#fff;font-weight:800;font-size:1rem}
+.djc-x{background:none;border:0;color:#fff;font-size:1.5rem;line-height:1;cursor:pointer}
+.djc-body{padding:1.1rem 1.2rem;max-height:65vh;overflow:auto}
+.djc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem}
+.djc-grid .djc-span2{grid-column:span 2}
+.djc-grid label{display:block;margin-bottom:.25rem;color:#42506a;font-size:.72rem;font-weight:750}
+.djc-grid input{width:100%;min-height:38px;padding:.4rem .6rem;border:1px solid #cfd9e5;border-radius:8px;font-size:.82rem;outline:0}
+.djc-grid input:focus{border-color:var(--primary-purple,#2b3a67);box-shadow:0 0 0 3px var(--primary-shadow,rgba(43,58,103,.15))}
+.djc-items-head{display:flex;align-items:center;justify-content:space-between;margin:1rem 0 .4rem}
+.djc-addrow{border:1px solid var(--primary-shadow,#c9d2e3);background:var(--primary-soft,#eef2fb);color:var(--primary-purple,#2b3a67);border-radius:8px;padding:.35rem .7rem;font-weight:800;font-size:.75rem;cursor:pointer}
+.djc-table-wrap{overflow-x:auto;border:1px solid #e3e7ee;border-radius:8px}
+.djc-items{width:100%;border-collapse:collapse;min-width:760px}
+.djc-items th{background:color-mix(in srgb, var(--primary-purple,#2b3a67) 78%, #fff);color:#fff;font-size:.66rem;text-transform:uppercase;font-weight:700;padding:.5rem .4rem;text-align:left}
+.djc-items td{border-bottom:1px solid #eef1f5;padding:.3rem .35rem}
+.djc-items input{width:100%;min-height:32px;padding:.3rem .4rem;border:1px solid #dbe3ec;border-radius:6px;font-size:.78rem;outline:0}
+.djc-items input:focus{border-color:var(--primary-purple,#2b3a67)}
+.djc-delrow{border:0;background:#fee2e2;color:#b91c1c;border-radius:6px;min-height:30px;width:30px;cursor:pointer;font-size:.8rem}
+.djc-actions{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.2rem;border-top:1px solid #eef1f5;background:#fafbfd}
+.djc-btn{display:inline-flex;align-items:center;gap:.4rem;min-height:42px;padding:.55rem 1.2rem;border:0;border-radius:9px;font-weight:800;cursor:pointer}
+.djc-btn-light{background:#eef2f7;color:#475569}
+.djc-btn-primary{background:color-mix(in srgb, var(--primary-purple,#2b3a67) 82%, #fff);color:#fff}
+@media(max-width:720px){.djc-grid{grid-template-columns:1fr 1fr}.djc-grid .djc-span2{grid-column:span 2}}
+</style>
+
+<script>
+// Bind once to document so it survives the CRM's AJAX page swaps.
+(function(){
+    if(window.__djcBound) return;
+    window.__djcBound = true;
+    var rowIndex = 0;
+    var pendingSelect = null;
+
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+    function rowHtml(i, item){
+        item = item || {};
+        return '<tr>'+
+            '<td style="text-align:center;color:#64748b">'+(i+1)+'</td>'+
+            '<td><input name="items['+i+'][description]" value="'+esc(item.description)+'"></td>'+
+            '<td><input name="items['+i+'][boxes_per_carton]" value="'+esc(item.boxes_per_carton)+'"></td>'+
+            '<td><input name="items['+i+'][total_cartons]" value="'+esc(item.total_cartons)+'"></td>'+
+            '<td><input name="items['+i+'][carton_size]" value="'+esc(item.carton_size)+'"></td>'+
+            '<td><input name="items['+i+'][actual_wt]" value="'+esc(item.actual_wt)+'"></td>'+
+            '<td><input name="items['+i+'][volumetric_wt]" value="'+esc(item.volumetric_wt)+'"></td>'+
+            '<td><button type="button" class="djc-delrow">&times;</button></td>'+
+            '</tr>';
+    }
+    function addRow(item){
+        var body = document.getElementById('djcItemsBody');
+        if(!body) return;
+        body.insertAdjacentHTML('beforeend', rowHtml(rowIndex, item));
+        rowIndex++;
+    }
+    function openChallan(sel){
+        var form = document.getElementById('djChallanForm');
+        if(!form || !sel) return;
+        var row = sel.closest('tr');
+        var challan = null;
+        try { challan = JSON.parse(row.getAttribute('data-challan') || 'null'); } catch(e) {}
+        form.reset();
+        form.action = challan ? row.getAttribute('data-challan-update-url') : sel.getAttribute('data-challan-url');
+        document.getElementById('djcMethod').disabled = !challan;
+        document.getElementById('djcTitle').textContent = challan ? 'Edit Delivery Challan' : 'Delivery Challan';
+        document.getElementById('djcSubmitLabel').textContent = challan ? 'Update Challan' : 'Save Challan';
+        var set = function(id,v){ var el=document.getElementById(id); if(el) el.value=v; };
+        set('djcJobNo', sel.getAttribute('data-job-no')||'');
+        set('djcCustomer', sel.getAttribute('data-customer')||'');
+        set('djcPrepared', sel.getAttribute('data-designer')||'');
+        var d = new Date();
+        set('djcDate', d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+        if(challan){
+            ['challan_date','delivery_date','vehicle_no','customer_name','contact_person','po_reference',
+             'delivery_address','remarks','prepared_by','driver_name','driver_contact','received_by'].forEach(function(name){
+                var field = form.elements.namedItem(name);
+                if(field) field.value = challan[name] == null ? '' : String(challan[name]).slice(0, name.endsWith('_date') ? 10 : undefined);
+            });
+        }
+        rowIndex = 0;
+        var body = document.getElementById('djcItemsBody');
+        if(body) body.innerHTML = '';
+        if(challan && Array.isArray(challan.items) && challan.items.length){
+            challan.items.forEach(addRow);
+        }else{
+            addRow(challan ? {} : {description:sel.getAttribute('data-title')||''});
+        }
+        var modal = document.getElementById('djChallanModal');
+        if(modal) modal.removeAttribute('hidden');
+    }
+    function closeChallan(){
+        var modal = document.getElementById('djChallanModal');
+        if(modal) modal.setAttribute('hidden','');
+        if(pendingSelect){ pendingSelect.value = pendingSelect.getAttribute('data-prev')||''; pendingSelect = null; }
+    }
+
+    // Stage dropdown change: "Close Job" opens the challan modal; anything else saves.
+    document.addEventListener('change', function(e){
+        var sel = e.target.closest ? e.target.closest('.dj-stage-select') : null;
+        if(!sel) return;
+        if(sel.value === 'close'){ pendingSelect = sel; openChallan(sel); }
+        else if(sel.form){ sel.form.submit(); }
+    });
+
+    document.addEventListener('click', function(e){
+        var t = e.target;
+        // Actions menu toggle
+        var mbtn = t.closest('.dj-menu-btn');
+        if(mbtn){
+            var list = mbtn.nextElementSibling;
+            var isOpen = list && !list.hasAttribute('hidden');
+            document.querySelectorAll('.dj-menu-list').forEach(function(l){ l.setAttribute('hidden',''); });
+            if(list && !isOpen) list.removeAttribute('hidden');
+            return;
+        }
+        if(!t.closest('.dj-menu')){
+            document.querySelectorAll('.dj-menu-list').forEach(function(l){ l.setAttribute('hidden',''); });
+        }
+        var editChallan = t.closest('.dj-menu-edit-challan');
+        if(editChallan){
+            pendingSelect = null;
+            editChallan.closest('.dj-menu-list').setAttribute('hidden','');
+            openChallan(editChallan.closest('tr').querySelector('.dj-stage-select'));
+            return;
+        }
+        // Challan modal controls
+        if(t.closest('[data-djc-close]')){ closeChallan(); return; }
+        if(t.closest('.djc-addrow')){ addRow(); return; }
+        var del = t.closest('.djc-delrow');
+        if(del){
+            var row = del.closest('tr'); var body = row.parentNode;
+            row.remove();
+            if(body && !body.children.length) addRow();
+            return;
+        }
+    });
+})();
+</script>
 @endsection

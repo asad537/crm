@@ -112,10 +112,15 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('design-jobs/{id}/stage', 'DesignJobController@updateStage')->name('crm.design_jobs.stage')->where('id', '[0-9]+');
         Route::delete('design-jobs/{id}', 'DesignJobController@destroy')->name('crm.design_jobs.destroy')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/job-card', 'DesignJobCardController@edit')->name('crm.design_jobs.job_card.edit')->where('id', '[0-9]+');
+        Route::get('design-jobs/{id}/job-card/view', 'DesignJobCardController@preview')->name('crm.design_jobs.job_card.preview')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/job-card/pdf', 'DesignJobCardController@pdf')->name('crm.design_jobs.job_card.pdf')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/job-card/print', 'DesignJobCardController@print')->name('crm.design_jobs.job_card.print')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/dummy', 'DesignJobCardController@dummy')->name('crm.design_jobs.dummy')->where('id', '[0-9]+');
         Route::post('design-jobs/{id}/dummy', 'DesignJobCardController@saveDummy')->name('crm.design_jobs.dummy.save')->where('id', '[0-9]+');
+        Route::post('design-jobs/{id}/challan', 'DeliveryChallanController@store')->name('crm.design_jobs.challan.store')->where('id', '[0-9]+');
+        Route::put('challans/{id}', 'DeliveryChallanController@update')->name('crm.challans.update')->where('id', '[0-9]+');
+        Route::get('challans/{id}/print', 'DeliveryChallanController@print')->name('crm.challans.print')->where('id', '[0-9]+');
+        Route::get('challans/{id}/pdf', 'DeliveryChallanController@pdf')->name('crm.challans.pdf')->where('id', '[0-9]+');
         Route::get('design-jobs/{id}/attachments/{attachmentId}', 'DesignJobCardController@downloadAttachment')->name('crm.design_jobs.attachments.download')->where(['id' => '[0-9]+', 'attachmentId' => '[0-9]+']);
         Route::post('design-jobs/{id}/job-card', 'DesignJobCardController@update')->name('crm.design_jobs.job_card.update')->where('id', '[0-9]+');
         });

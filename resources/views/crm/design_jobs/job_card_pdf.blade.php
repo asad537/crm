@@ -468,6 +468,16 @@
         .stocks td { padding: 7px 6px; border: 1px solid #c9d2e3; color: #27364a; font-size: 9pt; vertical-align: middle; overflow-wrap: break-word; }
         .stocks tbody tr:nth-child(even) { background: #f4f6fb; }
 
+        /* ===== PROCUREMENT LIST ===== */
+        .material-section { page-break-inside: auto; }
+        .material-wrap { padding: 6px; }
+        .materials { table-layout: fixed; }
+        .materials thead { display: table-header-group; }
+        .materials tr { page-break-inside: avoid; }
+        .materials th { padding: 6px; background: #2b3a67; color: #fff; font-size: 7.5pt; text-align: left; border: 1px solid #2b3a67; }
+        .materials td { padding: 7px 6px; border: 1px solid #c9d2e3; color: #27364a; font-size: 8.5pt; overflow-wrap: break-word; }
+        .materials tbody tr:nth-child(even) { background: #f4f6fb; }
+
         /* ===== SIGNATURES / FOOTER ===== */
         .sign { margin-top: 10px; }
         .sign td { width: 33.33%; padding: 0 10px; text-align: center; vertical-align: bottom; }
@@ -475,6 +485,14 @@
         .blank { display: inline-block; min-width: 90px; min-height: 10px; border-bottom: 1px solid #9ba7b6; }
         .text-navy { color: #2b3a67; }
         .deadline { color: #c62828; font-weight: 700; }
+
+        /* Browsers normally omit background colors in the print preview. */
+        @media print {
+            html, body, body * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -607,6 +625,38 @@
     @endif
 
 @endforeach
+
+{{-- PROCUREMENT LIST — final job-card section; extra rows may continue onto another page. --}}
+<div class="section material-section">
+    <div class="bar">Procurement List</div>
+    <div class="material-wrap">
+        <table class="materials">
+            <thead><tr>
+                <th style="width:5%">#</th>
+                <th style="width:24%">Items</th>
+                <th style="width:22%">Specs</th>
+                <th style="width:10%">Qty</th>
+                <th style="width:15%">Needed By</th>
+                <th style="width:24%">Remarks</th>
+            </tr></thead>
+            <tbody>
+                @foreach($materials as $material)
+                    <tr>
+                        <td>{{ $loop->iteration }}</td>
+                        <td>{{ $material->item }}</td>
+                        <td>{{ $material->specs }}</td>
+                        <td>{{ $material->qty }}</td>
+                        <td>{{ $date($material->needed_by) }}</td>
+                        <td>{{ $material->remarks }}</td>
+                    </tr>
+                @endforeach
+                @for($i = $materials->count(); $i < 1; $i++)
+                    <tr><td>{{ $i + 1 }}</td><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+                @endfor
+            </tbody>
+        </table>
+    </div>
+</div>
 
 {{-- SIGNATURES --}}
 <table class="sign">

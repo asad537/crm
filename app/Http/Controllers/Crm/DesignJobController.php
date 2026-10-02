@@ -19,7 +19,7 @@ class DesignJobController extends Controller
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
         $status = $request->input('status', 'all');
 
-        $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments'])
+        $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments', 'challan'])
             ->where('workspace_id', $workspaceId)
             ->latest();
         if ($status !== 'all' && array_key_exists($status, DesignJob::STATUSES)) {
@@ -54,6 +54,7 @@ class DesignJobController extends Controller
             'job' => new DesignJob(),
             'card' => new \App\DesignJobCard(),
             'stocks' => collect(),
+            'materials' => collect(),
             'attachments' => collect(),
         ]);
     }

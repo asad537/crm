@@ -1,6 +1,6 @@
 @extends('crm.layout')
 
-@section('title', $job->exists ? 'Job Card — ' . $job->job_number : 'New Job Card')
+@section('title', ($readOnly ?? false) ? 'View Job Card — ' . $job->job_number : ($job->exists ? 'Job Card — ' . $job->job_number : 'New Job Card'))
 
 @section('header_actions')
 <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}"><i class="fas fa-arrow-left"></i> Design Jobs</a>
@@ -8,6 +8,7 @@
 
 @section('content')
 @php
+    $readOnly = $readOnly ?? false;
     $val = fn($f, $d = null) => old($f, $card->{$f} ?? $d);
     $dv = fn($f) => old($f, optional($card->{$f})->format('Y-m-d'));
     $jobDateDefault = optional($card->job_date)->format('Y-m-d') ?: optional($job->created_at)->format('Y-m-d') ?: now()->format('Y-m-d');
@@ -15,6 +16,9 @@
 @endphp
 <style>
 .jc-page{max-width:1200px;margin:0 auto;color:#263449}
+.jc-readonly-fields{min-width:0;margin:0;padding:0;border:0}
+.jc-readonly .jc-control:disabled{opacity:1;background:#f8fafc;color:#263449;-webkit-text-fill-color:#263449;cursor:default}
+.jc-readonly .jc-add,.jc-readonly .jc-remove,.jc-readonly .jc-attachment-upload,.jc-readonly .jc-attachment-hint,.jc-readonly .jc-attachment-card>.jc-briefing-heading,.jc-readonly .jc-attachment-row label{display:none}
 .jc-page:not(.jc-ready) #jcForm>.jc-card,.jc-page:not(.jc-ready) #jcForm>.jc-actions{display:none}
 #jcForm{counter-reset:jc-section}
 .jc-hero{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:1.35rem 1.5rem;border:1px solid #dce5ee;border-radius:16px;background:linear-gradient(120deg,var(--primary-soft),#fff 58%);box-shadow:0 6px 20px rgba(15,23,42,.04)}
@@ -103,6 +107,15 @@ textarea.jc-control{min-height:74px;resize:vertical}
 .jc-item .jc-control{min-height:36px;padding:.42rem .6rem;font-size:.8rem}
 .jc-item .jc-field label{margin-bottom:.2rem;font-size:.7rem}
 .jc-add{display:inline-flex;align-items:center;gap:.45rem;min-height:38px;padding:.5rem .9rem;border:1px solid var(--primary-shadow);border-radius:10px;background:var(--primary-soft);color:var(--primary-purple);font-weight:800;cursor:pointer}
+.jc-material-wrap{overflow-x:auto;border:1px solid #dce5ee;border-radius:9px}
+.jc-materials{width:100%;min-width:760px;border-collapse:collapse;table-layout:fixed}
+.jc-materials th{padding:.6rem .5rem;background:#f3f6fa;color:#405069;font-size:.72rem;font-weight:800;text-align:left;border-bottom:1px solid #dce5ee}
+.jc-materials td{padding:.42rem .35rem;border-bottom:1px solid #e6edf4}
+.jc-materials tr:last-child td{border-bottom:0}
+.jc-materials .jc-control{min-height:36px;padding:.4rem .55rem;font-size:.78rem}
+.jc-material-number{text-align:center;color:#64748b;font-size:.75rem;font-weight:800}
+.jc-material-print-value{display:none}
+.jc-material-add{margin-top:.7rem}
 .jc-actions{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:.65rem;margin-top:1rem;padding:.9rem 1rem;border:1px solid #e5ebf2;border-radius:14px;background:rgba(255,255,255,.96);backdrop-filter:blur(4px);box-shadow:0 -6px 20px rgba(15,23,42,.06)}
 .jc-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:42px;padding:.6rem 1.1rem;border:0;border-radius:10px;text-decoration:none;font-weight:800;cursor:pointer}
 .jc-btn-light{color:#475569;background:#eef2f7}
@@ -186,6 +199,13 @@ textarea.jc-control{min-height:74px;resize:vertical}
   .jc-step-hidden{display:none!important}
   .jc-step[data-choice="no"]{display:none!important}
   .jc-step[data-choice="yes"] .jc-step-body,.jc-header-step .jc-step-body{display:block!important}
+  .jc-material-card{grid-column:1/-1!important}
+  .jc-material-wrap{overflow:visible!important;border:0!important;border-radius:0!important}
+  .jc-materials{min-width:0!important}
+  .jc-materials th,.jc-materials td{border:1px solid #9aa5b1!important;padding:.7mm!important;font-size:6.5pt!important}
+  .jc-materials input{display:none!important}
+  .jc-material-print-value{display:block!important;min-height:3.5mm;overflow-wrap:anywhere}
+  .jc-materials th:last-child,.jc-materials td:last-child{display:none!important}
   /* Keep the complete production form on one A4 sheet without changing the screen form. */
   .jc-page{font-size:7pt!important;zoom:.92!important}
   .jc-hero{padding:0 0 1mm!important;margin:0 0 1.5mm!important;border-bottom-width:1px!important}
@@ -238,15 +258,16 @@ textarea.jc-control{min-height:74px;resize:vertical}
 @media screen and (max-width:600px){.jc-briefing-dimensions{grid-template-columns:1fr}.jc-briefing-measure+.jc-briefing-measure{border-left:0;border-top:1px solid #e1e8f0;padding:1rem 0 0}}
 @media screen and (max-width:820px){.jc-field,.jc-2,.jc-4,.jc-6,.jc-8{grid-column:1/-1}.jc-dimension-fields .jc-field,.jc-printing-plates .jc-field{grid-column:auto}.jc-timestrip{grid-template-columns:repeat(2,1fr)}}
 </style>
-<div class="jc-page">
-<div class="jc-hero"><span class="jc-icon"><i class="fas fa-clipboard-list"></i></span><div><h1>Production Job Card</h1><p>@if($job->exists){{ $job->job_number }} · {{ $job->title }}@else Fill the card and save to create the job and its number.@endif</p></div><div class="jc-print-note">PRODUCTION COPY<br>Complete time fields by hand</div></div>
+<div class="jc-page {{ $readOnly ? 'jc-ready jc-readonly' : '' }}">
+<div class="jc-hero"><span class="jc-icon"><i class="fas fa-clipboard-list"></i></span><div><h1>{{ $readOnly ? 'View Job Card' : 'Production Job Card' }}</h1><p>@if($job->exists){{ $job->job_number }} · {{ $job->title }}@else Fill the card and save to create the job and its number.@endif</p></div><div class="jc-print-note">PRODUCTION COPY<br>Complete time fields by hand</div></div>
 
 @if(session('success'))<div class="jc-flash"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>@endif
 @if($errors->any())<div class="jc-errors"><strong>Please check the form:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
 <form id="jcForm" method="POST" enctype="multipart/form-data" novalidate action="{{ $job->exists ? route('crm.design_jobs.job_card.update', $job->id) : route('crm.design_jobs.store') }}">{{ csrf_field() }}
-<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 14 : -1)) }}">
+<input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 12 : -1)) }}">
 <input type="hidden" name="wizard_current_step" value="{{ old('wizard_current_step', ($card->section_choices ?? [])['__active_step'] ?? 0) }}">
+@if($readOnly)<fieldset class="jc-readonly-fields" disabled>@endif
 
 {{-- Card 1 — Job header --}}
 <div class="jc-card">
@@ -313,7 +334,9 @@ textarea.jc-control{min-height:74px;resize:vertical}
 <div class="jc-card">
     <h4 class="jc-title"><i class="fas fa-layer-group"></i> Paper / Board / Stock</h4>
     <div class="jc-items" id="jcStocks">
-        @php($stockRows = $stocks->count() ? $stocks : collect([null]))
+        @php
+            $stockRows = $stocks->count() ? $stocks : collect([null]);
+        @endphp
         @foreach($stockRows as $i => $s)
         <div class="jc-item" data-index="{{ $i }}">
             <div class="jc-item-head"><span class="jc-item-number">{{ $i + 1 }}</span><button class="jc-remove" type="button" onclick="jcRemoveRow(this,'jcStocks','stocks')"><i class="fas fa-trash"></i></button></div>
@@ -496,12 +519,53 @@ textarea.jc-control{min-height:74px;resize:vertical}
     @endif
 </div>
 
+{{-- Final card — repeatable Procurement List --}}
+@php
+    $materialRows = old('materials', $materials->map(fn($m) => [
+        'item' => $m->item,
+        'specs' => $m->specs,
+        'qty' => $m->qty,
+        'needed_by' => optional($m->needed_by)->format('Y-m-d'),
+        'remarks' => $m->remarks,
+    ])->all());
+    if (!$materialRows) $materialRows = [[]];
+@endphp
+<div class="jc-card jc-material-card">
+    <h4 class="jc-title"><i class="fas fa-list"></i> Procurement List</h4>
+    <div class="jc-material-wrap">
+        <table class="jc-materials">
+            <colgroup><col style="width:4%"><col style="width:24%"><col style="width:21%"><col style="width:10%"><col style="width:15%"><col style="width:22%"><col style="width:4%"></colgroup>
+            <thead><tr><th>#</th><th>Items</th><th>Specs</th><th>Qty</th><th>Needed By</th><th>Remarks</th><th></th></tr></thead>
+            <tbody id="jcMaterials">
+                @foreach($materialRows as $i => $m)
+                    <tr>
+                        <td class="jc-material-number">{{ $loop->iteration }}</td>
+                        <td><input class="jc-control" name="materials[{{ $loop->index }}][item]" value="{{ $m['item'] ?? '' }}" aria-label="Item {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><input class="jc-control" name="materials[{{ $loop->index }}][specs]" value="{{ $m['specs'] ?? '' }}" aria-label="Specs {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><input class="jc-control" name="materials[{{ $loop->index }}][qty]" value="{{ $m['qty'] ?? '' }}" aria-label="Quantity {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><input class="jc-control" type="date" name="materials[{{ $loop->index }}][needed_by]" value="{{ $m['needed_by'] ?? '' }}" aria-label="Needed by {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><input class="jc-control" name="materials[{{ $loop->index }}][remarks]" value="{{ $m['remarks'] ?? '' }}" aria-label="Remarks {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><button class="jc-remove" type="button" onclick="jcRemoveMaterialRow(this)" aria-label="Remove row {{ $loop->iteration }}"><i class="fas fa-trash"></i></button></td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    <button class="jc-add jc-material-add" type="button" onclick="jcAddMaterialRow()"><i class="fas fa-plus"></i> Add row</button>
+</div>
+
+@if($readOnly)</fieldset>@endif
 <div class="jc-actions">
+    @if($readOnly)
+    <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}"><i class="fas fa-arrow-left"></i> Back to Jobs</a>
+    <a class="jc-btn jc-btn-primary" href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}"><i class="fas fa-edit"></i> Edit Job Card</a>
+    @else
     <a class="jc-btn jc-btn-light" href="{{ route('crm.design_jobs.index') }}">Cancel</a>
     <span class="jc-form-error" id="jcFormError" role="alert"></span>
     @if($job->exists)<a class="jc-btn jc-btn-light jc-print" href="{{ route('crm.design_jobs.job_card.print', $job->id) }}" target="_blank" rel="noopener"><i class="fas fa-print"></i> Print Form</a>@endif
     <button class="jc-btn jc-btn-light jc-draft" type="submit" name="save_mode" value="draft"><i class="fas fa-save"></i> Save</button>
-    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> Create Job Card</button>
+    <button class="jc-btn jc-btn-primary jc-complete" type="submit" name="save_mode" value="complete"><i class="fas fa-check-circle"></i> {{ $job->exists ? 'Save Job Card' : 'Create Job Card' }}</button>
+    @endif
 </div>
 </form>
 </div>
@@ -550,6 +614,29 @@ function jcReindexRows(containerId,name){
         card.querySelectorAll('[name]').forEach(function(f){f.name=f.name.replace(new RegExp(name+'\\[\\d+\\]'),name+'['+index+']');});
     });
 }
+function jcReindexMaterialRows(){
+    document.querySelectorAll('#jcMaterials tr').forEach(function(row,index){
+        row.querySelector('.jc-material-number').textContent=index+1;
+        row.querySelector('.jc-remove').setAttribute('aria-label','Remove row '+(index+1));
+        row.querySelectorAll('input').forEach(function(field){
+            field.name=field.name.replace(/materials\[\d+\]/,'materials['+index+']');
+            field.setAttribute('aria-label',field.getAttribute('aria-label').replace(/\d+$/,index+1));
+        });
+    });
+}
+function jcAddMaterialRow(){
+    var box=document.getElementById('jcMaterials'),clone=box.querySelector('tr').cloneNode(true);
+    clone.querySelectorAll('input').forEach(function(field){field.value='';});
+    clone.querySelectorAll('.jc-material-print-value').forEach(function(value){value.textContent='';});
+    box.appendChild(clone);jcReindexMaterialRows();
+}
+function jcRemoveMaterialRow(button){
+    var box=document.getElementById('jcMaterials'),row=button.closest('tr');
+    if(box.querySelectorAll('tr').length===1){
+        row.querySelectorAll('input').forEach(function(field){field.value='';});
+        row.querySelectorAll('.jc-material-print-value').forEach(function(value){value.textContent='';});
+    }else{row.remove();jcReindexMaterialRows();}
+}
 function jcSyncPrintFields(){
     document.querySelectorAll('#jcForm .jc-field > .jc-control').forEach(function(field){
         var printValue=field.nextElementSibling;
@@ -564,14 +651,22 @@ function jcSyncPrintFields(){
         printValue.textContent=value||'\u00a0';
         printValue.classList.toggle('jc-print-value-multiline',field.tagName==='TEXTAREA');
     });
+    document.querySelectorAll('#jcMaterials input').forEach(function(field){
+        var value=field.nextElementSibling;
+        if(!value)return;
+        var text=field.value;
+        if(field.type==='date'&&text){var parts=text.split('-');text=parts[2]+'/'+parts[1]+'/'+parts[0];}
+        value.textContent=text||'\u00a0';
+    });
 }
 window.addEventListener('beforeprint',jcSyncPrintFields);
 function jcInitJobCard(){
     var form=document.getElementById('jcForm');
     if(!form||form.dataset.jcInitialized==='1')return;
     form.dataset.jcInitialized='1';
+    if(@json($readOnly))return;
     jcToggleQc();
-    var keys=['header','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','attachments'];
+    var keys=['header','briefing','stock','foam','printing','lamination','screen','foiling','corrugation','diecutting','pasting','attachments','materials'];
     var cards=Array.from(form.querySelectorAll(':scope > .jc-card'));
     var savedChoices=@json(old('sections', $card->section_choices ?? []));
     var printMode=new URLSearchParams(window.location.search).has('print');
@@ -579,7 +674,7 @@ function jcInitJobCard(){
     var legacy=@json($job->exists)&&savedChoices.__completed_step===undefined;
     if(legacy&&!Object.keys(savedChoices).length){keys.slice(1).forEach(function(key){savedChoices[key]='yes';});}
     var completedStep=parseInt(form.elements.wizard_completed_step.value,10);
-    if(isNaN(completedStep))completedStep=legacy?14:-1;
+    if(isNaN(completedStep))completedStep=legacy?12:-1;
     var activeStep=parseInt(form.elements.wizard_current_step.value,10);
     if(isNaN(activeStep))activeStep=0;
     activeStep=Math.max(0,Math.min(activeStep,keys.length-1));
@@ -600,6 +695,10 @@ function jcInitJobCard(){
         Object.keys(cached.rows||{}).forEach(function(id){
             var box=document.getElementById(id),config=cached.rows[id];
             if(!box||!config||!config.name)return;
+            if(id==='jcMaterials'){
+                while(box.querySelectorAll('tr').length<config.count)jcAddMaterialRow();
+                return;
+            }
             while(box.querySelectorAll('.jc-item').length<config.count)jcAddRow(id,config.name);
         });
         form.querySelectorAll('input,select,textarea').forEach(function(field){
@@ -633,6 +732,7 @@ function jcInitJobCard(){
             var first=box.querySelector('.jc-item [name]');
             if(first)rows[box.id]={count:box.querySelectorAll('.jc-item').length,name:first.name.split('[')[0]};
         });
+        rows.jcMaterials={count:document.querySelectorAll('#jcMaterials tr').length,name:'materials'};
         try{sessionStorage.setItem(cacheKey,JSON.stringify({fields:fields,rows:rows,done:done,activeStep:activeStep}));}catch(error){}
     }
 
