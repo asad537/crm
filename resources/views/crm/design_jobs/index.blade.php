@@ -342,7 +342,7 @@
 
 <style>
 .dj-menu{position:relative;display:inline-block}
-.dj-menu-list{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:150px;background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.14);padding:.3rem;display:flex;flex-direction:column;gap:.15rem}
+.dj-menu-list{position:fixed;left:0;top:0;z-index:1000;min-width:150px;max-height:calc(100vh - 16px);overflow-y:auto;background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.14);padding:.3rem;display:flex;flex-direction:column;gap:.15rem}
 .dj-menu-list[hidden]{display:none}
 .dj-menu-list a,.dj-menu-list button{display:flex;align-items:center;gap:.5rem;padding:.5rem .6rem;border-radius:7px;font-size:.78rem;font-weight:700;color:#334155;text-decoration:none;background:none;border:0;width:100%;text-align:left;cursor:pointer}
 .dj-menu-list a:hover{background:var(--primary-soft,#eef2fb);color:var(--primary-purple,#2b3a67)}
@@ -444,6 +444,21 @@
         if(modal) modal.setAttribute('hidden','');
         if(pendingSelect){ pendingSelect.value = pendingSelect.getAttribute('data-prev')||''; pendingSelect = null; }
     }
+    function closeActionMenus(){
+        document.querySelectorAll('.dj-menu-list').forEach(function(list){ list.setAttribute('hidden',''); });
+    }
+    function openActionMenu(button, list){
+        var rect = button.getBoundingClientRect();
+        list.style.visibility = 'hidden';
+        list.removeAttribute('hidden');
+        var width = list.offsetWidth, height = list.offsetHeight;
+        var left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+        var above = window.innerHeight - rect.bottom < height + 8 && rect.top > height + 8;
+        var top = above ? rect.top - height - 4 : rect.bottom + 4;
+        list.style.left = left + 'px';
+        list.style.top = Math.max(8, Math.min(top, window.innerHeight - height - 8)) + 'px';
+        list.style.visibility = '';
+    }
 
     // Stage dropdown change: "Close Job" opens the challan modal; anything else saves.
     document.addEventListener('change', function(e){
@@ -460,12 +475,12 @@
         if(mbtn){
             var list = mbtn.nextElementSibling;
             var isOpen = list && !list.hasAttribute('hidden');
-            document.querySelectorAll('.dj-menu-list').forEach(function(l){ l.setAttribute('hidden',''); });
-            if(list && !isOpen) list.removeAttribute('hidden');
+            closeActionMenus();
+            if(list && !isOpen) openActionMenu(mbtn, list);
             return;
         }
         if(!t.closest('.dj-menu')){
-            document.querySelectorAll('.dj-menu-list').forEach(function(l){ l.setAttribute('hidden',''); });
+            closeActionMenus();
         }
         var editChallan = t.closest('.dj-menu-edit-challan');
         if(editChallan){
@@ -485,6 +500,8 @@
             return;
         }
     });
+    document.addEventListener('scroll', closeActionMenus, true);
+    window.addEventListener('resize', closeActionMenus);
 })();
 </script>
 @endsection
