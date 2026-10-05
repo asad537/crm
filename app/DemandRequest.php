@@ -98,6 +98,21 @@ class DemandRequest extends Model
         return $this->hasMany(DemandRequestAttachment::class)->orderByDesc('id');
     }
 
+    public function settlements()
+    {
+        return $this->hasMany(DemandRequestSettlement::class)->orderBy('paid_at')->orderBy('id');
+    }
+
+    /** Money the company paid back to the accountant against this demand's negative account balance. */
+    public function settledTotal(): float
+    {
+        if (!$this->exists && !$this->relationLoaded('settlements')) {
+            return 0.0;
+        }
+
+        return (float) $this->settlements->sum('amount');
+    }
+
     /** Total money paid so far against this demand (all payments). */
     public function paidTotal(): float
     {
@@ -226,6 +241,7 @@ class DemandRequest extends Model
      * unspent amount to reconcile; negative means the accountant spent beyond it.
      * Cash in Hand draws fund part of the allocation, so they are deducted once
      * from the aggregate pool rather than from this demand's spending balance.
+     * "Pay to Account" settlements reimburse an overspend, moving it back toward zero.
      */
     public function accountOutstanding(): float
     {
@@ -241,6 +257,7 @@ class DemandRequest extends Model
             }
         }
         $total -= $this->generalPaid();
+        $total += $this->settledTotal();
 
         return round($total, 2);
     }

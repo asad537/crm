@@ -201,6 +201,23 @@
             </tr>
         </table>
 
+        @if($dr->settlements->count())
+        <div class="sec" style="margin-top:16px">Paid to Account (Settlement)</div>
+        <table class="pay">
+            <thead><tr><th style="width:13%">Date</th><th class="right" style="width:11%">Amount</th><th style="width:16%">Method</th><th>Note</th></tr></thead>
+            <tbody>
+            @foreach($dr->settlements as $st)
+                <tr>
+                    <td>{{ optional($st->paid_at)->format('d M Y') }}</td>
+                    <td class="right" style="color:#6d28d9;font-weight:800">{{ $money($st->amount) }}</td>
+                    <td>{{ $st->method ?: '—' }}</td>
+                    <td>{{ $st->note ?: '—' }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        @endif
+
         @if($dr->payments->count())
         <div class="sec" style="margin-top:16px">Payment History</div>
         <table class="pay">

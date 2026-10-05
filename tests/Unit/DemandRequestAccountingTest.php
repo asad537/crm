@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\DemandRequest;
 use App\DemandRequestItem;
 use App\DemandRequestPayment;
+use App\DemandRequestSettlement;
 use PHPUnit\Framework\TestCase;
 
 class DemandRequestAccountingTest extends TestCase
@@ -67,6 +68,24 @@ class DemandRequestAccountingTest extends TestCase
         $this->assertEqualsWithDelta(40, $demand->accountOutstanding(), 0.001);
         $this->assertEqualsWithDelta(-60, $demand->companyOutstanding(), 0.001);
         $this->assertEqualsWithDelta(100, $demand->owedTotal(), 0.001);
+    }
+
+    public function test_pay_to_account_settlement_clears_the_account_overspend(): void
+    {
+        $demand = $this->demand('Completed', 100, 120);
+        $demand->setRelation('settlements', collect([new DemandRequestSettlement(['amount' => 15])]));
+
+        $this->assertEqualsWithDelta(-5, $demand->accountOutstanding(), 0.001);
+        $this->assertEqualsWithDelta(120, $demand->paidTotal(), 0.001);
+
+        $demand->setRelation('settlements', collect([
+            new DemandRequestSettlement(['amount' => 15]),
+            new DemandRequestSettlement(['amount' => 5]),
+        ]));
+
+        $this->assertEqualsWithDelta(0, $demand->accountOutstanding(), 0.001);
+        $this->assertEqualsWithDelta(0, $demand->owedTotal(), 0.001);
+        $this->assertSame('Paid', $demand->paymentStatus());
     }
 
     private function demand(

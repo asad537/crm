@@ -267,6 +267,8 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('demand-requests/{id}/payments', 'DemandRequestController@addPayment')->name('crm.demand_requests.add_payment');
         Route::post('demand-requests/{id}/payments-bulk', 'DemandRequestController@addPayments')->name('crm.demand_requests.add_payments');
         Route::delete('demand-requests/{id}/payments/{paymentId}', 'DemandRequestController@deletePayment')->name('crm.demand_requests.delete_payment');
+        Route::post('demand-requests/{id}/settlements', 'DemandRequestController@addSettlement')->name('crm.demand_requests.add_settlement');
+        Route::delete('demand-requests/{id}/settlements/{settlementId}', 'DemandRequestController@deleteSettlement')->name('crm.demand_requests.delete_settlement');
         Route::get('demand-requests/{id}/pdf', 'DemandRequestController@pdf')->name('crm.demand_requests.pdf');
         Route::post('demand-requests/{id}/approve', 'DemandRequestController@approve')->name('crm.demand_requests.approve');
         Route::post('demand-requests/{id}/reject', 'DemandRequestController@reject')->name('crm.demand_requests.reject');

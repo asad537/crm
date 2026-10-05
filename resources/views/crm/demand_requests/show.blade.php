@@ -273,7 +273,29 @@
         <table class="dr-table">
             <thead><tr><th>Date</th><th class="dr-num">Amount</th><th>Type / Source</th><th>Against</th><th>Paid To</th><th>Vendor Inv#</th><th>Note</th><th>Proof</th><th></th></tr></thead>
             <tbody>
-            @forelse($dr->payments as $pmt)
+            @php($__history = $dr->payments->toBase()->concat($dr->settlements)->sortBy(fn($r) => optional($r->paid_at)->format('Y-m-d') ?? '')->values())
+            @forelse($__history as $pmt)
+                @if($pmt instanceof \App\DemandRequestSettlement)
+                <tr style="background:#f5f3ff">
+                    <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
+                    <td class="dr-num"><strong style="color:#6d28d9">{{ number_format($pmt->amount,2) }}</strong></td>
+                    <td><span style="background:#ede9fe;color:#6d28d9;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">SETTLEMENT · Paid to Account</span>{{ $pmt->method ? ' · '.$pmt->method : '' }}</td>
+                    <td><span class="dr-tag" style="background:#ede9fe;color:#6d28d9">Account balance</span></td>
+                    <td>Account{{ $pmt->creator ? ' (by '.$pmt->creator->name.')' : '' }}</td>
+                    <td>—</td>
+                    <td>{{ $pmt->note ?: '—' }}</td>
+                    <td>@if($pmt->proof_url)<a href="{{ $pmt->proof_url }}" target="_blank" title="{{ $pmt->proof_name }}" style="color:var(--primary-purple);text-decoration:none"><i class="fas fa-paperclip"></i></a>@else<span style="color:#cbd5e1">—</span>@endif</td>
+                    <td>
+                        @if($canApprove)
+                        <form method="POST" action="{{ route('crm.demand_requests.delete_settlement',[$dr->id,$pmt->id]) }}" onsubmit="return confirm('Remove this account settlement?');">
+                            {{ csrf_field() }} {{ method_field('DELETE') }}
+                            <button class="dr-del" type="submit" title="Remove"><i class="fas fa-trash"></i></button>
+                        </form>
+                        @endif
+                    </td>
+                </tr>
+                @continue
+                @endif
                 <tr>
                     <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
                     <td class="dr-num"><strong style="color:#159447">{{ number_format($pmt->amount,2) }}</strong></td>
@@ -299,11 +321,15 @@
             </tbody>
         </table>
         </div>
-        @if(count($payerSummary))
+        @php($__settled = $dr->settledTotal())
+        @if(count($payerSummary) || $__settled > 0.009)
         <div style="margin-top:.9rem;display:flex;flex-wrap:wrap;gap:.5rem">
             @foreach($payerSummary as $src => $amt)
                 <span class="dr-tag" style="padding:.4rem .7rem;font-size:.74rem"><i class="fas fa-wallet"></i> {{ $src }}: <strong>{{ number_format($amt,2) }}</strong></span>
             @endforeach
+            @if($__settled > 0.009)
+                <span class="dr-tag" style="padding:.4rem .7rem;font-size:.74rem;background:#ede9fe;color:#6d28d9"><i class="fas fa-hand-holding-usd"></i> Paid to Account: <strong>{{ number_format($__settled,2) }}</strong></span>
+            @endif
         </div>
         @endif
         <div style="display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1rem;padding-top:1rem;border-top:1px solid #eef2f7">
@@ -386,10 +412,32 @@
             @if(in_array($dr->status,['Approved','Partially Paid']) && !$dr->force_completed)
                 <form method="POST" action="{{ route('crm.demand_requests.complete',$dr->id) }}" style="display:inline" onsubmit="return confirm('Mark this demand complete (close it)?');">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-flag-checkered"></i> Mark Complete</button></form>
             @endif
+            @php($__accDue = round(-$dr->accountOutstanding(), 2))
+            @php($__canSettle = $canApprove && $dr->status==='Completed' && $__accDue > 0.009)
+            @if($__canSettle)
+                <button class="dr-btn dr-btn-primary" type="button" onclick="var b=document.getElementById('drSettle');b.style.display=b.style.display==='block'?'none':'block'"><i class="fas fa-hand-holding-usd"></i> Pay to Account</button>
+            @endif
             @if($dr->status==='Completed' || $dr->force_completed)
                 <form method="POST" action="{{ route('crm.demand_requests.reopen',$dr->id) }}" style="display:inline" onsubmit="return confirm('Reopen this demand so payments can resume?');">{{ csrf_field() }}<button class="dr-btn dr-btn-outline" type="submit"><i class="fas fa-undo"></i> Reopen</button></form>
             @endif
         </div>
+        @if($errors->has('settlement') || ($errors->has('amount') && old('_settle')))<div style="margin-top:.8rem;padding:.7rem 1rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.78rem;font-weight:700"><i class="fas fa-exclamation-triangle"></i> {{ $errors->first('settlement') ?: $errors->first('amount') }}</div>@endif
+        @if($__canSettle)
+        <div id="drSettle" style="display:{{ old('_settle') ? 'block' : 'none' }};margin-top:1rem;padding:1rem;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff">
+            <form method="POST" action="{{ route('crm.demand_requests.add_settlement',$dr->id) }}" enctype="multipart/form-data">{{ csrf_field() }}
+                <input type="hidden" name="_settle" value="1">
+                <div style="font-size:.78rem;font-weight:800;color:#6d28d9;margin-bottom:.7rem"><i class="fas fa-info-circle"></i> Account balance is &minus; {{ number_format($__accDue,2) }} — record the money given back to the accountant.</div>
+                <div style="display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-end">
+                    <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Amount</label><input class="dr-control" type="number" step="0.01" min="0.01" max="{{ number_format($__accDue,2,'.','') }}" name="amount" value="{{ old('amount', number_format($__accDue,2,'.','')) }}" required style="width:140px"></div>
+                    <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Method</label><select class="dr-control" name="method" style="width:150px">@foreach(['Cash','Bank','Company Account','Owner'] as $__m)<option {{ old('method')===$__m?'selected':'' }}>{{ $__m }}</option>@endforeach</select></div>
+                    <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Date</label><input class="dr-control" type="date" name="paid_at" value="{{ old('paid_at', date('Y-m-d')) }}" style="width:160px"></div>
+                    <div style="flex:1;min-width:200px"><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Note</label><input class="dr-control" name="note" maxlength="255" value="{{ old('note') }}" placeholder="e.g. cash handed to accountant"></div>
+                    <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Proof (optional)</label><input class="dr-control" type="file" name="proof" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv" style="padding:.28rem;font-size:.7rem;max-width:230px"></div>
+                    <button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-check"></i> Save</button>
+                </div>
+            </form>
+        </div>
+        @endif
         @if($canApprove && $dr->status==='Submitted')
         <div class="dr-reject" id="drReject">
             <form method="POST" action="{{ route('crm.demand_requests.reject',$dr->id) }}">{{ csrf_field() }}

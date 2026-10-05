@@ -63,11 +63,11 @@ class DemandRequestController extends Controller
             return $q;
         };
 
-        $query = $applyFilters(DemandRequest::with(['creator', 'items', 'payments'])->orderBy('request_date', 'desc')->orderBy('id', 'desc'));
+        $query = $applyFilters(DemandRequest::with(['creator', 'items', 'payments', 'settlements'])->orderBy('request_date', 'desc')->orderBy('id', 'desc'));
         $requests = $query->paginate(20)->appends($request->all());
 
         // Summary reflects the current filters (Cash in Hand stays the global pool figure).
-        $all = $applyFilters(DemandRequest::with(['items', 'payments']))->get();
+        $all = $applyFilters(DemandRequest::with(['items', 'payments', 'settlements']))->get();
         $completed = $all->where('status', 'Completed');
         $summary = [
             'total' => $all->count(),
@@ -95,7 +95,7 @@ class DemandRequestController extends Controller
      */
     private function cashInHand()
     {
-        $demands = DemandRequest::with(['items', 'payments'])->get();
+        $demands = DemandRequest::with(['items', 'payments', 'settlements'])->get();
         $net = (float) $demands->where('status', 'Completed')
             ->sum(fn($d) => $d->accountOutstanding());
         $used = (float) $demands->sum(fn($d) => (float) $d->cash_in_hand_used);
@@ -316,6 +316,9 @@ class DemandRequestController extends Controller
         $this->authorizeAccess();
         $demand = DemandRequest::findOrFail($id);
         $demand->items()->delete();
+        foreach ($demand->settlements as $st) {
+            $this->removeSettlement($st);
+        }
         $demand->delete();
 
         return redirect()->route('crm.demand_requests.index')->with('status', 'Demand Request deleted.');
@@ -324,7 +327,7 @@ class DemandRequestController extends Controller
     public function show($id)
     {
         $this->authorizeAccess();
-        $dr = DemandRequest::with(['items.files', 'creator', 'approver', 'payments.files', 'attachments'])->findOrFail($id);
+        $dr = DemandRequest::with(['items.files', 'creator', 'approver', 'payments.files', 'settlements.creator', 'attachments'])->findOrFail($id);
 
         // When an approver opens a Submitted demand, the "approve page" IS the editable form
         // (with a Save & Approve button) — no separate Edit click needed.
@@ -531,6 +534,67 @@ class DemandRequestController extends Controller
         return back()->with('status', 'Payment removed.');
     }
 
+    /**
+     * Admin pays the accountant back when a completed demand's account balance is negative
+     * (the accountant spent beyond the allocation). Not an expense — only clears that minus.
+     */
+    public function addSettlement(Request $request, $id)
+    {
+        $this->authorizeApprove();
+        $dr = DemandRequest::with(['items', 'payments', 'settlements'])->findOrFail($id);
+        $due = round(-$dr->accountOutstanding(), 2);
+        if ($dr->status !== 'Completed' || $due <= 0.009) {
+            return back()->withErrors(['settlement' => 'Pay to Account is only available on a completed demand with a negative account balance.']);
+        }
+        $data = $request->validate([
+            'amount' => 'required|numeric|min:0.01|max:' . $due,
+            'method' => 'nullable|string|max:120',
+            'note' => 'nullable|string|max:255',
+            'paid_at' => 'nullable|date',
+            'proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
+        ]);
+        $proof = ['proof_path' => null, 'proof_name' => null];
+        if ($request->hasFile('proof')) {
+            $file = $request->file('proof');
+            $dir = public_path('uploads/demand-requests');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $ext = strtolower($file->getClientOriginalExtension());
+            $fname = 'drs_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+            $proof = ['proof_path' => 'uploads/demand-requests/' . $fname, 'proof_name' => $file->getClientOriginalName()];
+            $file->move($dir, $fname);
+        }
+        $dr->settlements()->create(array_merge([
+            'amount' => round((float) $data['amount'], 2),
+            'method' => $data['method'] ?? null,
+            'note' => $data['note'] ?? null,
+            'paid_at' => $data['paid_at'] ?? now()->toDateString(),
+            'created_by' => \Auth::guard('crm')->id(),
+        ], $proof));
+
+        return back()->with('status', number_format((float) $data['amount'], 2) . ' paid to account for Demand #' . $dr->request_no . '.');
+    }
+
+    public function deleteSettlement($id, $settlementId)
+    {
+        $this->authorizeApprove();
+        $dr = DemandRequest::findOrFail($id);
+        if ($st = $dr->settlements()->where('id', $settlementId)->first()) {
+            $this->removeSettlement($st);
+        }
+
+        return back()->with('status', 'Account settlement removed.');
+    }
+
+    private function removeSettlement(\App\DemandRequestSettlement $st): void
+    {
+        if ($st->proof_path && is_file(public_path($st->proof_path))) {
+            @unlink(public_path($st->proof_path));
+        }
+        $st->delete();
+    }
+
     /** Status follows the money: paid 0 -> Approved, partial -> Partially Paid, full -> Completed. */
     private function recomputeStatus(DemandRequest $dr): void
     {
@@ -557,7 +621,7 @@ class DemandRequestController extends Controller
     public function pdf($id)
     {
         $this->authorizeAccess();
-        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments.files'])->findOrFail($id);
+        $dr = DemandRequest::with(['items', 'creator', 'approver', 'payments.files', 'settlements'])->findOrFail($id);
         $company = $this->companyInfo();
         $isAlMassa = CrmWorkspaceContext::id() == 2;
         $brand = [
