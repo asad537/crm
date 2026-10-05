@@ -15,31 +15,37 @@
     $cur = $o->currency ?? ($pf['currency'] ?? 'USD');
 @endphp
 <style>
-.od-wrap{max-width:1120px;margin:0 auto}
-.od-top{display:flex;align-items:center;gap:.8rem;margin-bottom:1rem}
-.od-back{display:inline-flex;align-items:center;gap:.4rem;color:#64748b;text-decoration:none;font-weight:700;font-size:.85rem}
-.od-card{background:#fff;border:1px solid #e4eaf1;border-radius:16px;box-shadow:0 8px 26px rgba(15,23,42,.05);padding:1.3rem 1.4rem;margin-bottom:1.1rem}
-.od-sec{font-size:.95rem;font-weight:850;color:#0f172a;margin:.2rem 0 .9rem;padding-bottom:.5rem;border-bottom:2px solid var(--primary-soft)}
-.od-grid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem 1.1rem}
-.od-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem 1.1rem}
-.od-f{display:flex;flex-direction:column;gap:.28rem}
+.od-wrap{max-width:1060px;margin:0 auto}
+.od-top{display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem}
+.od-back{display:inline-flex;align-items:center;gap:.4rem;color:#64748b;text-decoration:none;font-weight:600;font-size:.82rem}
+.od-back:hover{color:var(--primary-purple)}
+.od-card{background:#fff;border:1px solid #e6ebf1;border-radius:10px;box-shadow:0 1px 2px rgba(15,23,42,.04);padding:1rem 1.15rem;margin-bottom:.75rem}
+.od-sec{font-size:.74rem;font-weight:700;color:#334155;margin:0 0 .85rem;padding-bottom:.55rem;border-bottom:1px solid #eef1f5;text-transform:uppercase;letter-spacing:.05em}
+.od-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem .85rem}
+.od-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem .85rem}
+.od-f{display:flex;flex-direction:column;gap:.25rem}
 .od-f.full{grid-column:1/-1}
-.od-l{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#718096}
+.od-l{font-size:.66rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#8795a7}
 .od-l .req{color:#dc2626}
-.od-i,.od-sel,.od-ta{width:100%;padding:.55rem .65rem;border:1.5px solid #dbe3ec;border-radius:8px;background:#fff;outline:0;box-sizing:border-box;font:inherit;font-size:.84rem}
+.od-i,.od-sel,.od-ta{width:100%;padding:.48rem .6rem;border:1px solid #d9e0e8;border-radius:7px;background:#fff;outline:0;box-sizing:border-box;font:inherit;font-size:.83rem;color:#0f172a;transition:border-color .12s,box-shadow .12s}
 .od-i:focus,.od-sel:focus,.od-ta:focus{border-color:var(--primary-purple);box-shadow:0 0 0 3px var(--primary-shadow)}
-.od-ta{min-height:64px;resize:vertical}
-.od-radio{display:flex;gap:1.2rem;align-items:center;padding:.35rem 0}
-.od-radio label{display:inline-flex;align-items:center;gap:.4rem;font-weight:700;font-size:.85rem;color:#334155;cursor:pointer}
-.od-check{display:inline-flex;align-items:center;gap:.5rem;font-weight:800;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:#475569;margin-bottom:.7rem;cursor:pointer}
-.od-item{border:1px solid #e6ecf3;border-radius:12px;padding:1rem;margin-bottom:.8rem;background:#fbfcfe;position:relative}
-.od-item-rm{position:absolute;top:.6rem;right:.6rem;width:26px;height:26px;border:none;border-radius:7px;background:#fef2f2;color:#dc2626;cursor:pointer}
-.od-dup{display:inline-flex;align-items:center;gap:.45rem;padding:.55rem .9rem;border-radius:9px;border:1px solid #16a34a;background:#22a34a;color:#fff;font-weight:800;font-size:.82rem;cursor:pointer}
-.od-actions{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.4rem}
-.od-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.68rem 1.2rem;border-radius:10px;border:1px solid #dbe3ec;background:#fff;color:#475569;font-weight:850;font-size:.86rem;cursor:pointer;text-decoration:none}
-.od-btn.primary{background:var(--primary-purple);color:#fff;border-color:var(--primary-purple);box-shadow:0 8px 18px var(--primary-shadow)}
-.od-total-row{font-weight:850}
-.od-err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.82rem}
+.od-i::placeholder{color:#aab4c2}
+.od-ta{min-height:56px;resize:vertical}
+.od-radio{display:flex;gap:1.4rem;align-items:center;padding:.32rem 0}
+.od-radio label{display:inline-flex;align-items:center;gap:.4rem;font-weight:500;font-size:.83rem;color:#334155;cursor:pointer}
+.od-check{display:inline-flex;align-items:center;gap:.5rem;font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.03em;color:#64748b;margin-bottom:.7rem;cursor:pointer}
+.od-item{border:1px solid #e6ebf1;border-radius:9px;padding:.85rem .9rem;margin-bottom:.65rem;background:#fafbfc;position:relative}
+.od-item-rm{position:absolute;top:.5rem;right:.5rem;width:24px;height:24px;border:none;border-radius:6px;background:#fef2f2;color:#dc2626;cursor:pointer;font-size:.72rem}
+.od-item-rm:hover{background:#fee2e2}
+.od-dup{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:7px;border:1px solid #d9e0e8;background:#fff;color:#334155;font-weight:600;font-size:.8rem;cursor:pointer}
+.od-dup:hover{border-color:var(--primary-purple);color:var(--primary-purple)}
+.od-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 1.1rem}
+.od-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.58rem 1.15rem;border-radius:8px;border:1px solid #d9e0e8;background:#fff;color:#334155;font-weight:600;font-size:.84rem;cursor:pointer;text-decoration:none}
+.od-btn:hover{border-color:#b9c3cf}
+.od-btn.primary{background:var(--primary-purple);color:#fff;border-color:var(--primary-purple)}
+.od-btn.primary:hover{filter:brightness(.94)}
+.od-total-row{font-weight:700;background:#f8fafc}
+.od-err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:8px;padding:.6rem .9rem;margin-bottom:.9rem;font-size:.82rem}
 @media(max-width:760px){.od-grid,.od-grid-3{grid-template-columns:1fr}}
 </style>
 
@@ -95,16 +101,20 @@
         <div class="od-grid" style="align-items:start">
             <div class="od-card">
                 <div class="od-sec">Billing Detail</div>
-                @foreach(['name'=>'Billing Name','company'=>'Billing Company Name','street'=>'Billing Street Address','city'=>'Billing City','state'=>'Billing State','country'=>'Billing Country','zip'=>'Billing Zip','phone'=>'Billing Phone'] as $k=>$lbl)
-                    <div class="od-f" style="margin-bottom:.6rem"><span class="od-l">{{ $lbl }}</span><input class="od-i bill-{{ $k }}" name="billing[{{ $k }}]" value="{{ $o ? old('billing.'.$k, $b[$k] ?? '') : old('billing.'.$k, ($k==='name'?($pf['billing_name']??''):($k==='phone'?($pf['billing_phone']??''):''))) }}"></div>
-                @endforeach
+                <div class="od-grid">
+                    @foreach(['name'=>'Billing Name','company'=>'Billing Company Name','street'=>'Billing Street Address','city'=>'Billing City','state'=>'Billing State','country'=>'Billing Country','zip'=>'Billing Zip','phone'=>'Billing Phone'] as $k=>$lbl)
+                        <div class="od-f {{ in_array($k,['name','street'])?'full':'' }}"><span class="od-l">{{ $lbl }}</span><input class="od-i bill-{{ $k }}" name="billing[{{ $k }}]" value="{{ $o ? old('billing.'.$k, $b[$k] ?? '') : old('billing.'.$k, ($k==='name'?($pf['billing_name']??''):($k==='phone'?($pf['billing_phone']??''):''))) }}"></div>
+                    @endforeach
+                </div>
             </div>
             <div class="od-card">
                 <div class="od-sec">Shipping Detail</div>
                 <label class="od-check"><input type="checkbox" id="copyBilling" onchange="odCopyBilling(this)"> Copy from billing address</label>
-                @foreach(['name'=>'Shipping Name','company'=>'Shipping Company','street'=>'Shipping Street','city'=>'Shipping City','state'=>'Shipping State','country'=>'Shipping Country','zip'=>'Shipping Zip','phone'=>'Shipping Phone'] as $k=>$lbl)
-                    <div class="od-f" style="margin-bottom:.6rem"><span class="od-l">{{ $lbl }}</span><input class="od-i ship-{{ $k }}" name="shipping[{{ $k }}]" value="{{ old('shipping.'.$k, $s[$k] ?? '') }}"></div>
-                @endforeach
+                <div class="od-grid">
+                    @foreach(['name'=>'Shipping Name','company'=>'Shipping Company','street'=>'Shipping Street','city'=>'Shipping City','state'=>'Shipping State','country'=>'Shipping Country','zip'=>'Shipping Zip','phone'=>'Shipping Phone'] as $k=>$lbl)
+                        <div class="od-f {{ in_array($k,['name','street'])?'full':'' }}"><span class="od-l">{{ $lbl }}</span><input class="od-i ship-{{ $k }}" name="shipping[{{ $k }}]" value="{{ old('shipping.'.$k, $s[$k] ?? '') }}"></div>
+                    @endforeach
+                </div>
             </div>
         </div>
 

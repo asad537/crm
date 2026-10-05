@@ -183,7 +183,7 @@ class OrdersController extends Controller
         // (e.g. TCB / my-box-printing) keeps its own manual-orders module.
         $__ws = view()->shared('activeCrmWorkspace');
         if (!$__ws || $__ws->slug !== 'mybox-packaging-app') {
-            return app(\App\Http\Controllers\Crm\OrderController::class)->index();
+            return app(\App\Http\Controllers\Crm\OrderController::class)->index($request);
         }
 
         // Accounts (accountant) sees the full invoice list read-only, like admin/sales manager.

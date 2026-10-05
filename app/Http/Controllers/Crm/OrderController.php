@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\CrmManualOrder;
 use App\CrmEmail;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -20,14 +21,74 @@ class OrderController extends Controller
         return $user;
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = $this->guard();
-        $query = CrmManualOrder::with('creator')->latest();
+
+        // Base scope: sales agents only see their own orders. (Workspace scope is global.)
+        $base = CrmManualOrder::query();
         if ($user->isSales()) {
-            $query->where('created_by', $user->id);
+            $base->where('created_by', $user->id);
         }
-        return view('crm.orders.manual_index', ['orders' => $query->get()]);
+
+        // Customer dropdown options — built from existing orders (billing name, else customer id).
+        $customers = (clone $base)->get()
+            ->map(function ($o) {
+                return trim((string) (data_get($o->billing, 'name') ?: $o->customer_id));
+            })
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $query = (clone $base)->with('creator')->latest();
+
+        // Search: invoice #, customer (billing name / customer id / user), or order / enquiry ID.
+        if ($request->filled('search')) {
+            $search = trim($request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhere('customer_id', 'like', "%{$search}%")
+                  ->orWhere('enquiry_number', 'like', "%{$search}%")
+                  ->orWhere('user_name', 'like', "%{$search}%")
+                  ->orWhere('billing', 'like', "%{$search}%")
+                  ->orWhere('id', $search);
+            });
+        }
+
+        // Status filter (paid / unpaid).
+        if ($request->filled('status')) {
+            $query->where('invoice_status', $request->input('status'));
+        }
+
+        // Customer filter (match billing name or customer id).
+        if ($request->filled('customer')) {
+            $customer = $request->input('customer');
+            $query->where(function ($q) use ($customer) {
+                $q->where('customer_id', $customer)
+                  ->orWhere('billing', 'like', "%{$customer}%");
+            });
+        }
+
+        // Date range on invoice date (fall back to created_at when invoice date is missing).
+        if ($request->filled('start_date')) {
+            $query->whereRaw('COALESCE(invoice_date, DATE(created_at)) >= ?', [Carbon::parse($request->input('start_date'))->toDateString()]);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereRaw('COALESCE(invoice_date, DATE(created_at)) <= ?', [Carbon::parse($request->input('end_date'))->toDateString()]);
+        }
+
+        return view('crm.orders.manual_index', [
+            'orders' => $query->get(),
+            'customers' => $customers,
+            'filters' => [
+                'search' => $request->input('search', ''),
+                'status' => $request->input('status', ''),
+                'customer' => $request->input('customer', ''),
+                'start_date' => $request->input('start_date', ''),
+                'end_date' => $request->input('end_date', ''),
+            ],
+        ]);
     }
 
     public function create(Request $request)
