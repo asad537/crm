@@ -10,6 +10,7 @@ class DemandRequest extends Model
         'workspace_id', 'created_by', 'request_no', 'request_date', 'requested_by',
         'priority', 'status', 'force_completed', 'approved_by', 'approved_at', 'rejection_reason', 'notes',
         'estimated_total', 'vat_percentage', 'actual_total', 'cash_in_hand_used', 'cash_in_hand_note',
+        'account_funding_tracked',
     ];
 
     protected $casts = [
@@ -20,6 +21,7 @@ class DemandRequest extends Model
         'vat_percentage' => 'decimal:2',
         'actual_total' => 'decimal:2',
         'cash_in_hand_used' => 'decimal:2',
+        'account_funding_tracked' => 'boolean',
     ];
 
     /** Base (ex-VAT) amount for one item. */
@@ -103,7 +105,7 @@ class DemandRequest extends Model
         return $this->hasMany(DemandRequestSettlement::class)->orderBy('paid_at')->orderBy('id');
     }
 
-    /** Money the company paid back to the accountant against this demand's negative account balance. */
+    /** Money actually transferred to the accountant; legacy rows are reimbursements. */
     public function settledTotal(): float
     {
         if (!$this->exists && !$this->relationLoaded('settlements')) {
@@ -202,6 +204,57 @@ class DemandRequest extends Model
         return (float) $this->payments->where('pay_type', '!=', 'Direct')->sum('amount');
     }
 
+    /** Planned budget for items assigned to the accountant, not proof of cash received. */
+    public function accountBudget(): float
+    {
+        return round((float) $this->items->filter(fn($it) => ($it->pay_by ?? 'Company') === 'Account')->sum('estimated_total'), 2);
+    }
+
+    /** Do not hand the accountant funds for Account items already paid directly by the company. */
+    public function accountFundingTarget(): float
+    {
+        $planned = $this->accountBudget();
+        foreach ($this->items as $it) {
+            if (($it->pay_by ?? 'Company') === 'Account') {
+                $planned -= (float) $this->payments->where('item_id', $it->id)->where('pay_type', 'Direct')->sum('amount');
+            }
+        }
+
+        return round(max(0, $planned, $this->accountTotal()), 2);
+    }
+
+    /** Actual funds available on this demand: company transfers plus an internal cash draw. */
+    public function accountFundsAvailable(): float
+    {
+        return round($this->settledTotal() + (float) $this->cash_in_hand_used, 2);
+    }
+
+    /** Vendor expenses still open on Account-planned items, independent of cash transfers. */
+    public function accountExpenseRemaining(): float
+    {
+        $remaining = $this->accountBudget() - $this->generalPaid();
+        foreach ($this->items as $it) {
+            if (($it->pay_by ?? 'Company') === 'Account') {
+                $remaining -= $this->paidForItem($it->id) + $this->adjustedOutForItem($it->id);
+            }
+        }
+
+        return round(max(0, $remaining), 2);
+    }
+
+    /** Maximum additional transfer without exceeding the budget or actual accountant spend. */
+    public function accountTransferLimit(): float
+    {
+        if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
+            return 0.0;
+        }
+        if (!$this->account_funding_tracked) {
+            return $this->status === 'Completed' ? round(max(0, -$this->accountOutstanding()), 2) : 0.0;
+        }
+
+        return round(max(0, $this->accountFundingTarget() - $this->accountFundsAvailable()), 2);
+    }
+
     /** Money the company paid directly (no reconciliation needed). */
     public function directTotal(): float
     {
@@ -237,17 +290,18 @@ class DemandRequest extends Model
     }
 
     /**
-     * Approval allocates the Account-side budget to the accountant. Positive is the
-     * unspent amount to reconcile; negative means the accountant spent beyond it.
-     * Cash in Hand draws fund part of the allocation, so they are deducted once
-     * from the aggregate pool rather than from this demand's spending balance.
-     * "Pay to Account" settlements reimburse an overspend, moving it back toward zero.
+     * New demands: actual funds received (including an internal cash draw) minus
+     * expenses the accountant paid. Legacy demands retain the old approved-budget
+     * balance because their historical transfers were never recorded.
      */
     public function accountOutstanding(): float
     {
         // No outstanding before the demand enters the payment stage (Draft / Submitted / Rejected).
         if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
             return 0.0;
+        }
+        if ($this->account_funding_tracked) {
+            return round($this->accountFundsAvailable() - $this->accountTotal(), 2);
         }
         $total = 0;
         foreach ($this->items as $it) {
@@ -284,18 +338,18 @@ class DemandRequest extends Model
         return $this->paidTotal() > 0.009 ? 'Partial' : 'Unpaid';
     }
 
-    /** Expenses not yet covered: account unspent allocation and company shortfall. */
+    /** Vendor expenses still open, not the amount of cash handed to the accountant. */
     public function owedTotal(): float
     {
+        if (!in_array($this->status, ['Approved', 'Partially Paid', 'Completed'], true)) {
+            return 0.0;
+        }
         $owed = 0;
         $c = $this->companyOutstanding();
-        $a = $this->accountOutstanding();
         if ($c < 0) {
             $owed += -$c;
         }
-        if ($a > 0) {
-            $owed += $a;
-        }
+        $owed += $this->accountExpenseRemaining();
 
         return round($owed, 2);
     }

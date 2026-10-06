@@ -188,12 +188,15 @@
         <table class="stats">
             <tr>
                 <td style="background:#eef1fb"><div class="lbl">Requested</div><div class="val" style="color:#3730a3">{{ $money($dr->estimated_total) }}</div></td>
-                <td style="background:#e9f9ef"><div class="lbl">Paid</div><div class="val" style="color:#15803d">{{ $money($dr->paidTotal()) }}</div></td>
-                <td style="background:#f4f7fb"><div class="lbl">Account Outstanding</div><div class="val" style="color:{{ $accF[1] }}">{!! $accF[0] !!}</div></td>
+                <td style="background:#e9f9ef"><div class="lbl">Vendor Paid</div><div class="val" style="color:#15803d">{{ $money($dr->paidTotal()) }}</div></td>
+                <td style="background:#f4f7fb"><div class="lbl">{{ $dr->account_funding_tracked ? 'Account Cash Balance' : 'Account Outstanding' }}</div><div class="val" style="color:{{ $accF[1] }}">{!! $accF[0] !!}</div></td>
                 <td style="background:#f4f7fb"><div class="lbl">Company Outstanding</div><div class="val" style="color:{{ $coF[1] }}">{!! $coF[0] !!}</div></td>
                 <td style="background:#f4f7fb"><div class="lbl">Total Outstanding</div><div class="val" style="color:{{ $netF[1] }}">{!! $netF[0] !!}</div></td>
             </tr>
         </table>
+        @if($dr->account_funding_tracked && in_array($dr->status,['Approved','Partially Paid','Completed']))
+        <div style="margin:8px 7px 0;font-size:10.5px;color:#475569">Approved account budget: <strong>{{ $money($dr->accountBudget()) }}</strong> &nbsp;·&nbsp; Actually received by accountant: <strong>{{ $money($dr->settledTotal()) }}</strong> &nbsp;·&nbsp; Accountant expenses: <strong>{{ $money($dr->accountTotal()) }}</strong></div>
+        @endif
         <table class="recon">
             <tr>
                 <td style="background:#e6f2ff"><div class="lbl" style="color:#1d6fd6;font-size:8.5px;font-weight:800;text-transform:uppercase">Account — to reconcile</div><div style="font-size:14px;font-weight:800;color:#1d6fd6;padding-top:2px">{{ $money($dr->accountTotal()) }}</div></td>
@@ -202,7 +205,7 @@
         </table>
 
         @if($dr->settlements->count())
-        <div class="sec" style="margin-top:16px">Paid to Account (Settlement)</div>
+        <div class="sec" style="margin-top:16px">{{ $dr->account_funding_tracked ? 'Paid to Accountant (Actual Transfers)' : 'Paid to Account (Settlement)' }}</div>
         <table class="pay">
             <thead><tr><th style="width:13%">Date</th><th class="right" style="width:11%">Amount</th><th style="width:16%">Method</th><th>Note</th></tr></thead>
             <tbody>

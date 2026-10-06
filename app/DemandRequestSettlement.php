@@ -4,7 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-/** Money the company paid back to the accountant against a demand's negative account balance. */
+/** Money actually handed to the accountant; older records represent overspend reimbursements. */
 class DemandRequestSettlement extends Model
 {
     protected $fillable = [

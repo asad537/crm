@@ -34,6 +34,8 @@
 .dr-m span{display:block;font-size:.66rem;font-weight:800;text-transform:uppercase;opacity:.85}
 .dr-m strong{display:block;margin-top:.25rem;font-size:1.55rem;font-weight:850}
 .dr-m1{background:var(--primary-soft);color:var(--primary-purple)}.dr-m2{background:#e6f7e9;color:#159447}.dr-m3{background:#fff1f2;color:#e11d48}
+.dr-account-flow{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.8rem;padding:.7rem .85rem;border:1px solid #dbeafe;border-radius:11px;background:#f8fbff}
+.dr-account-flow div{flex:1;min-width:145px}.dr-account-flow span{display:block;font-size:.64rem;color:#64748b;font-weight:800;text-transform:uppercase}.dr-account-flow strong{display:block;margin-top:.15rem;font-size:.95rem;color:#1e40af}
 .dr-prog{height:9px;border-radius:99px;background:#eef2f7;margin-top:.9rem;overflow:hidden}
 .dr-prog > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary-purple),#22c55e)}
 .dr-prog-txt{margin-top:.35rem;font-size:.7rem;color:#8290a3;font-weight:700}
@@ -91,14 +93,22 @@
 
         <div class="dr-money">
             <div class="dr-m dr-m1"><span>Requested</span><strong>{{ number_format($estimated,2) }}</strong></div>
-            <div class="dr-m dr-m2"><span>Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
+            <div class="dr-m dr-m2"><span>Vendor Paid</span><strong>{{ number_format($paid,2) }}</strong></div>
             @php($__net = $dr->netBalance())
             @php($__ao = $dr->accountOutstanding())
             @php($__co = $dr->companyOutstanding())
-            <div class="dr-m dr-m2"><span>Account Outstanding</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔ 0.00') }}</strong></div>
+            <div class="dr-m dr-m2"><span>{{ $dr->account_funding_tracked ? 'Account Cash Balance' : 'Account Outstanding' }}</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">{{ $__ao < -0.009 ? '− '.number_format(abs($__ao),2) : ($__ao > 0.009 ? '+ '.number_format($__ao,2) : '✔ 0.00') }}</strong></div>
             <div class="dr-m dr-m2"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">{{ $__co < -0.009 ? '− '.number_format(abs($__co),2) : ($__co > 0.009 ? '+ '.number_format($__co,2) : '✔ 0.00') }}</strong></div>
             <div class="dr-m dr-m2"><span>Total Outstanding</span><strong>{{ $outstanding > 0.009 ? '+ '.number_format($outstanding,2) : '✔ 0.00' }}</strong></div>
         </div>
+        @if($dr->account_funding_tracked && in_array($dr->status,['Approved','Partially Paid','Completed']))
+        <div class="dr-account-flow">
+            <div><span>Approved Account Budget</span><strong>{{ number_format($dr->accountBudget(),2) }}</strong></div>
+            <div><span>Received by Accountant</span><strong>{{ number_format($dr->settledTotal(),2) }}</strong></div>
+            <div><span>Accountant Expenses</span><strong>{{ number_format($dr->accountTotal(),2) }}</strong></div>
+            <div><span>Transfer Available</span><strong>{{ number_format($dr->accountTransferLimit(),2) }}</strong></div>
+        </div>
+        @endif
         <div class="dr-prog"><i style="width:{{ $pct }}%"></i></div>
         <div class="dr-prog-txt">{{ $pct }}% covered @if($outstanding>0)· {{ number_format($outstanding,2) }} remaining @else· fully settled ✔@endif @if($writeOff>0)· <span style="color:#15803d">{{ number_format($writeOff,2) }} settled directly by company</span>@endif</div>
         @if($dr->vatAmount() > 0.009)
@@ -279,8 +289,8 @@
                 <tr style="background:#f5f3ff">
                     <td>{{ optional($pmt->paid_at)->format('d M Y') }}</td>
                     <td class="dr-num"><strong style="color:#6d28d9">{{ number_format($pmt->amount,2) }}</strong></td>
-                    <td><span style="background:#ede9fe;color:#6d28d9;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">SETTLEMENT · Paid to Account</span>{{ $pmt->method ? ' · '.$pmt->method : '' }}</td>
-                    <td><span class="dr-tag" style="background:#ede9fe;color:#6d28d9">Account balance</span></td>
+                    <td><span style="background:#ede9fe;color:#6d28d9;padding:.1rem .45rem;border-radius:7px;font-size:.64rem;font-weight:800">{{ $dr->account_funding_tracked ? 'TRANSFER' : 'SETTLEMENT' }} · Paid to Account</span>{{ $pmt->method ? ' · '.$pmt->method : '' }}</td>
+                    <td><span class="dr-tag" style="background:#ede9fe;color:#6d28d9">{{ $dr->account_funding_tracked ? 'Accountant funding' : 'Account balance' }}</span></td>
                     <td>Account{{ $pmt->creator ? ' (by '.$pmt->creator->name.')' : '' }}</td>
                     <td>—</td>
                     <td>{{ $pmt->note ?: '—' }}</td>
@@ -328,7 +338,7 @@
                 <span class="dr-tag" style="padding:.4rem .7rem;font-size:.74rem"><i class="fas fa-wallet"></i> {{ $src }}: <strong>{{ number_format($amt,2) }}</strong></span>
             @endforeach
             @if($__settled > 0.009)
-                <span class="dr-tag" style="padding:.4rem .7rem;font-size:.74rem;background:#ede9fe;color:#6d28d9"><i class="fas fa-hand-holding-usd"></i> Paid to Account: <strong>{{ number_format($__settled,2) }}</strong></span>
+                <span class="dr-tag" style="padding:.4rem .7rem;font-size:.74rem;background:#ede9fe;color:#6d28d9"><i class="fas fa-hand-holding-usd"></i> {{ $dr->account_funding_tracked ? 'Accountant Received' : 'Paid to Account' }}: <strong>{{ number_format($__settled,2) }}</strong></span>
             @endif
         </div>
         @endif
@@ -412,8 +422,8 @@
             @if(in_array($dr->status,['Approved','Partially Paid']) && !$dr->force_completed)
                 <form method="POST" action="{{ route('crm.demand_requests.complete',$dr->id) }}" style="display:inline" onsubmit="return confirm('Mark this demand complete (close it)?');">{{ csrf_field() }}<button class="dr-btn dr-btn-green" type="submit"><i class="fas fa-flag-checkered"></i> Mark Complete</button></form>
             @endif
-            @php($__accDue = round(-$dr->accountOutstanding(), 2))
-            @php($__canSettle = $canApprove && $dr->status==='Completed' && $__accDue > 0.009)
+            @php($__accLimit = $dr->accountTransferLimit())
+            @php($__canSettle = $canApprove && $__accLimit > 0.009)
             @if($__canSettle)
                 <button class="dr-btn dr-btn-primary" type="button" onclick="var b=document.getElementById('drSettle');b.style.display=b.style.display==='block'?'none':'block'"><i class="fas fa-hand-holding-usd"></i> Pay to Account</button>
             @endif
@@ -426,9 +436,15 @@
         <div id="drSettle" style="display:{{ old('_settle') ? 'block' : 'none' }};margin-top:1rem;padding:1rem;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff">
             <form method="POST" action="{{ route('crm.demand_requests.add_settlement',$dr->id) }}" enctype="multipart/form-data">{{ csrf_field() }}
                 <input type="hidden" name="_settle" value="1">
-                <div style="font-size:.78rem;font-weight:800;color:#6d28d9;margin-bottom:.7rem"><i class="fas fa-info-circle"></i> Account balance is &minus; {{ number_format($__accDue,2) }} — record the money given back to the accountant.</div>
+                <div style="font-size:.78rem;font-weight:800;color:#6d28d9;margin-bottom:.7rem"><i class="fas fa-info-circle"></i>
+                    @if($dr->account_funding_tracked)
+                        Record only money actually handed to the accountant. Approval alone does not count as received. Available to transfer: {{ number_format($__accLimit,2) }}.
+                    @else
+                        Account balance is &minus; {{ number_format($__accLimit,2) }} — record the money given back to the accountant.
+                    @endif
+                </div>
                 <div style="display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-end">
-                    <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Amount</label><input class="dr-control" type="number" step="0.01" min="0.01" max="{{ number_format($__accDue,2,'.','') }}" name="amount" value="{{ old('amount', number_format($__accDue,2,'.','')) }}" required style="width:140px"></div>
+                    <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Amount received by accountant</label><input class="dr-control" type="number" step="0.01" min="0.01" max="{{ number_format($__accLimit,2,'.','') }}" name="amount" value="{{ old('amount', $dr->account_funding_tracked ? '' : number_format($__accLimit,2,'.','')) }}" placeholder="0.00" required style="width:160px"></div>
                     <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Method</label><select class="dr-control" name="method" style="width:150px">@foreach(['Cash','Bank','Company Account','Owner'] as $__m)<option {{ old('method')===$__m?'selected':'' }}>{{ $__m }}</option>@endforeach</select></div>
                     <div><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Date</label><input class="dr-control" type="date" name="paid_at" value="{{ old('paid_at', date('Y-m-d')) }}" style="width:160px"></div>
                     <div style="flex:1;min-width:200px"><label style="font-size:.7rem;font-weight:780;color:#475569;display:block;margin-bottom:.25rem">Note</label><input class="dr-control" name="note" maxlength="255" value="{{ old('note') }}" placeholder="e.g. cash handed to accountant"></div>

@@ -173,6 +173,7 @@ class DemandRequestController extends Controller
             'vat_percentage' => $validated['vat_percentage'] ?? 0,
             'cash_in_hand_used' => round($cashUsed, 2),
             'cash_in_hand_note' => trim((string) $request->input('cash_in_hand_note')) ?: null,
+            'account_funding_tracked' => true,
             'created_by' => \Auth::guard('crm')->id(),
         ]);
         $created = $demand->items()->createMany($items);
@@ -301,6 +302,7 @@ class DemandRequestController extends Controller
                 'approved_by' => \Auth::guard('crm')->id(),
                 'approved_at' => now(),
                 'rejection_reason' => null,
+                'account_funding_tracked' => true,
             ]);
 
             return redirect()->route('crm.demand_requests.show', $demand->id)
@@ -352,7 +354,7 @@ class DemandRequestController extends Controller
         $this->authorizeApprove();
         $dr = DemandRequest::findOrFail($id);
         if (in_array($dr->status, ['Submitted', 'Rejected'], true)) {
-            $dr->update(['status' => 'Approved', 'approved_by' => \Auth::guard('crm')->id(), 'approved_at' => now(), 'rejection_reason' => null]);
+            $dr->update(['status' => 'Approved', 'approved_by' => \Auth::guard('crm')->id(), 'approved_at' => now(), 'rejection_reason' => null, 'account_funding_tracked' => true]);
         }
 
         return back()->with('status', 'Demand Request #' . $dr->request_no . ' approved.');
@@ -534,44 +536,60 @@ class DemandRequestController extends Controller
         return back()->with('status', 'Payment removed.');
     }
 
-    /**
-     * Admin pays the accountant back when a completed demand's account balance is negative
-     * (the accountant spent beyond the allocation). Not an expense — only clears that minus.
-     */
+    /** Record actual cash handed to the accountant, separately from vendor expenses. */
     public function addSettlement(Request $request, $id)
     {
         $this->authorizeApprove();
         $dr = DemandRequest::with(['items', 'payments', 'settlements'])->findOrFail($id);
-        $due = round(-$dr->accountOutstanding(), 2);
-        if ($dr->status !== 'Completed' || $due <= 0.009) {
-            return back()->withErrors(['settlement' => 'Pay to Account is only available on a completed demand with a negative account balance.']);
+        $limit = $dr->accountTransferLimit();
+        if ($limit <= 0.009) {
+            return back()->withErrors(['settlement' => 'No amount is currently available to pay to the accountant for this demand.']);
         }
         $data = $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $due,
+            'amount' => 'required|numeric|min:0.01|max:' . $limit,
             'method' => 'nullable|string|max:120',
             'note' => 'nullable|string|max:255',
             'paid_at' => 'nullable|date',
             'proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv|max:20480',
         ]);
-        $proof = ['proof_path' => null, 'proof_name' => null];
-        if ($request->hasFile('proof')) {
-            $file = $request->file('proof');
-            $dir = public_path('uploads/demand-requests');
-            if (!is_dir($dir)) {
-                mkdir($dir, 0755, true);
+        $movedProof = null;
+        try {
+            \DB::transaction(function () use ($request, $id, $data, &$movedProof) {
+                $locked = DemandRequest::whereKey($id)->lockForUpdate()->firstOrFail();
+                $locked->load(['items', 'payments', 'settlements']);
+                if (round((float) $data['amount'], 2) > $locked->accountTransferLimit()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'settlement' => 'The account transfer balance has changed. Please review the amount and try again.',
+                    ]);
+                }
+
+                $proof = ['proof_path' => null, 'proof_name' => null];
+                if ($request->hasFile('proof')) {
+                    $file = $request->file('proof');
+                    $dir = public_path('uploads/demand-requests');
+                    if (!is_dir($dir)) {
+                        mkdir($dir, 0755, true);
+                    }
+                    $ext = strtolower($file->getClientOriginalExtension());
+                    $fname = 'drs_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+                    $proof = ['proof_path' => 'uploads/demand-requests/' . $fname, 'proof_name' => $file->getClientOriginalName()];
+                    $file->move($dir, $fname);
+                    $movedProof = $dir . '/' . $fname;
+                }
+                $locked->settlements()->create(array_merge([
+                    'amount' => round((float) $data['amount'], 2),
+                    'method' => $data['method'] ?? null,
+                    'note' => $data['note'] ?? null,
+                    'paid_at' => $data['paid_at'] ?? now()->toDateString(),
+                    'created_by' => \Auth::guard('crm')->id(),
+                ], $proof));
+            });
+        } catch (\Throwable $e) {
+            if ($movedProof && is_file($movedProof)) {
+                @unlink($movedProof);
             }
-            $ext = strtolower($file->getClientOriginalExtension());
-            $fname = 'drs_' . uniqid('', true) . ($ext ? '.' . $ext : '');
-            $proof = ['proof_path' => 'uploads/demand-requests/' . $fname, 'proof_name' => $file->getClientOriginalName()];
-            $file->move($dir, $fname);
+            throw $e;
         }
-        $dr->settlements()->create(array_merge([
-            'amount' => round((float) $data['amount'], 2),
-            'method' => $data['method'] ?? null,
-            'note' => $data['note'] ?? null,
-            'paid_at' => $data['paid_at'] ?? now()->toDateString(),
-            'created_by' => \Auth::guard('crm')->id(),
-        ], $proof));
 
         return back()->with('status', number_format((float) $data['amount'], 2) . ' paid to account for Demand #' . $dr->request_no . '.');
     }

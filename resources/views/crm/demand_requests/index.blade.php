@@ -45,7 +45,7 @@
         <div class="dr-card"><span>Estimated Value</span><strong>{{ number_format($summary['estimated'], 2) }}</strong></div>
         <div class="dr-card"><span>Total Paid</span><strong style="color:#159447">{{ number_format($summary['paid'], 2) }}</strong></div>
         @php($__ao = $summary['account_out'] ?? 0)
-        <div class="dr-card"><span>Account Outstanding</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
+        <div class="dr-card"><span>Account Balance</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         @php($__co = $summary['company_out'] ?? 0)
         <div class="dr-card"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
         @php($__cih = $summary['cash_in_hand'] ?? 0)
@@ -86,15 +86,17 @@
                     <td>{{ $dr->items->count() }}</td>
                     <td class="dr-num2"><strong>{{ number_format($dr->estimated_total, 2) }}</strong></td>
                     <td class="dr-num2" style="color:#159447;font-weight:750">{{ number_format($dr->paidTotal(), 2) }}</td>
-                    <!-- @php($__bal = round($dr->paidTotal() + $dr->writeOffTotal() - (float)$dr->estimated_total, 2))
-                    <td class="dr-num2">
-                        @if($__bal < -0.009)<span style="color:#e11d48;font-weight:850" title="Short / still to pay">&minus; {{ number_format(abs($__bal),2) }}</span>
-                        @elseif($__bal > 0.009)<span style="color:#159447;font-weight:850" title="Overpaid">+ {{ number_format($__bal,2) }}</span>
-                        @else<span style="color:#159447;font-weight:850" title="Fully settled">&#10004;</span>@endif
-                    </td> -->
                     @php($__ao = $dr->accountOutstanding())
                     @php($__co = $dr->companyOutstanding())
-                    <td class="dr-num2" style="font-weight:800;color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}" title="Account balance">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else&#10004;@endif</td>
+                    <td class="dr-num2" style="font-weight:800;color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}" title="Account balance">
+                        @if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}
+                        @elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}
+                        @else&#10004;
+                        @endif
+                        @if($dr->account_funding_tracked && in_array($dr->status, ['Approved', 'Partially Paid', 'Completed']))
+                            <small style="display:block;color:#64748b;font-weight:650">Received {{ number_format($dr->settledTotal(),2) }}</small>
+                        @endif
+                    </td>
                     <td class="dr-num2" style="font-weight:800;color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}" title="Company balance">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else&#10004;@endif</td>
                     <td>
                         <span class="dr-badge dr-st-{{ str_replace([' ','/'],['-','-'],$dr->status) }}">{{ $dr->status }}</span>
