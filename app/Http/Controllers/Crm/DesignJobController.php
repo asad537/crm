@@ -18,12 +18,17 @@ class DesignJobController extends Controller
         $user = $this->requireDesignJobAccess();
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
         $status = $request->input('status', 'all');
+        $stage = $request->input('stage', 'all');
 
         $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments', 'challan'])
-            ->where('workspace_id', $workspaceId)
-            ->latest();
+            ->where('workspace_id', $workspaceId);
         if ($status !== 'all' && array_key_exists($status, DesignJob::STATUSES)) {
             $query->where('status', $status);
+        }
+        if ($stage === 'unassigned') {
+            $query->whereNull('production_stage');
+        } elseif ($stage !== 'all' && array_key_exists($stage, DesignJob::STAGES)) {
+            $query->where('production_stage', $stage);
         }
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -41,9 +46,16 @@ class DesignJobController extends Controller
         $statusCounts = DesignJob::where('workspace_id', $workspaceId)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')->pluck('total', 'status');
+
+        // Keep AMS jobs in their natural numeric order (AMS-0062 before
+        // AMS-0061). The ID fallback also gives sensible ordering to legacy
+        // job-number formats.
+        $query->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN CAST(SUBSTRING(job_number, 5) AS UNSIGNED) END DESC")
+            ->orderByDesc('id');
         $jobs = $query->paginate(20)->appends($request->all());
 
-        return view('crm.design_jobs.index', compact('jobs', 'status', 'statusCounts'));
+        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'statusCounts'));
     }
 
     /** Show the job card before creating a job or assigning its number. */

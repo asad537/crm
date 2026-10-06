@@ -70,10 +70,16 @@
         display:inline-grid; place-items:center; background:var(--soft); color:#6b7280; font-variant-numeric:tabular-nums; }
     .dj-chip.active .c { background:rgba(255,255,255,.24); color:#fff; }
     .dj-search { position:relative; flex:1 1 100%; width:100%; }
+    .dj-filter-row { display:flex; align-items:center; gap:.75rem; width:100%; }
+    .dj-filter { flex:0 0 230px; position:relative; }
+    .dj-filter label { display:block; margin:0 0 .28rem; color:#6b7280; font-size:.66rem; font-weight:750; text-transform:uppercase; letter-spacing:.06em; }
+    .dj-filter select { width:100%; min-height:39px; padding:.55rem 2rem .55rem .75rem; border:1px solid var(--line); border-radius:10px; background:#fff; color:#374151; font-family:inherit; font-size:.8rem; font-weight:600; outline:none; cursor:pointer; }
+    .dj-filter select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
     .dj-search i { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:#b3b8c2; font-size:.82rem; }
     .dj-search input { border:1px solid var(--line); border-radius:10px; padding:.6rem .8rem .6rem 2.1rem; font-size:.85rem;
         font-family:inherit; outline:none; width:100%; transition:all .13s; background:var(--card); }
     .dj-search input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    @media(max-width:640px){.dj-filter-row{align-items:stretch;flex-direction:column}.dj-filter{flex-basis:auto;width:100%}}
 
     /* Table card */
     .dj-card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;
@@ -151,10 +157,22 @@
     </div>
 
     <div class="dj-toolbar">
-        <form class="dj-search" method="GET" action="{{ route('crm.design_jobs.index') }}">
+        <form class="dj-filter-row" method="GET" action="{{ route('crm.design_jobs.index') }}">
             <input type="hidden" name="status" value="{{ $status }}">
-            <i class="fas fa-search"></i>
-            <input name="search" value="{{ request('search') }}" placeholder="Search job, ticket, client…" oninput="if(!this.value){this.form.submit()}">
+            <div class="dj-filter">
+                <label for="djStageFilter">Status</label>
+                <select id="djStageFilter" name="stage" onchange="this.form.submit()">
+                    <option value="all" {{ $stage === 'all' ? 'selected' : '' }}>All statuses</option>
+                    <option value="unassigned" {{ $stage === 'unassigned' ? 'selected' : '' }}>Not set</option>
+                    @foreach(\App\DesignJob::STAGES as $stageKey => $stageLabel)
+                        <option value="{{ $stageKey }}" {{ $stage === $stageKey ? 'selected' : '' }}>{{ $stageLabel }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="dj-search">
+                <i class="fas fa-search"></i>
+                <input name="search" value="{{ request('search') }}" placeholder="Search job, ticket, client…" oninput="if(!this.value){this.form.submit()}">
+            </div>
         </form>
     </div>
 
