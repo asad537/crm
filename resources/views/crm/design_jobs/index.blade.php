@@ -194,6 +194,7 @@
                         @else <span class="sub">—</span> @endif
                     </td> --}}
                     <td class="dj-title">{{ $job->title }}
+                        @if($job->client_name)<div class="sub">Client: {{ $job->client_name }}</div>@endif
                         @if($job->details)<div class="sub">{{ \Illuminate\Support\Str::limit($job->details, 60) }}</div>@endif
                     </td>
                     <td>

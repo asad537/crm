@@ -11,7 +11,7 @@
     $readOnly = $readOnly ?? false;
     $val = fn($f, $d = null) => old($f, $card->{$f} ?? $d);
     $dv = fn($f) => old($f, optional($card->{$f})->format('Y-m-d'));
-    $jobDateDefault = optional($card->job_date)->format('Y-m-d') ?: optional($job->created_at)->format('Y-m-d') ?: now()->format('Y-m-d');
+    $jobDateDefault = optional($card->job_date)->format('Y-m-d') ?: ($job->exists ? '' : now()->format('Y-m-d'));
     $priorityLevel = old('priority_level', $card->priority_critical ? 'critical' : ($card->priority_urgent ? 'urgent' : 'regular'));
 @endphp
 <style>
@@ -284,6 +284,19 @@ textarea.jc-control{min-height:74px;resize:vertical}
         </select></div>
         <div class="jc-field jc-4"><label>Job Start On</label><input class="jc-control" type="date" name="job_start_on" value="{{ $dv('job_start_on') }}"></div>
         <div class="jc-field jc-4"><label>Job Deadline</label><input class="jc-control" type="date" name="due_date" value="{{ old('due_date', optional($job->due_date)->format('Y-m-d')) }}"></div>
+        <div class="jc-field jc-4"><label>Client</label><input class="jc-control" name="client_name" value="{{ old('client_name', $job->client_name) }}"></div>
+        <div class="jc-field jc-4"><label>Designer</label>
+            @if(auth('crm')->user()->isAdmin() && !$readOnly)
+                <select class="jc-control" name="designer_id"><option value="">Unassigned</option>
+                    @foreach($designers as $designer)
+                        <option value="{{ $designer->id }}" {{ (string) old('designer_id', $job->exists ? $job->designer_id : auth('crm')->id()) === (string) $designer->id ? 'selected' : '' }}>{{ $designer->name }}</option>
+                    @endforeach
+                </select>
+            @else
+                <input class="jc-control" value="{{ $job->designer->name ?? ($job->exists ? 'Unassigned' : auth('crm')->user()->name) }}" readonly>
+            @endif
+        </div>
+        <div class="jc-field jc-12"><label>Job Notes</label><textarea class="jc-control" name="details" maxlength="3000" placeholder="Comments and other job details can be added later">{{ old('details', $job->details) }}</textarea></div>
     </div>
 </div>
 

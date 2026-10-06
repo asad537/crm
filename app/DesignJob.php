@@ -37,7 +37,7 @@ class DesignJob extends Model
 
     protected $fillable = [
         'job_number', 'workspace_id', 'estimate_ticket_id', 'estimate_number', 'designer_id',
-        'title', 'details', 'status', 'production_stage', 'status_updated_at', 'estimated_delivery_date',
+        'title', 'client_name', 'details', 'status', 'production_stage', 'status_updated_at', 'estimated_delivery_date',
         'receive_date', 'client_approval_date', 'due_date',
     ];
 

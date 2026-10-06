@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class DesignJobCardController extends Controller
 {
@@ -92,6 +93,7 @@ class DesignJobCardController extends Controller
             'stocks' => $card->exists ? $card->stocks : collect(),
             'materials' => $card->exists ? $card->materials : collect(),
             'attachments' => $card->exists ? $card->attachments : collect(),
+            'designers' => $this->jobDesignerOptions(),
         ]);
     }
 
@@ -144,6 +146,7 @@ class DesignJobCardController extends Controller
             'materials' => $card->exists ? $card->materials : collect(),
             'attachments' => $card->exists ? $card->attachments : collect(),
             'readOnly' => true,
+            'designers' => $this->jobDesignerOptions(),
         ]);
     }
 
@@ -222,6 +225,8 @@ class DesignJobCardController extends Controller
                     'workspace_id' => CrmWorkspaceContext::id(),
                     'designer_id' => $user->id,
                     'title' => $this->nullIfBlank($request->input('product')) ?: 'Untitled Job',
+                    'client_name' => $this->nullIfBlank($request->input('client_name')),
+                    'details' => $this->nullIfBlank($request->input('details')),
                     'estimate_number' => $this->nullIfBlank($request->input('estimate_number')),
                     'estimated_delivery_date' => $this->nullIfBlank($request->input('estimated_delivery_date')),
                     'due_date' => $this->nullIfBlank($request->input('due_date')),
@@ -300,6 +305,8 @@ class DesignJobCardController extends Controller
             'qc_comments' => 'nullable|string',
             'qc_rejection_comments' => $draft ? 'nullable|string' : 'nullable|required_if:qc_result,rejected|string',
             'delay_reason' => 'nullable|string',
+            'client_name' => 'nullable|string|max:255',
+            'details' => 'nullable|string|max:3000',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|extensions:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,ai,psd,eps,zip|max:20480',
             'remove_attachments' => 'nullable|array|max:50',
@@ -313,6 +320,13 @@ class DesignJobCardController extends Controller
             'wizard_completed_step' => 'nullable|integer|between:-1,15',
             'wizard_current_step' => 'nullable|integer|between:0,15',
         ];
+        if (Auth::guard('crm')->user()->isAdmin()) {
+            $rules['designer_id'] = [
+                'nullable', 'integer',
+                Rule::exists('crm_user_workspace', 'crm_user_id')
+                    ->where('workspace_id', CrmWorkspaceContext::id()),
+            ];
+        }
         // Dummy / Sample Approval is fully optional — no required fields.
         $request->validate($rules);
 
@@ -373,6 +387,15 @@ class DesignJobCardController extends Controller
                 $jobUpdates[$field] = $this->nullIfBlank($request->input($field));
             }
         }
+        foreach (['client_name', 'details'] as $field) {
+            if ($request->has($field)) {
+                $jobUpdates[$field] = $this->nullIfBlank($request->input($field));
+            }
+        }
+        $user = Auth::guard('crm')->user();
+        if ($user && $user->isAdmin() && $request->has('designer_id')) {
+            $jobUpdates['designer_id'] = $this->nullIfBlank($request->input('designer_id'));
+        }
         if ($jobUpdates) {
             $job->update($jobUpdates);
         }
@@ -411,11 +434,42 @@ class DesignJobCardController extends Controller
 
     private function newJobNumber()
     {
+        $sequence = DB::table('design_job_number_sequences')
+            ->where('workspace_id', CrmWorkspaceContext::id())
+            ->lockForUpdate()
+            ->first();
+        if ($sequence) {
+            $prefix = $sequence->prefix;
+            $largestExisting = DesignJob::query()
+                ->where('job_number', 'like', $prefix . '-%')
+                ->pluck('job_number')
+                ->reduce(function ($max, $number) use ($prefix) {
+                    return preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', $number, $matches)
+                        ? max($max, (int) $matches[1]) : $max;
+                }, 0);
+            $next = max((int) $sequence->last_number, $largestExisting) + 1;
+            DB::table('design_job_number_sequences')
+                ->where('workspace_id', CrmWorkspaceContext::id())
+                ->update(['last_number' => $next, 'updated_at' => now()]);
+
+            return $prefix . '-' . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        }
+
         do {
             $jobNumber = 'JOB-' . now()->format('ymd') . '-' . strtoupper(substr(uniqid(), -5));
         } while (DesignJob::where('job_number', $jobNumber)->exists());
 
         return $jobNumber;
+    }
+
+    private function jobDesignerOptions()
+    {
+        return DB::table('crm_user_workspace')
+            ->join('crm_users', 'crm_users.id', '=', 'crm_user_workspace.crm_user_id')
+            ->where('crm_user_workspace.workspace_id', CrmWorkspaceContext::id())
+            ->whereIn('crm_user_workspace.role', ['designer', 'admin', 'super_admin'])
+            ->orderBy('crm_users.name')
+            ->get(['crm_users.id', 'crm_users.name']);
     }
 
     private function syncStocks(DesignJobCard $card, array $rows)

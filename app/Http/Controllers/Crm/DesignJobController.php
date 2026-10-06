@@ -30,6 +30,7 @@ class DesignJobController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('job_number', 'like', "%{$search}%")
                     ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('client_name', 'like', "%{$search}%")
                     ->orWhereHas('ticket', function ($tq) use ($search) {
                         $tq->where('ticket_number', 'like', "%{$search}%")
                             ->orWhere('client_name', 'like', "%{$search}%");
@@ -56,7 +57,18 @@ class DesignJobController extends Controller
             'stocks' => collect(),
             'materials' => collect(),
             'attachments' => collect(),
+            'designers' => $this->jobDesignerOptions(),
         ]);
+    }
+
+    protected function jobDesignerOptions()
+    {
+        return DB::table('crm_user_workspace')
+            ->join('crm_users', 'crm_users.id', '=', 'crm_user_workspace.crm_user_id')
+            ->where('crm_user_workspace.workspace_id', \App\Support\CrmWorkspaceContext::id())
+            ->whereIn('crm_user_workspace.role', ['designer', 'admin', 'super_admin'])
+            ->orderBy('crm_users.name')
+            ->get(['crm_users.id', 'crm_users.name']);
     }
 
     public function updateStatus(Request $request, $id)
