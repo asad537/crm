@@ -162,7 +162,10 @@
                     <div class="or-menu">
                         <button type="button" class="or-menu-btn" aria-haspopup="true"><i class="fas fa-ellipsis-h"></i> Actions</button>
                         <div class="or-menu-list" hidden>
+                            @php $canManagePaid = Auth::guard('crm')->user()->isAdmin(); $lockedPaid = $order->invoice_status === 'paid' && !$canManagePaid; @endphp
+                            @if(!$lockedPaid)
                             <a href="{{ route('crm.orders.manual.edit',$order->id) }}"><i class="fas fa-pen"></i> Edit</a>
+                            @endif
                             <a href="{{ route('crm.orders.manual.pdf',$order->id) }}" target="_blank"><i class="fas fa-file-pdf"></i> View PDF</a>
                             @php $ppEmail = $order->customerEmail(); @endphp
                             <form method="POST" action="{{ route('crm.orders.manual.send_invoice',$order->id) }}" class="or-direct-form" data-email="{{ $ppEmail }}" data-what="invoice">
@@ -223,10 +226,12 @@
                                 ];
                             @endphp
                             <button type="button" class="or-pay-btn" data-pay='@json($pmJson)'><i class="fas {{ $isPaidOrder ? 'fa-receipt' : 'fa-money-bill-wave' }}"></i> {{ $isPaidOrder ? 'Payment History' : 'Payment' }}</button>
+                            @if(!$lockedPaid)
                             <form method="POST" action="{{ route('crm.orders.manual.destroy',$order->id) }}" onsubmit="return confirm('Delete this order?')">
                                 {{ csrf_field() }}<input type="hidden" name="_method" value="DELETE">
                                 <button class="or-menu-delete" type="submit"><i class="fas fa-trash-alt"></i> Delete</button>
                             </form>
+                            @endif
                         </div>
                     </div>
                 </td>

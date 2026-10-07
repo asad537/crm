@@ -195,10 +195,19 @@ class OrderController extends Controller
         ]);
     }
 
+    /** Paid orders are locked for everyone except admins / owner. */
+    private function assertCanModify(CrmManualOrder $order, $user): void
+    {
+        if ($order->invoice_status === 'paid' && !$user->isAdmin()) {
+            abort(403, 'This order is paid. Only an admin or the owner can edit or delete it.');
+        }
+    }
+
     public function edit($id)
     {
-        $this->guard();
+        $user = $this->guard();
         $order = CrmManualOrder::findOrFail($id);
+        $this->assertCanModify($order, $user);
         return view('crm.orders.form', [
             'order' => $order,
             'inquiry' => null,
@@ -262,6 +271,7 @@ class OrderController extends Controller
     {
         $user = $this->guard();
         $order = CrmManualOrder::findOrFail($id);
+        $this->assertCanModify($order, $user);
         $this->fillFromRequest($order, $request, $user);
         $order->save();
 
@@ -318,8 +328,10 @@ class OrderController extends Controller
 
     public function destroy($id)
     {
-        $this->guard();
-        CrmManualOrder::findOrFail($id)->delete();
+        $user = $this->guard();
+        $order = CrmManualOrder::findOrFail($id);
+        $this->assertCanModify($order, $user);
+        $order->delete();
         return redirect()->route('crm.orders.manual.index')->with('success', 'Order deleted.');
     }
 
