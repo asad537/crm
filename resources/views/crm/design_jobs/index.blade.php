@@ -81,12 +81,17 @@
     .dj-date-filter select { width:100%; height:44px; padding:.55rem 2rem .55rem 2.25rem; border:1px solid #e1e5eb; border-radius:11px; background:#fbfcfd; color:#374151; font-family:inherit; font-size:.8rem; font-weight:700; outline:none; cursor:pointer; transition:border-color .15s,box-shadow .15s,background .15s; }
     .dj-date-filter select:hover { border-color:#d1d7e0; background:#fff; }
     .dj-date-filter select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .dj-custom-date { flex:0 0 175px; }
+    .dj-custom-date[hidden] { display:none; }
+    .dj-custom-date input { width:100%; height:44px; padding:.55rem .7rem; border:1px solid #e1e5eb; border-radius:11px; background:#fbfcfd; color:#374151; font-family:inherit; font-size:.8rem; font-weight:650; outline:none; cursor:pointer; transition:border-color .15s,box-shadow .15s,background .15s; }
+    .dj-custom-date input:hover { border-color:#d1d7e0; background:#fff; }
+    .dj-custom-date input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
     .dj-search i { position:absolute; left:.9rem; top:50%; transform:translateY(-50%); color:#9aa3b2; font-size:.82rem; }
     .dj-search input { height:44px; border:1px solid #e1e5eb; border-radius:11px; padding:.6rem .8rem .6rem 2.35rem; font-size:.85rem;
         font-family:inherit; outline:none; width:100%; transition:all .13s; background:#fbfcfd; }
     .dj-search input:hover { border-color:#d1d7e0; background:#fff; }
     .dj-search input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
-    @media(max-width:760px){.dj-filter-row{align-items:stretch;flex-direction:column}.dj-filter,.dj-date-filter{flex-basis:auto;width:100%}}
+    @media(max-width:760px){.dj-filter-row{align-items:stretch;flex-direction:column}.dj-filter,.dj-date-filter,.dj-custom-date{flex-basis:auto;width:100%}}
 
     /* Table card */
     .dj-card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;
@@ -178,10 +183,15 @@
             </div>
             <div class="dj-date-filter">
                 <i class="far fa-calendar-alt" aria-hidden="true"></i>
-                <select name="due" aria-label="Filter by due date" onchange="this.form.submit()">
-                    <option value="all" {{ $dueFilter === 'all' ? 'selected' : '' }}>All due dates</option>
+                <select id="djDueFilter" name="due" aria-label="Filter by due date">
+                    <option value="all" {{ $dueFilter === 'all' ? 'selected' : '' }}>All</option>
+                    <option value="custom" {{ $dueFilter === 'custom' ? 'selected' : '' }}>Custom Date</option>
+                    <option value="due" {{ $dueFilter === 'due' ? 'selected' : '' }}>Due</option>
                     <option value="overdue" {{ $dueFilter === 'overdue' ? 'selected' : '' }}>Overdue</option>
                 </select>
+            </div>
+            <div class="dj-custom-date" id="djCustomDueWrap" {{ $dueFilter === 'custom' ? '' : 'hidden' }}>
+                <input id="djCustomDueDate" type="date" name="custom_due_date" value="{{ $customDueDate }}" aria-label="Select custom due date">
             </div>
             <div class="dj-search">
                 <i class="fas fa-search"></i>
@@ -416,6 +426,26 @@
     window.__djcBound = true;
     var rowIndex = 0;
     var pendingSelect = null;
+
+    function bindDueFilter(){
+        var filter=document.getElementById('djDueFilter');
+        var wrap=document.getElementById('djCustomDueWrap');
+        var date=document.getElementById('djCustomDueDate');
+        if(!filter||!wrap||!date||filter.dataset.bound==='1')return;
+        filter.dataset.bound='1';
+        filter.addEventListener('change',function(){
+            if(filter.value==='custom'){
+                wrap.removeAttribute('hidden');
+                date.focus();
+            }else{
+                date.value='';
+                filter.form.submit();
+            }
+        });
+        date.addEventListener('change',function(){if(date.value)filter.form.submit();});
+    }
+    bindDueFilter();
+    document.addEventListener('crm:page-loaded',bindDueFilter);
 
     function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
     function rowHtml(i, item){

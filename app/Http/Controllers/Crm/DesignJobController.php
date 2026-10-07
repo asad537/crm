@@ -19,8 +19,13 @@ class DesignJobController extends Controller
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
         $status = $request->input('status', 'all');
         $stage = $request->input('stage', 'all');
-        $dueFilter = in_array($request->input('due', 'all'), ['all', 'overdue'], true)
+        $dueFilter = in_array($request->input('due', 'all'), ['all', 'custom', 'due', 'overdue'], true)
             ? $request->input('due', 'all') : 'all';
+        $customDueDate = trim((string) $request->input('custom_due_date', ''));
+        $parsedCustomDueDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $customDueDate);
+        if (!$parsedCustomDueDate || $parsedCustomDueDate->format('Y-m-d') !== $customDueDate) {
+            $customDueDate = '';
+        }
 
         $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments', 'challan'])
             ->where('workspace_id', $workspaceId);
@@ -32,8 +37,11 @@ class DesignJobController extends Controller
         } elseif ($stage !== 'all' && array_key_exists($stage, DesignJob::STAGES)) {
             $query->where('production_stage', $stage);
         }
-        if ($dueFilter === 'overdue') {
-            $query->whereDate('due_date', '<', now()->toDateString())
+        if ($dueFilter === 'custom' && $customDueDate !== '') {
+            $query->whereDate('due_date', $customDueDate);
+        } elseif (in_array($dueFilter, ['due', 'overdue'], true)) {
+            $operator = $dueFilter === 'overdue' ? '<' : '>=';
+            $query->whereDate('due_date', $operator, now()->toDateString())
                 ->where('status', '!=', 'delivered')
                 ->where(function ($overdue) {
                     $overdue->whereNull('production_stage')
@@ -65,7 +73,7 @@ class DesignJobController extends Controller
             ->orderByDesc('id');
         $jobs = $query->paginate(20)->appends($request->all());
 
-        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueFilter', 'statusCounts'));
+        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueFilter', 'customDueDate', 'statusCounts'));
     }
 
     /** Show the job card before creating a job or assigning its number. */
