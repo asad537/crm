@@ -134,6 +134,12 @@ class CrmManualOrder extends Model
         return $inv['status'];
     }
 
+    /** Production job briefing created from "Send to Production" (one per order). */
+    public function productionBrief()
+    {
+        return $this->hasOne(CrmManualOrderProductionBrief::class, 'manual_order_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(CrmUser::class, 'created_by');

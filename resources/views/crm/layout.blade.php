@@ -1200,6 +1200,12 @@
                 </div>
 
                 @if($__navUser->isProductionManager() || $__navUser->isAdmin())
+                <a href="{{ route('crm.production_briefs.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.production_briefs.*') ? 'active' : '' }}">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span class="nav-label">Order Job Briefs</span>
+                    <i class="fas fa-chevron-right arrow"></i>
+                </a>
                 <a href="{{ route('crm.production_jobs.index') }}"
                     class="nav-item {{ request()->routeIs('crm.production_jobs.*') || request()->routeIs('crm.production_machines.*') ? 'active' : '' }}">
                     <i class="fas fa-industry"></i>

@@ -310,6 +310,14 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('orders/manual/{id}/paypal-sync', 'OrderController@syncPaypal')->name('crm.orders.manual.paypal_sync');
         Route::post('orders/manual/{id}/send-invoice', 'OrderController@sendInvoice')->name('crm.orders.manual.send_invoice');
         Route::post('orders/manual/{id}/send-portal-login', 'OrderController@sendPortalLogin')->name('crm.orders.manual.send_portal_login');
+        // Send to Production (paid orders) + production brief list
+        Route::get('production-briefs', 'ProductionBriefController@index')->name('crm.production_briefs.index');
+        Route::get('orders/manual/{id}/production', 'ProductionBriefController@show')->name('crm.orders.manual.production.show');
+        Route::get('orders/manual/{id}/production/create', 'ProductionBriefController@create')->name('crm.orders.manual.production.create');
+        Route::post('orders/manual/{id}/production', 'ProductionBriefController@store')->name('crm.orders.manual.production.store');
+        Route::get('orders/manual/{id}/production/edit', 'ProductionBriefController@edit')->name('crm.orders.manual.production.edit');
+        Route::post('orders/manual/{id}/production/update', 'ProductionBriefController@update')->name('crm.orders.manual.production.update');
+        Route::get('orders/manual/{id}/production/pdf', 'ProductionBriefController@pdf')->name('crm.orders.manual.production.pdf');
         Route::get('orders/manual/{id}/cca', 'OrderController@ccaPdf')->name('crm.orders.manual.cca');
         Route::post('orders/manual/{id}/send-cca', 'OrderController@sendCca')->name('crm.orders.manual.send_cca');
         Route::post('orders/manual/{id}/payments', 'OrderController@storePayment')->name('crm.orders.manual.payments.store');

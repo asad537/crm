@@ -51,7 +51,7 @@ class OrderController extends Controller
             ->sort()
             ->values();
 
-        $query = (clone $base)->with(['creator', 'customer', 'payments'])->latest();
+        $query = (clone $base)->with(['creator', 'customer', 'payments', 'productionBrief'])->latest();
 
         // Search: invoice #, customer (billing name / customer id / user), or order / enquiry ID.
         if ($request->filled('search')) {

@@ -29,6 +29,9 @@
 .or-pp i{margin-right:.2rem}
 .or-pp.cca{color:#0f766e}
 .or-pp.ok{color:#15803d}
+.or-pp.prod{color:#b45309}
+.or-menu-list a.or-menu-prod{color:#b45309;font-weight:800}
+.or-menu-list a.or-menu-prod.done{color:#0f766e}
 .or-pp.inv{color:#6d28d9}
 .or-paysum{margin-top:.25rem;font-size:.62rem;font-weight:700;color:#64748b;white-space:nowrap}
 .pm-overlay{position:fixed;inset:0;z-index:1100;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:1rem}
@@ -143,6 +146,9 @@
                         @php $ppSt = strtoupper($order->paypal_invoice_status ?: 'SENT'); $ppPaid = in_array($ppSt, ['PAID','MARKED_AS_PAID']); @endphp
                         <div class="or-pp {{ $ppPaid ? 'ok' : '' }}" title="PayPal request sent to {{ $order->paypal_sent_to }} on {{ $order->paypal_sent_at->format('d-M-Y H:i') }} · PayPal status: {{ $ppSt }}"><i class="fab fa-paypal"></i> {{ $ppPaid ? 'Paid' : ucfirst(strtolower(str_replace('_',' ',$ppSt))) }} {{ $order->paypal_sent_at->format('d-M') }}</div>
                     @endif
+                    @if($order->productionBrief)
+                        <div class="or-pp prod" title="Sent to production on {{ optional($order->productionBrief->sent_at)->format('d-M-Y H:i') }} · {{ $order->productionBrief->job_number }}"><i class="fas fa-industry"></i> In Production {{ optional($order->productionBrief->sent_at)->format('d-M') }}</div>
+                    @endif
                     @if($order->invoice_sent_at)
                         <div class="or-pp inv" title="Invoice sent to {{ $order->invoice_sent_to }} on {{ $order->invoice_sent_at->format('d-M-Y H:i') }}"><i class="fas fa-paper-plane"></i> Inv {{ $order->invoice_sent_at->format('d-M') }}</div>
                     @endif
@@ -204,6 +210,13 @@
                                 <input type="hidden" name="email" value="">
                                 <button type="submit"><i class="fas fa-key"></i> Send Login Details</button>
                             </form>
+                            @if($isPaidOrder)
+                                @if($order->productionBrief)
+                                    <a href="{{ route('crm.orders.manual.production.show',$order->id) }}" class="or-menu-prod done"><i class="fas fa-industry"></i> View Production Job</a>
+                                @else
+                                    <a href="{{ route('crm.orders.manual.production.create',$order->id) }}" class="or-menu-prod"><i class="fas fa-industry"></i> Send to Production</a>
+                                @endif
+                            @endif
                             @php
                                 $pmPaid = $order->paidAmount(); $pmDue = $order->balanceDue();
                                 $pmJson = [
