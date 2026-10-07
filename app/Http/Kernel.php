@@ -71,6 +71,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         // CRM middleware
         'crm.ip' => \App\Http\Middleware\CheckCrmUserIp::class,
+        'invoice_portal.auth' => \App\Http\Middleware\InvoicePortalAuth::class,
         'crm.workspace' => \App\Http\Middleware\RequireCrmWorkspace::class,
         'crm.workspace.slug' => \App\Http\Middleware\RequireCrmWorkspaceSlug::class,
         'crm.lead.api' => \App\Http\Middleware\AuthenticateCrmLeadApi::class,

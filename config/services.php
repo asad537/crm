@@ -31,4 +31,21 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // PayPal Invoicing (REST API v2) — used by the TCB manual Orders "Send PayPal Request" action.
+    // mode: "sandbox" or "live". Credentials come from a REST app at developer.paypal.com.
+    // Vault / NMI-compatible card gateway (Direct Post API) used by "Charge Card" on manual orders.
+    'vault' => [
+        'url' => env('VAULT_GATEWAY_URL', 'https://secure.merchantservicegateway.com/api/transact.php'),
+        'username' => env('VAULT_USERNAME'),
+        'password' => env('VAULT_PASSWORD'),
+    ],
+
+    'paypal' => [
+        'mode' => env('PAYPAL_MODE', 'sandbox'),
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'secret' => env('PAYPAL_SECRET'),
+        'business_name' => env('PAYPAL_BUSINESS_NAME', 'My Box Printing'),
+        'business_email' => env('PAYPAL_BUSINESS_EMAIL'),
+    ],
+
 ];

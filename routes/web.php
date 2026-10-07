@@ -11,7 +11,23 @@ use Illuminate\Support\Facades\Route;
 // Root → CRM login (this app is CRM-only).
 Route::get('/', 'UtilityController@home')->name('home');
 
-// Customer Portal (no auth - token based)
+// PayPal webhook (no auth; the handler re-fetches the invoice from PayPal before acting)
+Route::post('webhooks/paypal', 'Crm\OrderController@paypalWebhook')->name('webhooks.paypal');
+
+// Customer invoice portal (/login): customers pay invoices with the login emailed to them.
+Route::get('login', 'InvoicePortalController@loginPage')->name('invoice_portal.login');
+Route::post('login', 'InvoicePortalController@login')->name('invoice_portal.do_login');
+Route::post('login/forgot', 'InvoicePortalController@forgot')->name('invoice_portal.forgot');
+Route::post('logout', 'InvoicePortalController@logout')->name('invoice_portal.logout');
+Route::group(['prefix' => 'invoices', 'middleware' => 'invoice_portal.auth'], function () {
+    Route::get('/', 'InvoicePortalController@invoices')->name('invoice_portal.invoices');
+    Route::get('{id}', 'InvoicePortalController@show')->where('id', '[0-9]+')->name('invoice_portal.show');
+    Route::get('{id}/pdf', 'InvoicePortalController@pdf')->where('id', '[0-9]+')->name('invoice_portal.pdf');
+    Route::post('{id}/pay', 'InvoicePortalController@pay')->where('id', '[0-9]+')->name('invoice_portal.pay');
+    Route::post('{id}/paypal/create', 'InvoicePortalController@paypalCreate')->where('id', '[0-9]+')->name('invoice_portal.paypal_create');
+    Route::post('{id}/paypal/capture', 'InvoicePortalController@paypalCapture')->where('id', '[0-9]+')->name('invoice_portal.paypal_capture');
+});
+
 // Customer Portal (no auth - token based)
 Route::get('portal/login', 'CustomerPortalController@loginPage')->name('portal.login');
 Route::post('portal/login', 'CustomerPortalController@doLogin')->name('portal.do_login');
@@ -290,6 +306,15 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('orders/manual/{id}/edit', 'OrderController@edit')->name('crm.orders.manual.edit');
         Route::post('orders/manual/{id}', 'OrderController@update')->name('crm.orders.manual.update');
         Route::get('orders/manual/{id}/pdf', 'OrderController@pdf')->name('crm.orders.manual.pdf');
+        Route::post('orders/manual/{id}/paypal-request', 'OrderController@sendPaypalRequest')->name('crm.orders.manual.paypal_request');
+        Route::post('orders/manual/{id}/paypal-sync', 'OrderController@syncPaypal')->name('crm.orders.manual.paypal_sync');
+        Route::post('orders/manual/{id}/send-invoice', 'OrderController@sendInvoice')->name('crm.orders.manual.send_invoice');
+        Route::post('orders/manual/{id}/send-portal-login', 'OrderController@sendPortalLogin')->name('crm.orders.manual.send_portal_login');
+        Route::get('orders/manual/{id}/cca', 'OrderController@ccaPdf')->name('crm.orders.manual.cca');
+        Route::post('orders/manual/{id}/send-cca', 'OrderController@sendCca')->name('crm.orders.manual.send_cca');
+        Route::post('orders/manual/{id}/payments', 'OrderController@storePayment')->name('crm.orders.manual.payments.store');
+        Route::post('orders/manual/{id}/charge-card', 'OrderController@chargeCard')->name('crm.orders.manual.charge_card');
+        Route::delete('orders/manual/{id}/payments/{paymentId}', 'OrderController@destroyPayment')->name('crm.orders.manual.payments.destroy');
         Route::delete('orders/manual/{id}', 'OrderController@destroy')->name('crm.orders.manual.destroy');
         Route::patch('sales-orders/{id}/payment-status', 'SalesOrderController@updatePaymentStatus')->name('crm.sales_orders.update_payment_status');
         Route::post('sales-orders/{id}/upload-artwork', 'SalesOrderController@uploadArtwork')->name('crm.sales_orders.upload_artwork');
