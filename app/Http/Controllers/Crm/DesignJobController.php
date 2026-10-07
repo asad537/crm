@@ -19,11 +19,8 @@ class DesignJobController extends Controller
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
         $status = $request->input('status', 'all');
         $stage = $request->input('stage', 'all');
-        $dueDate = trim((string) $request->input('due_date', ''));
-        $parsedDueDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $dueDate);
-        if (!$parsedDueDate || $parsedDueDate->format('Y-m-d') !== $dueDate) {
-            $dueDate = '';
-        }
+        $dueFilter = in_array($request->input('due', 'all'), ['all', 'overdue'], true)
+            ? $request->input('due', 'all') : 'all';
 
         $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments', 'challan'])
             ->where('workspace_id', $workspaceId);
@@ -35,8 +32,13 @@ class DesignJobController extends Controller
         } elseif ($stage !== 'all' && array_key_exists($stage, DesignJob::STAGES)) {
             $query->where('production_stage', $stage);
         }
-        if ($dueDate !== '') {
-            $query->whereDate('due_date', $dueDate);
+        if ($dueFilter === 'overdue') {
+            $query->whereDate('due_date', '<', now()->toDateString())
+                ->where('status', '!=', 'delivered')
+                ->where(function ($overdue) {
+                    $overdue->whereNull('production_stage')
+                        ->orWhere('production_stage', '!=', 'close');
+                });
         }
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -63,7 +65,7 @@ class DesignJobController extends Controller
             ->orderByDesc('id');
         $jobs = $query->paginate(20)->appends($request->all());
 
-        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueDate', 'statusCounts'));
+        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueFilter', 'statusCounts'));
     }
 
     /** Show the job card before creating a job or assigning its number. */

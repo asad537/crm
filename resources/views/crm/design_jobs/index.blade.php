@@ -78,9 +78,9 @@
     .dj-filter select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
     .dj-date-filter { flex:0 0 190px; position:relative; }
     .dj-date-filter > i { position:absolute; z-index:1; left:.85rem; top:50%; transform:translateY(-50%); color:var(--accent); font-size:.82rem; pointer-events:none; }
-    .dj-date-filter input { width:100%; height:44px; padding:.55rem .7rem .55rem 2.25rem; border:1px solid #e1e5eb; border-radius:11px; background:#fbfcfd; color:#374151; font-family:inherit; font-size:.8rem; font-weight:650; outline:none; cursor:pointer; transition:border-color .15s,box-shadow .15s,background .15s; }
-    .dj-date-filter input:hover { border-color:#d1d7e0; background:#fff; }
-    .dj-date-filter input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .dj-date-filter select { width:100%; height:44px; padding:.55rem 2rem .55rem 2.25rem; border:1px solid #e1e5eb; border-radius:11px; background:#fbfcfd; color:#374151; font-family:inherit; font-size:.8rem; font-weight:700; outline:none; cursor:pointer; transition:border-color .15s,box-shadow .15s,background .15s; }
+    .dj-date-filter select:hover { border-color:#d1d7e0; background:#fff; }
+    .dj-date-filter select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
     .dj-search i { position:absolute; left:.9rem; top:50%; transform:translateY(-50%); color:#9aa3b2; font-size:.82rem; }
     .dj-search input { height:44px; border:1px solid #e1e5eb; border-radius:11px; padding:.6rem .8rem .6rem 2.35rem; font-size:.85rem;
         font-family:inherit; outline:none; width:100%; transition:all .13s; background:#fbfcfd; }
@@ -178,7 +178,10 @@
             </div>
             <div class="dj-date-filter">
                 <i class="far fa-calendar-alt" aria-hidden="true"></i>
-                <input type="date" name="due_date" value="{{ $dueDate }}" aria-label="Filter by due date" title="Filter by due date" onchange="this.form.submit()">
+                <select name="due" aria-label="Filter by due date" onchange="this.form.submit()">
+                    <option value="all" {{ $dueFilter === 'all' ? 'selected' : '' }}>All due dates</option>
+                    <option value="overdue" {{ $dueFilter === 'overdue' ? 'selected' : '' }}>Overdue</option>
+                </select>
             </div>
             <div class="dj-search">
                 <i class="fas fa-search"></i>
@@ -312,7 +315,7 @@
     </div>
 </div>
 
-{{-- ===== Delivery Challan modal (opens when a job stage is set to "Close Job") ===== --}}
+{{-- ===== Delivery Challan modal (opens when a job stage is set to "Completed") ===== --}}
 <div id="djChallanModal" class="djc-overlay" hidden>
     <div class="djc-modal">
         <div class="djc-head">
@@ -490,7 +493,7 @@
         list.style.visibility = '';
     }
 
-    // Stage dropdown change: "Close Job" opens the challan modal; anything else saves.
+    // Stage dropdown change: "Completed" opens the challan modal; anything else saves.
     document.addEventListener('change', function(e){
         var sel = e.target.closest ? e.target.closest('.dj-stage-select') : null;
         if(!sel) return;

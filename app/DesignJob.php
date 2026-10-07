@@ -32,7 +32,7 @@ class DesignJob extends Model
         'embossing'   => 'Embossing/Debossing',
         'die_cutting' => 'Die Cutting',
         'pasting'     => 'Pasting',
-        'close'       => 'Close Job',
+        'close'       => 'Completed',
     ];
 
     protected $fillable = [
