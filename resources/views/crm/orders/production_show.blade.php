@@ -12,13 +12,13 @@
 .ps-top{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:.8rem;flex-wrap:wrap}
 .ps-back{display:inline-flex;align-items:center;gap:.4rem;color:#64748b;text-decoration:none;font-weight:600;font-size:.8rem}
 .ps-btn{display:inline-flex;align-items:center;gap:.4rem;height:34px;padding:0 .9rem;border-radius:7px;border:1px solid #d6dde6;background:#fff;color:#334155;font-weight:600;font-size:.78rem;text-decoration:none}
-.ps-btn.primary{background:#1f2d4a;color:#fff;border-color:#1f2d4a}
-.ps-hero{background:linear-gradient(135deg,#1f2d4a,#2f4470);color:#fff;border-radius:12px;padding:1rem 1.2rem;margin-bottom:.8rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.ps-btn.primary{background:var(--primary-purple);color:#fff;border-color:var(--primary-purple)}
+.ps-hero{background:linear-gradient(135deg,var(--primary-purple),#8b7cf6);color:#fff;border-radius:12px;padding:1rem 1.2rem;margin-bottom:.8rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .ps-hero h2{margin:0;font-size:1.15rem}
-.ps-hero .sub{font-size:.75rem;color:#c7d2e6;margin-top:.2rem}
+.ps-hero .sub{font-size:.75rem;color:rgba(255,255,255,.8);margin-top:.2rem}
 .ps-hero .chip{display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .65rem;border-radius:999px;background:rgba(255,255,255,.14);font-size:.68rem;font-weight:800}
 .ps-card{background:#fff;border:1px solid #e3e8ef;border-radius:10px;margin-bottom:.7rem;overflow:hidden}
-.ps-head{padding:.55rem .95rem;background:#1f2d4a;color:#fff;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
+.ps-head{padding:.55rem .95rem;background:var(--primary-purple);color:#fff;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
 .ps-body{padding:.85rem .95rem}
 .ps-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem .9rem}
 .ps-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -26,7 +26,7 @@
 .ps-v{font-size:.82rem;color:#0f172a;margin-top:.1rem;white-space:pre-wrap;word-break:break-word}
 .ps-v:empty::before{content:'—';color:#cbd5e1}
 .ps-prod{border:1px solid #e3e8ef;border-radius:9px;padding:.75rem .85rem;margin-bottom:.6rem;background:#fcfcfd}
-.ps-prod h4{margin:0 0 .5rem;font-size:.84rem;color:#b45309}
+.ps-prod h4{margin:0 0 .5rem;font-size:.84rem;color:var(--primary-purple)}
 .ps-full{grid-column:1/-1}
 @media(max-width:900px){.ps-grid{grid-template-columns:1fr 1fr}}
 </style>

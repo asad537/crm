@@ -3,7 +3,7 @@
 
 @section('content')
 <style>
-.pi-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.3rem;margin-bottom:1rem;background:linear-gradient(135deg,#fff,#fff7ed);border:1px solid #e4eaf1;border-radius:17px}
+.pi-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.3rem;margin-bottom:1rem;background:linear-gradient(135deg,#fff,var(--primary-soft));border:1px solid #e4eaf1;border-radius:17px}
 .pi-hero h2{margin:0;font-size:1.25rem;color:#0f172a}
 .pi-muted{color:#8796aa;font-size:.75rem}
 .pi-filters{display:flex;gap:.6rem;flex-wrap:wrap;padding:.8rem 1rem;margin-bottom:1rem;background:#fff;border:1px solid #e4eaf1;border-radius:15px}
@@ -13,16 +13,16 @@
 .pi-btn.clear{background:#eef2f7;color:#475569}
 .pi-wrap{background:#fff;border:1px solid #e4eaf1;border-radius:15px;overflow-x:auto}
 .pi-table{width:100%;border-collapse:collapse;min-width:900px}
-.pi-table th{padding:.8rem .85rem;background:#f7f9fc;border-bottom:2px solid #fde68a;text-align:left;color:#718096;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.pi-table th{padding:.8rem .85rem;background:#f7f9fc;border-bottom:2px solid var(--primary-soft);text-align:left;color:#718096;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .pi-table td{padding:.8rem .85rem;border-bottom:1px solid #edf1f5;font-size:.78rem;color:#334155;vertical-align:middle}
-.pi-table tbody tr:hover{background:#fffbeb}
+.pi-table tbody tr:hover{background:var(--primary-soft)}
 .pi-chip{display:inline-flex;padding:.25rem .55rem;border-radius:6px;font-size:.64rem;font-weight:800;background:#fef3c7;color:#92400e;text-transform:uppercase}
 .pi-chip.rush{background:#fee2e2;color:#b91c1c}
 .pi-a{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .65rem;border-radius:8px;border:1px solid #e4eaf1;background:#fff;color:#334155;text-decoration:none;font-weight:700;font-size:.7rem;margin-right:.3rem}
 .pi-empty{text-align:center;padding:2.5rem;color:#94a3b8}
 </style>
 <div class="pi-hero">
-    <div><h2><i class="fas fa-industry" style="color:#b45309"></i> Order Job Briefs</h2><div class="pi-muted">Paid orders sent to production from the Orders tab.</div></div>
+    <div><h2><i class="fas fa-industry" style="color:var(--primary-purple)"></i> Order Job Briefs</h2><div class="pi-muted">Paid orders sent to production from the Orders tab.</div></div>
 </div>
 <form class="pi-filters" method="GET" action="{{ route('crm.production_briefs.index') }}">
     <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search job number, client or product...">
