@@ -94,7 +94,16 @@
                         </select>
                     </div>
                     <div class="pb-f s2"><span class="pb-l">Client Name <span class="req">*</span></span><input class="pb-i" name="client_name" value="{{ $v('client_name') }}" required></div>
-                    <div class="pb-f s2"><span class="pb-l">Order reference</span><input class="pb-i" value="{{ $label }} · Enquiry {{ $order->enquiry_number ?: '—' }} · Sales: {{ $order->sales_person ?: ($order->user_name ?: '—') }}" readonly></div>
+                    <div class="pb-f {{ $brief ? 's2' : '' }}"><span class="pb-l">Order reference</span><input class="pb-i" value="{{ $label }} · Enquiry {{ $order->enquiry_number ?: '—' }} · Sales: {{ $order->sales_person ?: ($order->user_name ?: '—') }}" readonly></div>
+                    @if(!$brief)
+                    <div class="pb-f">
+                        <span class="pb-l">Assign Print Ready designer <span style="color:#94a3b8;text-transform:none;letter-spacing:0">(optional)</span></span>
+                        <select class="pb-sel" name="assigned_designer_id">
+                            <option value="">Leave in Active pool (any designer can pick)</option>
+                            @foreach(($designers ?? []) as $d)<option value="{{ $d->id }}" {{ (string) old('assigned_designer_id') === (string) $d->id ? 'selected' : '' }}>{{ $d->name }}</option>@endforeach
+                        </select>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

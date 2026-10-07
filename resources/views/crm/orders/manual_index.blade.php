@@ -30,6 +30,7 @@
 .or-pp.cca{color:#0f766e}
 .or-pp.ok{color:#15803d}
 .or-pp.prod{color:#b45309}
+.or-pp.pr{color:#4338ca}.or-pp.pr.completed{color:#15803d}.or-pp.pr.change_requested{color:#c2410c}
 .or-menu-list a.or-menu-prod{color:#b45309;font-weight:800}
 .or-menu-list a.or-menu-prod.done{color:#0f766e}
 .or-pp.inv{color:#6d28d9}
@@ -149,6 +150,9 @@
                     @if($order->productionBrief)
                         <div class="or-pp prod" title="Sent to production on {{ optional($order->productionBrief->sent_at)->format('d-M-Y H:i') }} · {{ $order->productionBrief->job_number }}"><i class="fas fa-industry"></i> In Production {{ optional($order->productionBrief->sent_at)->format('d-M') }}</div>
                     @endif
+                    @if($order->printReadyTicket)
+                        <div class="or-pp pr {{ $order->printReadyTicket->status }}" title="Print Ready {{ $order->printReadyTicket->ticket_number }} · {{ $order->printReadyTicket->statusLabel() }}{{ $order->printReadyTicket->designer ? ' · '.$order->printReadyTicket->designer->name : '' }}"><i class="fas fa-print"></i> Print {{ $order->printReadyTicket->statusLabel() }}</div>
+                    @endif
                     @if($order->invoice_sent_at)
                         <div class="or-pp inv" title="Invoice sent to {{ $order->invoice_sent_to }} on {{ $order->invoice_sent_at->format('d-M-Y H:i') }}"><i class="fas fa-paper-plane"></i> Inv {{ $order->invoice_sent_at->format('d-M') }}</div>
                     @endif
@@ -213,6 +217,9 @@
                             @if($isPaidOrder)
                                 @if($order->productionBrief)
                                     <a href="{{ route('crm.orders.manual.production.show',$order->id) }}" class="or-menu-prod done"><i class="fas fa-industry"></i> View Production Job</a>
+                                    @if($order->printReadyTicket && Auth::guard('crm')->user()->canAccessPrintReady())
+                                        <a href="{{ route('crm.print_ready.show',$order->printReadyTicket->id) }}"><i class="fas fa-print"></i> Print Ready Ticket</a>
+                                    @endif
                                 @else
                                     <a href="{{ route('crm.orders.manual.production.create',$order->id) }}" class="or-menu-prod"><i class="fas fa-industry"></i> Send to Production</a>
                                 @endif

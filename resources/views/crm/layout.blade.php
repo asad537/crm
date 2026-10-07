@@ -1120,6 +1120,16 @@
                 </a>
             @endif
 
+            {{-- Print Ready: Admin, plus designers an admin has granted access to. Tickets come from "Send to Production". --}}
+            @if($__navUser->canAccessPrintReady())
+                <a href="{{ route('crm.print_ready.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.print_ready.*') ? 'active' : '' }}">
+                    <i class="fas fa-print"></i>
+                    <span class="nav-label">Print Ready</span>
+                    <i class="fas fa-chevron-right arrow"></i>
+                </a>
+            @endif
+
             {{-- Design Jobs: Al Massa workspace only. Designer + Admin manage; Sales (CSR) can view. --}}
             @if($activeCrmWorkspace->slug === 'mybox-packaging-app' && ($__navUser->isDesigner() || $__navUser->isAdmin() || $__navUser->isSales()))
             @php

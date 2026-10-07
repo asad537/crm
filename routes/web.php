@@ -350,6 +350,17 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::delete('proposals/{id}', 'ProposalController@destroy')->name('crm.proposals.destroy');
         Route::post('inquiries/{id}/request-proposal', 'ProposalController@requestFromInquiry')->name('crm.proposals.request_from_inquiry');
 
+        // Print Ready (Design): tickets auto-created when a paid order is sent to production. Admin + designers with access.
+        Route::get('print-ready', 'PrintReadyController@index')->name('crm.print_ready.index');
+        Route::get('print-ready/{id}', 'PrintReadyController@show')->where('id', '[0-9]+')->name('crm.print_ready.show');
+        Route::post('print-ready/{id}', 'PrintReadyController@update')->where('id', '[0-9]+')->name('crm.print_ready.update');
+        Route::post('print-ready/{id}/claim', 'PrintReadyController@claim')->where('id', '[0-9]+')->name('crm.print_ready.claim');
+        Route::post('print-ready/{id}/change-request', 'PrintReadyController@changeRequest')->where('id', '[0-9]+')->name('crm.print_ready.change_request');
+        Route::get('print-ready/{id}/files/{fileId}', 'PrintReadyController@download')->where(['id' => '[0-9]+', 'fileId' => '[0-9]+'])->name('crm.print_ready.download');
+        Route::delete('print-ready/{id}', 'PrintReadyController@destroy')->where('id', '[0-9]+')->name('crm.print_ready.destroy');
+        Route::post('print-ready-access', 'PrintReadyController@grantAccess')->name('crm.print_ready.grant_access');
+        Route::post('print-ready-access/{designerId}', 'PrintReadyController@toggleAccess')->name('crm.print_ready.toggle_access');
+
         // Prepress Department
         Route::get('prepress-tickets', 'PrepressTicketController@index')->name('crm.prepress_tickets.index');
         Route::post('prepress-tickets/{id}/create-plate', 'PrepressTicketController@createPlate')->name('crm.prepress_tickets.create_plate');

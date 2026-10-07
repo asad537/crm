@@ -140,6 +140,11 @@ class CrmManualOrder extends Model
         return $this->hasOne(CrmManualOrderProductionBrief::class, 'manual_order_id');
     }
 
+    public function printReadyTicket()
+    {
+        return $this->hasOne(CrmPrintReadyTicket::class, 'manual_order_id')->latestOfMany();
+    }
+
     public function creator()
     {
         return $this->belongsTo(CrmUser::class, 'created_by');

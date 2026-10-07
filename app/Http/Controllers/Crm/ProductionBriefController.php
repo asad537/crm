@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Crm;
 
 use App\CrmManualOrder;
 use App\CrmManualOrderProductionBrief;
+use App\CrmPrintReadyTicket;
 use App\CrmUser;
 use App\Http\Controllers\Controller;
 use App\Mail\ProductionBriefMail;
+use App\Http\Controllers\Crm\PrintReadyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -75,6 +77,7 @@ class ProductionBriefController extends Controller
             'order' => $order,
             'brief' => null,
             'prefill' => $this->prefill($order),
+            'designers' => $this->printReadyDesigners(),
         ]);
     }
 
@@ -101,8 +104,44 @@ class ProductionBriefController extends Controller
         $brief->save();
 
         $note = $this->notifyProduction($brief, $user);
+        $note .= $this->createPrintReadyTicket($brief, $order, $user, $request->input('assigned_designer_id'));
         return redirect()->route('crm.orders.manual.production.show', $order->id)
             ->with('success', "Order {$brief->job_number} sent to production." . $note);
+    }
+
+    /** Designers with Print Ready access (for the optional "Assign designer" dropdown). */
+    private function printReadyDesigners()
+    {
+        $workspaceId = session('crm_workspace_id') ?: \App\Support\CrmWorkspaceContext::id();
+        return CrmUser::inWorkspace($workspaceId, ['designer'])->where('print_ready_access', 1)->orderBy('name')->get(['crm_users.id', 'crm_users.name']);
+    }
+
+    /** Every sent brief opens a Print Ready ticket for the design team (optionally pre-assigned). */
+    private function createPrintReadyTicket(CrmManualOrderProductionBrief $brief, CrmManualOrder $order, $user, $designerId = null): string
+    {
+        $designerId = $designerId ? (int) $designerId : null;
+        if ($designerId && !$this->printReadyDesigners()->contains('id', $designerId)) $designerId = null;
+
+        $ticket = CrmPrintReadyTicket::create([
+            'workspace_id' => $order->workspace_id,
+            'manual_order_id' => $order->id,
+            'production_brief_id' => $brief->id,
+            'ticket_number' => 'PR-' . str_pad((string) $brief->id, 4, '0', STR_PAD_LEFT),
+            'job_number' => $brief->job_number,
+            'client_name' => $brief->client_name,
+            'products' => $brief->products,
+            'folder_path' => $brief->folder_path,
+            'printers_deadline' => $brief->printers_deadline,
+            'clients_deadline' => $brief->clients_deadline,
+            'brief_notes' => $brief->additional_requirements,
+            'status' => $designerId ? 'in_progress' : 'requested',
+            'assigned_designer_id' => $designerId,
+            'created_by' => $user->id,
+            'claimed_at' => $designerId ? now() : null,
+        ]);
+        $ticket->addNote($user->id, 'status', 'Ticket created from Send to Production' . ($designerId ? ' · assigned to ' . optional(CrmUser::find($designerId))->name : ''));
+        $mail = PrintReadyController::notify($ticket, 'created', $user);
+        return " Print Ready ticket {$ticket->ticket_number} created" . ($designerId ? ' and assigned' : '') . '.' . $mail;
     }
 
     public function show($id)

@@ -54,6 +54,13 @@ class CrmUser extends Authenticatable
         return $this->isDesigner() && (bool) ($this->proposal_access ?? false);
     }
 
+    /** Admin (incl. owner) and designers explicitly granted Print Ready access. */
+    public function canAccessPrintReady()
+    {
+        if ($this->isAdmin()) return true;
+        return $this->isDesigner() && (bool) ($this->print_ready_access ?? false);
+    }
+
     public function isPrepress()
     {
         return $this->activeWorkspaceRole() === 'prepress';
