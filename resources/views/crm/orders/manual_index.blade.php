@@ -170,7 +170,8 @@
                                 <input type="hidden" name="email" value="">
                                 <button type="submit"><i class="fas fa-paper-plane"></i> {{ $order->invoice_sent_at ? 'Resend Invoice' : 'Send Invoice' }}</button>
                             </form>
-                            @php $ppEmail = $order->customerEmail(); $ppAmount = strtoupper($order->currency ?: 'USD').' '.number_format((float)$order->total, 2); @endphp
+                            @php $ppEmail = $order->customerEmail(); $ppAmount = strtoupper($order->currency ?: 'USD').' '.number_format((float)$order->total, 2); $isPaidOrder = $order->invoice_status === 'paid'; @endphp
+                            @if(!$isPaidOrder)
                             <form method="POST" action="{{ route('crm.orders.manual.paypal_request',$order->id) }}" class="or-paypal-form"
                                   data-email="{{ $ppEmail }}" data-amount="{{ $ppAmount }}" data-resend="{{ $order->paypal_sent_at ? 1 : 0 }}">
                                 {{ csrf_field() }}
@@ -186,12 +187,15 @@
                             @if($order->paypal_invoice_url)
                                 <a href="{{ $order->paypal_invoice_url }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> Open PayPal Invoice</a>
                             @endif
+                            @endif
+                            @if(!$isPaidOrder)
                             <form method="POST" action="{{ route('crm.orders.manual.send_cca',$order->id) }}" class="or-direct-form" data-email="{{ $ppEmail }}" data-what="CCA form">
                                 {{ csrf_field() }}
                                 <input type="hidden" name="email" value="">
                                 <button type="submit"><i class="fas fa-credit-card"></i> {{ $order->cca_sent_at ? 'Resend CCA' : 'Send CCA' }}</button>
                             </form>
                             <a href="{{ route('crm.orders.manual.cca',$order->id) }}" target="_blank"><i class="fas fa-file-signature"></i> View CCA Form</a>
+                            @endif
                             <form method="POST" action="{{ route('crm.orders.manual.send_portal_login',$order->id) }}" class="or-direct-form" data-email="{{ $ppEmail }}" data-what="portal login details">
                                 {{ csrf_field() }}
                                 <input type="hidden" name="email" value="">
@@ -218,7 +222,7 @@
                                     })->values(),
                                 ];
                             @endphp
-                            <button type="button" class="or-pay-btn" data-pay='@json($pmJson)'><i class="fas fa-money-bill-wave"></i> Payment</button>
+                            <button type="button" class="or-pay-btn" data-pay='@json($pmJson)'><i class="fas {{ $isPaidOrder ? 'fa-receipt' : 'fa-money-bill-wave' }}"></i> {{ $isPaidOrder ? 'Payment History' : 'Payment' }}</button>
                             <form method="POST" action="{{ route('crm.orders.manual.destroy',$order->id) }}" onsubmit="return confirm('Delete this order?')">
                                 {{ csrf_field() }}<input type="hidden" name="_method" value="DELETE">
                                 <button class="or-menu-delete" type="submit"><i class="fas fa-trash-alt"></i> Delete</button>
