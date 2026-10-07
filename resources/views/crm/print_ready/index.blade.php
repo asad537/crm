@@ -1,6 +1,7 @@
 @extends('crm.layout')
 @section('title', 'Print Ready')
 
+@section('content')
 <style>
 .pl-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.15rem 1.3rem;margin-bottom:1rem;background:linear-gradient(135deg,#fff,var(--primary-soft));border:1px solid #e4eaf1;border-radius:17px}
 .pl-hero h2{margin:0;font-size:1.25rem;color:#0f172a}
@@ -43,7 +44,6 @@
 .pl-access-label{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;padding:.2rem .3rem .35rem}
 </style>
 
-@section('content')
 <div class="pl-hero">
     <div><h2><i class="fas fa-print" style="color:var(--primary-purple)"></i> Print Ready</h2><div class="pl-muted">Artwork tickets for paid orders sent to production. Pick a ticket, prepare print-ready files, complete it.</div></div>
 </div>
