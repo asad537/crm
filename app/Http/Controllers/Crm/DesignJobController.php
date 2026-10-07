@@ -19,6 +19,11 @@ class DesignJobController extends Controller
         $workspaceId = \App\Support\CrmWorkspaceContext::id();
         $status = $request->input('status', 'all');
         $stage = $request->input('stage', 'all');
+        $dueDate = trim((string) $request->input('due_date', ''));
+        $parsedDueDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $dueDate);
+        if (!$parsedDueDate || $parsedDueDate->format('Y-m-d') !== $dueDate) {
+            $dueDate = '';
+        }
 
         $query = DesignJob::with(['ticket', 'designer', 'jobCard.attachments', 'challan'])
             ->where('workspace_id', $workspaceId);
@@ -29,6 +34,9 @@ class DesignJobController extends Controller
             $query->whereNull('production_stage');
         } elseif ($stage !== 'all' && array_key_exists($stage, DesignJob::STAGES)) {
             $query->where('production_stage', $stage);
+        }
+        if ($dueDate !== '') {
+            $query->whereDate('due_date', $dueDate);
         }
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -55,7 +63,7 @@ class DesignJobController extends Controller
             ->orderByDesc('id');
         $jobs = $query->paginate(20)->appends($request->all());
 
-        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'statusCounts'));
+        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueDate', 'statusCounts'));
     }
 
     /** Show the job card before creating a job or assigning its number. */

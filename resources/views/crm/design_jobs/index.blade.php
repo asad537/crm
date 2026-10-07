@@ -76,12 +76,17 @@
     .dj-filter select { width:100%; height:44px; padding:.55rem 2rem .55rem 2.25rem; border:1px solid #e1e5eb; border-radius:11px; background:#fbfcfd; color:#374151; font-family:inherit; font-size:.82rem; font-weight:700; outline:none; cursor:pointer; transition:border-color .15s,box-shadow .15s,background .15s; }
     .dj-filter select:hover { border-color:#d1d7e0; background:#fff; }
     .dj-filter select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .dj-date-filter { flex:0 0 190px; position:relative; }
+    .dj-date-filter > i { position:absolute; z-index:1; left:.85rem; top:50%; transform:translateY(-50%); color:var(--accent); font-size:.82rem; pointer-events:none; }
+    .dj-date-filter input { width:100%; height:44px; padding:.55rem .7rem .55rem 2.25rem; border:1px solid #e1e5eb; border-radius:11px; background:#fbfcfd; color:#374151; font-family:inherit; font-size:.8rem; font-weight:650; outline:none; cursor:pointer; transition:border-color .15s,box-shadow .15s,background .15s; }
+    .dj-date-filter input:hover { border-color:#d1d7e0; background:#fff; }
+    .dj-date-filter input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
     .dj-search i { position:absolute; left:.9rem; top:50%; transform:translateY(-50%); color:#9aa3b2; font-size:.82rem; }
     .dj-search input { height:44px; border:1px solid #e1e5eb; border-radius:11px; padding:.6rem .8rem .6rem 2.35rem; font-size:.85rem;
         font-family:inherit; outline:none; width:100%; transition:all .13s; background:#fbfcfd; }
     .dj-search input:hover { border-color:#d1d7e0; background:#fff; }
     .dj-search input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
-    @media(max-width:640px){.dj-filter-row{align-items:stretch;flex-direction:column}.dj-filter{flex-basis:auto;width:100%}}
+    @media(max-width:760px){.dj-filter-row{align-items:stretch;flex-direction:column}.dj-filter,.dj-date-filter{flex-basis:auto;width:100%}}
 
     /* Table card */
     .dj-card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;
@@ -170,6 +175,10 @@
                         <option value="{{ $stageKey }}" {{ $stage === $stageKey ? 'selected' : '' }}>{{ $stageLabel }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div class="dj-date-filter">
+                <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                <input type="date" name="due_date" value="{{ $dueDate }}" aria-label="Filter by due date" title="Filter by due date" onchange="this.form.submit()">
             </div>
             <div class="dj-search">
                 <i class="fas fa-search"></i>
