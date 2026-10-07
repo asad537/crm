@@ -25,15 +25,12 @@ class CrmManualOrderProductionBrief extends Model
     ];
 
     public const PRODUCTION_TYPES = [
-        'offset' => 'Offset Printing',
-        'digital' => 'Digital Printing',
-        'large_format' => 'Large Format Printing',
-        'uv' => 'UV Printing',
-        'screen' => 'Screen Printing',
-        'plain' => 'Plain (No Printing)',
+        'actual' => 'Actual',
+        'reprint' => 'Reprint',
+        'sample' => 'Sample',
     ];
 
-    public const JOB_TYPES = ['Standard', 'Rush', 'Reprint', 'Sample', 'Repeat Order'];
+    public const JOB_TYPES = ['Standard', 'Rush'];
 
     /** Per-product fields, in display order: key => label. */
     public const PRODUCT_FIELDS = [
