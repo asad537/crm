@@ -3397,6 +3397,7 @@
                 .mta-send:active { transform: translateY(0); }
             </style>
 
+            @if($currentCrmUser->isAdmin() || $currentCrmUser->isSalesManager())
             <div class="mta-card" id="inquiryNotes">
                 <div class="mta-head">
                     <div class="mta-icon"><i class="fas fa-comments"></i></div>
@@ -3453,6 +3454,7 @@
                 </form>
             </div>
             <script>(function(){var t=document.getElementById('mtaThread'); if(t) t.scrollTop=t.scrollHeight;})();</script>
+            @endif
         </div>
         @endif
 
