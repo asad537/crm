@@ -722,7 +722,7 @@ if (!function_exists('acFormatDualPaperSize')) {
         </div>
     </div>
 
-    <!-- Printing Card — results only (paper rate stays hidden for the calc; VAT input lives on the Grand Total card) -->
+    <!-- Printing Card — results only (paper rate stays hidden for the calc) -->
     <div class="ac-pcard">
         <div class="ac-pcard-head"><span class="ac-title-icon orange"><i class="fas fa-palette"></i></span> Printing</div>
         <input type="hidden" id="acPaperRate" value="0.00">
@@ -994,12 +994,8 @@ if (!function_exists('acFormatDualPaperSize')) {
             <div>
                 <div class="ac-rcard-label" style="color:var(--primary-purple);"><i class="fas fa-coins"></i> GRAND TOTAL [<span id="resGtCurrencyBadge">USD</span>]</div>
                 <div style="font-size:1.9rem;font-weight:800;color:var(--primary-purple);margin:.15rem 0;"><span class="ac-curr-sym">$</span> <span id="resGrandTotal">0.00</span></div>
-                <div class="ac-rcard-sub">Sub: <span class="ac-curr-sym">$</span> <span id="resSubtotal">0.00</span> + VAT: <span class="ac-curr-sym">$</span> <span id="resVatAmount">0.00</span> (<span id="resVatBadgePercent">5</span>%)</div>
+                <div class="ac-rcard-sub">Paper + printing + plates + lamination + finishing + tooling<span id="resSubtotal" style="display:none">0.00</span></div>
                 <div class="ac-rcard-sub" id="resMaterialsLine" style="display:none;">Incl. Materials (Grey Board / EVA / E Flute): <span class="ac-curr-sym">$</span> <span id="resMaterialsCost">0.00</span></div>
-            </div>
-            <div class="ac-field-group" style="min-width:120px;">
-                <label>VAT (%)</label>
-                <input class="ac-input-field" type="number" step="0.1" min="0" max="100" id="acVatPercent" value="{{ old('vat_percentage', (float)(optional($ticket->lead)->vat_percentage ?: 5)) }}" oninput="calculateAdvancedEst()">
             </div>
             @if($canEditEstimate)
             <button class="ac-btn-apply-hero" type="button" onclick="applyAdvancedEstToCosting()">
@@ -1514,11 +1510,11 @@ function calculateAdvancedEst() {
         materialOps.push({name: card.dataset.costName, cost: costCurr, keys: [(card.dataset.costName || '').toLowerCase()], detail: matSpec, qty: res.quantity});
     });
 
-    // 6. VAT Calculations
-    var vatPercent = Math.max(0, parseFloat(document.getElementById('acVatPercent').value) || 0);
+    // 6. Grand total (VAT is handled on the costing table, not in this calculator)
+    var vatPercent = 0;
     var subtotalCostCurr = paperCostCurr + printingCostCurr + plateCostCurr + laminationCostCurr + finishingCostCurr + toolingCostCurr + materialsCostCurr;
-    var vatAmountCurr = subtotalCostCurr * (vatPercent / 100);
-    var grandTotalCostCurr = subtotalCostCurr + vatAmountCurr;
+    var vatAmountCurr = 0;
+    var grandTotalCostCurr = subtotalCostCurr;
 
     // Update Currency Symbols across UI
     var symbolEls = document.querySelectorAll('.ac-curr-sym');
@@ -1672,8 +1668,6 @@ function calculateAdvancedEst() {
     if (matLineEl) matLineEl.style.display = materialsCostCurr > 0 ? '' : 'none';
 
     document.getElementById('resSubtotal').textContent = subtotalCostCurr.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('resVatAmount').textContent = vatAmountCurr.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('resVatBadgePercent').textContent = vatPercent % 1 === 0 ? vatPercent.toFixed(0) : vatPercent.toFixed(1);
 
     document.getElementById('resGrandTotal').textContent = grandTotalCostCurr.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('resGtCurrencyBadge').textContent = currCode;
