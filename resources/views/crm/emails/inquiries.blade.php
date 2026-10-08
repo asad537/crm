@@ -16,6 +16,43 @@
 @media(max-width:850px){.iq-hero{align-items:flex-start;flex-direction:column}.iq-filter{width:100%;flex-wrap:wrap}.iq-search{width:100%;flex:1}.iq-wrap{overflow:auto}.iq-table{min-width:760px}.iq-detail-grid{grid-template-columns:1fr}.iq-finish-grid{grid-template-columns:1fr 1fr}}@media(max-width:520px){.iq-finish-grid{grid-template-columns:1fr}}
 .iq-finish-chip{padding:0;border-radius:0;background:transparent}
 </style>
+<style>
+/* ---------- Professional refresh (overrides) ---------- */
+.iq-page{color:#1d2838}
+.iq-hero{background:#fff;border:1px solid #eef1f6;border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.iq-hero h2{font-size:1.2rem;font-weight:850;letter-spacing:-.01em;color:#101828}
+.iq-hero .iq-muted{font-size:.74rem;color:#98a2b3}
+.iq-control{border:1px solid #e4e9f2;border-radius:10px;background:#fff}
+.iq-control:focus{border-color:var(--primary-purple);box-shadow:0 0 0 3px var(--primary-shadow)}
+.iq-wrap{border:1px solid #eef1f6;border-radius:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+.iq-table th{background:#fbfcfe;border-bottom:1px solid #eef1f6;color:#98a2b3;font-size:.63rem;font-weight:800;letter-spacing:.08em;padding:.92rem 1rem}
+.iq-table td{padding:1.05rem 1rem;border-bottom:1px solid #f2f4f8;font-size:.78rem;color:#475467}
+.iq-table tbody tr{transition:background .14s ease}
+.iq-table tbody tr:hover{background:#f8f9fe;box-shadow:inset 3px 0 0 var(--primary-purple)}
+.iq-table tbody tr:last-child td{border-bottom:0}
+.iq-table td strong{color:#101828}
+.iq-avatar{width:40px;height:40px;flex-basis:40px;border-radius:12px;font-size:.92rem;box-shadow:0 5px 12px rgba(99,91,255,.28)}
+.iq-client strong{font-weight:800;color:#101828;font-size:.82rem}
+.iq-muted{color:#98a2b3}
+/* status pills with a leading dot */
+.iq-status{align-items:center;gap:.42rem;padding:.4rem .72rem;font-size:.65rem;border:1px solid transparent;letter-spacing:.01em}
+.iq-status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.iq-status.estimate{background:#eef4ff;color:#2563eb;border-color:#dbe7ff}
+.iq-status.design{background:#fff4ea;color:#c2620c;border-color:#ffe4cc}
+.iq-status.done{background:#eafaf1;color:#0a7a46;border-color:#cdeedd}
+/* quantity / offer cells */
+.iq-offer{grid-template-columns:1fr auto;min-width:196px;background:#fff;border:1px solid #e9edf3;color:#475467;font-weight:700;box-shadow:0 1px 1px rgba(16,24,40,.03)}
+.iq-offer em{color:#667085;font-weight:700}
+.iq-offer>span{color:#101828;font-weight:800;text-align:right}
+.iq-qty{background:#f2f4f8;color:#475467;font-weight:750}
+/* buttons */
+.iq-action{border:1px solid #e4e9f2;background:#fff;color:#475467;border-radius:10px;min-height:36px;font-weight:800;transition:all .14s ease}
+.iq-action:hover{background:#f8f9fe;color:var(--primary-purple);border-color:#d9def0}
+.iq-action-trigger,.iq-action-trigger:hover{background:var(--primary-purple);border-color:var(--primary-purple);color:#fff}
+.iq-action-trigger:hover{background:var(--primary-hover)}
+.iq-add-btn{border-radius:10px}
+.iq-status.estimate,.iq-status.design,.iq-status.done{box-shadow:0 1px 1px rgba(16,24,40,.03)}
+</style>
 <div class="iq-page">
     <div class="iq-hero">
         <div><h2>Customer Inquiries</h2><div class="iq-muted">All manually added inquiries and their current Design/Estimate workflow.</div></div>
