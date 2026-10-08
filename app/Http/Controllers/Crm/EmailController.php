@@ -339,6 +339,15 @@ class EmailController extends Controller
         $currentUser = Auth::guard('crm')->user();
         $email = CrmEmail::with('messages.user')->findOrFail($id);
 
+        // Backfill country from the stored IP if it was never resolved.
+        if (empty($email->country) && !empty($email->ip_address)) {
+            $resolved = \App\Helpers\SpamDetector::resolveCountry($email->ip_address);
+            if (!empty($resolved)) {
+                $email->country = $resolved;
+                $email->saveQuietly();
+            }
+        }
+
         // Sales agents may open inquiries they created or that were assigned to them.
         // Also allow access if current user is the assigned estimator for this email.
         $isAssignedEstimator = ($email->estimator_id == $currentUser->id);
