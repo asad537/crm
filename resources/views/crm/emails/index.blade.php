@@ -646,28 +646,34 @@
 
     <!-- Bulk Action Floating Bar -->
     <div id="bulkActionBar"
-        style="position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: none; align-items: center; gap: 1.5rem; padding: 0.75rem 1.5rem; border: 1px solid #e2e8f0; z-index: 1000; animation: slideUp 0.3s ease;">
-        <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem;">
-            <span id="selectedCount">0</span> Items Selected
+        style="position: fixed; bottom: 1.75rem; left: 50%; transform: translateX(-50%); background: #ffffff; border-radius: 14px; box-shadow: 0 16px 40px -12px rgba(15,23,42,0.28); display: none; align-items: center; gap: 1.1rem; padding: 0.7rem 0.9rem 0.7rem 1.25rem; border: 1px solid #e8edf3; z-index: 1000; animation: slideUp 0.25s ease;">
+        <div style="display:flex; align-items:center; gap:.55rem; font-weight: 800; color: #0f172a; font-size: 0.86rem;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 .4rem;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:.74rem;font-weight:850;"><span id="selectedCount">0</span></span>
+            selected
         </div>
-        <div style="height: 24px; width: 1px; background: #e2e8f0;"></div>
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <span style="font-size: 0.85rem; font-weight: 600; color: #64748b;">Assign to:</span>
+        <div style="height: 26px; width: 1px; background: #eef2f7;"></div>
+        <div style="display: flex; align-items: center; gap: 0.55rem;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: #64748b;">Assign to</span>
             <select id="bulkAssignUser"
-                style="padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid #d1d5db; font-size: 0.85rem; outline: none; background: #f9fafb;">
-                <option value="">Select User...</option>
+                style="padding: 0.45rem 0.7rem; border-radius: 9px; border: 1px solid #d8e1eb; font-size: 0.82rem; outline: none; background: #f8fafc; color:#263449; min-width:150px;">
+                <option value="">Select user…</option>
                 @foreach($users as $u)
                     <option value="{{ $u->id }}">{{ $u->name }} ({{ strtoupper($u->role) }})</option>
                 @endforeach
             </select>
-            <button onclick="applyBulkAssign()" class="btn btn-primary"
-                style="padding: 0.4rem 1.2rem; font-size: 0.85rem; font-weight: 700;">
-                Apply
+            <button onclick="applyBulkAssign()"
+                style="display:inline-flex;align-items:center;gap:.4rem;padding: 0.5rem 1.1rem; font-size: 0.82rem; font-weight: 800; border:0; border-radius:9px; cursor:pointer; color:#fff; background:#6c5ce7; box-shadow:0 8px 16px -6px rgba(108,92,231,.6);">
+                <i class="fas fa-user-check"></i> Assign
             </button>
         </div>
-        <button onclick="clearSelection()"
-            style="background: none; border: none; color: #ef4444; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
-            Cancel
+        <div style="height: 26px; width: 1px; background: #eef2f7;"></div>
+        <button onclick="applyBulkDelete()"
+            style="display:inline-flex;align-items:center;gap:.4rem;padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 800; border:1px solid #fecaca; border-radius:9px; cursor:pointer; color:#dc2626; background:#fff5f5;">
+            <i class="fas fa-trash"></i> Delete
+        </button>
+        <button onclick="clearSelection()" title="Clear selection"
+            style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:#f1f5f9; border:0; border-radius:9px; color:#64748b; font-size:0.9rem; cursor:pointer;">
+            <i class="fas fa-times"></i>
         </button>
     </div>
 
@@ -990,6 +996,45 @@
                 },
                 'Yes, Assign',
                 'btn-primary-confirm'
+            );
+        }
+
+        function applyBulkDelete() {
+            const selectedIds = Array.from(document.querySelectorAll('.email-checkbox:checked')).map(cb => cb.value);
+            if (!selectedIds.length) {
+                showToast('Please select at least one inquiry.', 'error');
+                return;
+            }
+            customConfirm(
+                'Delete Inquiries',
+                `Permanently delete ${selectedIds.length} selected inquir${selectedIds.length === 1 ? 'y' : 'ies'}? This cannot be undone.`,
+                () => {
+                    document.getElementById('refresh-overlay').style.display = 'flex';
+                    fetch("{{ route('crm.emails.bulk_destroy') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ email_ids: selectedIds })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                document.getElementById('refresh-overlay').style.display = 'none';
+                                showToast(data.message || 'Error deleting inquiries', 'error');
+                            }
+                        })
+                        .catch(err => {
+                            document.getElementById('refresh-overlay').style.display = 'none';
+                            console.error(err);
+                            showToast('Connection error', 'error');
+                        });
+                },
+                'Yes, Delete',
+                'btn-danger-confirm'
             );
         }
 

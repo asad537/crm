@@ -1320,6 +1320,28 @@ class EmailController extends Controller
         return response()->json(['success' => true, 'message' => count($request->email_ids) . ' emails assigned successfully.']);
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        if (!Auth::guard('crm')->user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Only Admins can delete inquiries.'], 403);
+        }
+
+        $request->validate([
+            'email_ids' => 'required|array',
+        ]);
+
+        $count = 0;
+        foreach ($request->email_ids as $id) {
+            $email = CrmEmail::find($id);
+            if ($email) {
+                $email->delete(); // Soft delete
+                $count++;
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => $count . ' inquir' . ($count === 1 ? 'y' : 'ies') . ' deleted.']);
+    }
+
     public function editInquiry($id)
     {
         $currentUser = \Auth::guard('crm')->user();

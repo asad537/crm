@@ -170,6 +170,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('rejected-leads', 'EmailController@rejected')->name('crm.emails.rejected');
         Route::get('email/assignable-users', 'EmailController@getAssignableUsers')->name('crm.emails.assignable_users');
         Route::post('emails/bulk-assign', 'EmailController@bulkAssign')->name('crm.emails.bulk_assign');
+        Route::post('emails/bulk-destroy', 'EmailController@bulkDestroy')->name('crm.emails.bulk_destroy');
         Route::get('email/{id}', 'EmailController@show')->name('crm.emails.show');
         Route::post('email/{id}/spam', 'EmailController@markAsSpam')->name('crm.emails.markSpam');
         Route::post('email/{id}/reject', 'EmailController@markAsRejected')->name('crm.emails.markRejected');
