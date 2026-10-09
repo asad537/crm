@@ -55,6 +55,9 @@ class MailSync extends Command
             try {
                 $accounts = CrmMailAccount::withoutGlobalScopes()->syncable()->orderBy('id')->get();
                 foreach ($accounts as $account) {
+                    if (ImapSyncService::inBackoff($account->id)) {
+                        continue; // paused after a failed login / error
+                    }
                     if ($this->option('queue') || $account->last_synced_at === null) {
                         SyncMailAccountJob::dispatch($account->id, $opts); // unique per account
                         continue;

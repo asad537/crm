@@ -222,6 +222,7 @@ class MailAccountController extends Controller
         }
         if ($connectionChanged) {
             $account->last_sync_error = null;
+            \Illuminate\Support\Facades\Cache::forget(\App\Services\Mail\ImapSyncService::backoffKey($account->id)); // retry right away
         }
         $account->save();
 

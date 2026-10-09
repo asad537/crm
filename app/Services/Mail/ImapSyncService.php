@@ -44,6 +44,10 @@ class ImapSyncService
     public function syncAccount(CrmMailAccount $account, array $opts = []): array
     {
         $stats = ['status' => 'ok', 'folders' => 0, 'imported' => 0, 'skipped' => 0, 'linked' => 0, 'mirrored' => 0, 'errors' => []];
+        if (self::inBackoff($account->id)) {
+            $stats['status'] = 'backoff';
+            return $stats;
+        }
         $lock = Cache::lock('mail:sync:' . $account->id, self::LOCK_SECONDS);
         if (!$lock->get()) {
             $stats['status'] = 'locked';
@@ -83,6 +87,10 @@ class ImapSyncService
             $stats['errors'][] = $e->getMessage();
             $account->forceFill(['last_sync_error' => Str::limit($e->getMessage(), 500)])->saveQuietly();
             Log::warning('Mail sync failed', ['account_id' => $account->id, 'error' => $e->getMessage()]);
+            // Back off so a dead password / unreachable host is not retried every few seconds
+            // (repeated failed logins get the server IP throttled or blocked).
+            $auth = stripos($e->getMessage(), 'login') !== false || stripos($e->getMessage(), 'password') !== false;
+            Cache::put(self::backoffKey($account->id), now()->toIso8601String(), $auth ? 600 : 120);
         } finally {
             $client->close();
             $lock->release();
@@ -327,6 +335,17 @@ class ImapSyncService
             $this->threader->refresh($thread);
             return [$message, $mirrored];
         });
+    }
+
+    public static function backoffKey(int $accountId): string
+    {
+        return 'mail:sync:backoff:' . $accountId;
+    }
+
+    /** True while an account is paused after a failed sync (10 min after an auth failure, 2 min otherwise). */
+    public static function inBackoff(int $accountId): bool
+    {
+        return Cache::has(self::backoffKey($accountId));
     }
 
     public function refreshFolderCounts(CrmMailFolder $folder): void
