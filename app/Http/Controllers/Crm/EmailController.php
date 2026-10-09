@@ -188,8 +188,10 @@ class EmailController extends Controller
           ->where(function($q) {
               $q->whereNull('source')->orWhere('source', '!=', 'imap');
           })
-          ->orderBy('unread_incoming', 'desc')
-          ->orderBy('updated_at', 'desc');
+          // Keep the newest inquiries at the top. Unread counters remain visible,
+          // but must not pull old records above recently-created inquiries.
+          ->orderByDesc('created_at')
+          ->orderByDesc('id');
 
         // Non-admin and non-manager roles can ONLY see emails assigned to them
         if (!$currentUser->isAdmin() && !$currentUser->isSalesManager()) {
