@@ -124,7 +124,7 @@
     .chat-header .meta .chat-name { white-space: normal; line-height: 1.2; }
     .reader-actions { gap: 4px; }
     .reader-btn { padding: .45rem .6rem; }
-    @media (max-width: 1500px) { .reader-btn .txt { display: none; } .reader-btn { padding: .45rem .55rem; } }
+    @media (max-width: 1500px) { .reader-btn .txt { display: none; } .reader-btn { padding: .45rem .55rem; } #readerArchiveBtn, #readerJunkBtn, #readerTrashBtn, #readerUnreadBtn { display: none !important; } /* available in the ⋯ menu */ }
     .composer-box { border: 1.5px solid #e2e8f0; border-radius: 14px; background: #fff; overflow: hidden; }
     .composer-box:focus-within { border-color: var(--primary-purple); box-shadow: 0 0 0 3px var(--primary-shadow); }
     .composer-box textarea { width: 100%; min-height: 110px; border: 0; outline: 0; resize: vertical; padding: .9rem 1rem; font: inherit; font-size: .92rem; color: #1e293b; box-sizing: border-box; }
