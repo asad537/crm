@@ -32,6 +32,8 @@ services:
     image: crm_l10_php:8.2-fpm
     container_name: crm_l10_worker
     working_dir: /var/www
+    # Match PHP-FPM's user so private mail attachments stay readable by the web app.
+    user: "www-data:www-data"
     # Mail: continuous watch loop (every 3s; idle folders cost one STATUS call) instead of the 1-minute scheduler, plus the queue worker.
     # 7 watcher shards refresh already-synced mailboxes inline every 3s over persistent IMAP
     # connections (one STATUS per folder when idle); first-time backfills are queued and run by
