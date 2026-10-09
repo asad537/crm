@@ -27,6 +27,7 @@ class CrmUser extends Authenticatable
         'last_login_at' => 'datetime',
         'imap_login_fallback_at' => 'datetime',
         'password_changed_at' => 'datetime',
+        'last_seen_at' => 'datetime',
     ];
 
     /** Use the CRM reset route (not the default web one). */
