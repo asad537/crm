@@ -18,7 +18,7 @@ class SyncMailAccountJob implements ShouldQueue, ShouldBeUnique
 
     public int $tries = 1;
     public int $timeout = 300;
-    public int $uniqueFor = 600;
+    public int $uniqueFor = 300;
 
     public function __construct(public int $accountId, public array $opts = [])
     {

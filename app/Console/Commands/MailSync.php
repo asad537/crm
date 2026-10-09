@@ -46,7 +46,8 @@ class MailSync extends Command
 
     private function runOnce(ImapSyncService $sync): int
     {
-        $query = CrmMailAccount::withoutGlobalScopes()->syncable()->orderBy('id');
+        // Already-synced accounts first (cheap incremental passes), never-synced backfills last.
+        $query = CrmMailAccount::withoutGlobalScopes()->syncable()->orderByRaw('last_synced_at IS NULL')->orderBy('last_synced_at')->orderBy('id');
         if ($this->option('account')) {
             $query->where('id', (int) $this->option('account'));
         }
@@ -64,8 +65,8 @@ class MailSync extends Command
 
         foreach ($accounts as $account) {
             if ($this->option('queue')) {
-                SyncMailAccountJob::dispatch($account->id, $opts);
-                $this->line("queued  #{$account->id} {$account->email_address}");
+                SyncMailAccountJob::dispatch($account->id, $opts); // unique per account: dropped if one is already pending/running
+                if (!$this->option('watch')) $this->line("queued  #{$account->id} {$account->email_address}");
                 continue;
             }
             $started = microtime(true);
