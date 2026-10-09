@@ -34,14 +34,18 @@ php artisan crm:mail-migrate-legacy-accounts             # apply (idempotent; --
 Legacy columns are **not** modified. Leads assigned to a user are linked to that user's account;
 website/form leads and leads assigned to deleted users stay unlinked (reported).
 
-## 4. Background sync + queue
-The scheduler runs `crm:mail-sync` every minute (`app/Console/Kernel.php`, `withoutOverlapping`, per-account
-`Cache::lock`). Make sure a scheduler is running:
-- **Docker:** `docker compose up -d worker` (new service: `schedule:work` + `queue:work redis`).
-- **Bare server:** cron `* * * * * cd /path && php artisan schedule:run >> /dev/null 2>&1`.
-
-First sync per folder pulls the last **30 days** (junk/trash 7), capped at 200 messages per folder per run,
-then only new UIDs. Manual: `php artisan crm:mail-sync --account=<id> [--since=7 --cap=50 --types=inbox,sent]`.
+## 4. Background sync (near real-time receive)
+`docker compose up -d worker` runs the mail **watcher**: 7 shards (`crm:mail-sync --watch --interval=3 --shard=i/7`)
+keep one persistent IMAP connection per mailbox and refresh already-synced mailboxes every ~3–5s. An idle pass costs
+one `STATUS` per folder (no login, no SELECT); only folders whose uidnext/messages/unseen changed are fetched and
+reconciled, with a full pass every 10 minutes. First-time backfills (last **30 days**, junk/trash 7, cap 200 per
+folder per run) are queued (`SyncMailAccountJob`, 2 `queue:work` processes) so they never delay the live refresh.
+Mailboxes whose login fails back off (10 min; 2 min for other errors) and show the error in the UI; saving new
+credentials retries immediately. Per-account heartbeat lock (60s, refreshed while working) so a killed worker never
+blocks a mailbox for long.
+- **Bare server:** run the same 7 watcher processes + queue workers under supervisor/systemd. The 1-minute
+  scheduler entry (`app/Console/Kernel.php`) remains as a fallback when no watcher runs.
+- Manual: `php artisan crm:mail-sync [--account=<id>] [--since=7 --cap=50 --types=inbox,sent]`.
 
 Once the new sync is live, **stop the old cron** for `crm:imap-daemon` (inbound lead replies are now mirrored
 by the new sync; running both is harmless but doubles IMAP traffic).

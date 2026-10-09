@@ -33,14 +33,11 @@ services:
     container_name: crm_l10_worker
     working_dir: /var/www
     # Mail: continuous watch loop (every 3s; idle folders cost one STATUS call) instead of the 1-minute scheduler, plus the queue worker.
-    # 4 watcher shards refresh already-synced mailboxes inline every 3s over persistent IMAP
+    # 7 watcher shards refresh already-synced mailboxes inline every 3s over persistent IMAP
     # connections (one STATUS per folder when idle); first-time backfills are queued and run by
-    # 2 queue workers so they never delay the live refresh.
+    # 2 queue workers so they never delay the live refresh. Failing mailboxes back off.
     command: >
-      sh -c "php artisan crm:mail-sync --watch --interval=3 --shard=0/4 &
-             php artisan crm:mail-sync --watch --interval=3 --shard=1/4 &
-             php artisan crm:mail-sync --watch --interval=3 --shard=2/4 &
-             php artisan crm:mail-sync --watch --interval=3 --shard=3/4 &
+      sh -c "for i in 0 1 2 3 4 5 6; do php artisan crm:mail-sync --watch --interval=3 --shard=$$i/7 & done;
              php artisan queue:work redis --sleep=1 --tries=2 --timeout=300 --queue=default &
              exec php artisan queue:work redis --sleep=1 --tries=2 --timeout=300 --queue=default"
     volumes:
