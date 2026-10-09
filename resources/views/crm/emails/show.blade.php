@@ -3746,7 +3746,6 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ URL::asset('tinymce/tinymce.min.js') }}"></script>
     <script>
         // Returns the live TinyMCE reply editor, or null if it never loaded
         // (in which case the plain #message_body textarea is used as a fallback).
@@ -3756,77 +3755,106 @@
         @if(session('estimate_draft'))
             window.__estimateDraft = @json(session('estimate_draft'));
         @endif
-        document.addEventListener('DOMContentLoaded', function () {
-            (function bootReplyEditor() {
-                if (!document.getElementById('message_body')) return;
-                // The CDN may still be parsing on the first (uncached) load, so tinymce can be
-                // undefined here. Retry until it's ready; if it never loads the plain textarea
-                // keeps working, so the reply box is never fully broken.
-                if (typeof tinymce === 'undefined' || !tinymce.init) { return setTimeout(bootReplyEditor, 60); }
-                if (tinymce.get('message_body')) { try { tinymce.get('message_body').remove(); } catch (e) {} }
-                tinymce.init({
-                    selector: '#message_body',
-                    height: 280,
-                    menubar: false,
-                    branding: false,
-                    promotion: false,
-                    convert_urls: false,
-                    paste_data_images: true,
-                    automatic_uploads: false,
-                    plugins: 'lists link image table code autolink',
-                    toolbar: 'undo redo | blocks | bold italic underline forecolor | alignleft aligncenter alignright | bullist numlist | link image table | removeformat | code',
-                    setup: function (editor) {
-                        // Files dropped onto the editor become reply attachments instead of
-                        // being embedded into the message body.
-                        editor.on('drop', function (event) {
-                            var dt = event.dataTransfer;
-                            if (dt && dt.files && dt.files.length && window.addReplyAttachments) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                window.addReplyAttachments(Array.prototype.slice.call(dt.files));
+        (function () {
+            var TINYMCE_SRC = "{{ URL::asset('tinymce/tinymce.min.js') }}";
+
+            // Load the TinyMCE library on demand and call cb() once it is ready.
+            // This also covers AJAX partial navigation (e.g. opening this page from a
+            // Follow-up link), where <script src> tags in the page are NOT re-executed,
+            // so the library would otherwise never load and only the plain textarea shows.
+            function ensureTinymce(cb) {
+                if (window.tinymce && tinymce.init) return cb();
+                if (!document.getElementById('tinymce-lib')) {
+                    var s = document.createElement('script');
+                    s.id = 'tinymce-lib';
+                    s.src = TINYMCE_SRC;
+                    document.body.appendChild(s);
+                }
+                var tries = 0;
+                (function wait() {
+                    if (window.tinymce && tinymce.init) return cb();
+                    if (tries++ > 200) return; // ~12s; give up and leave the textarea as fallback
+                    setTimeout(wait, 60);
+                })();
+            }
+
+            function bootReplyEditor() {
+                var textarea = document.getElementById('message_body');
+                if (!textarea) return;
+                ensureTinymce(function () {
+                    // Clear any stale instance (e.g. after navigating back to this page).
+                    if (tinymce.get('message_body')) { try { tinymce.get('message_body').remove(); } catch (e) {} }
+                    tinymce.init({
+                        selector: '#message_body',
+                        height: 280,
+                        menubar: false,
+                        branding: false,
+                        promotion: false,
+                        convert_urls: false,
+                        paste_data_images: true,
+                        automatic_uploads: false,
+                        plugins: 'lists link image table code autolink',
+                        toolbar: 'undo redo | blocks | bold italic underline forecolor | alignleft aligncenter alignright | bullist numlist | link image table | removeformat | code',
+                        setup: function (editor) {
+                            // Files dropped onto the editor become reply attachments instead of
+                            // being embedded into the message body.
+                            editor.on('drop', function (event) {
+                                var dt = event.dataTransfer;
+                                if (dt && dt.files && dt.files.length && window.addReplyAttachments) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    window.addReplyAttachments(Array.prototype.slice.call(dt.files));
+                                }
+                            });
+                        },
+                        init_instance_callback: function (editor) {
+                            if (window.setupReplyDropZone) {
+                                try { window.setupReplyDropZone(editor.getBody()); } catch (e) {}
                             }
-                        });
-                    },
-                    init_instance_callback: function (editor) {
-                        if (window.setupReplyDropZone) {
-                            try { window.setupReplyDropZone(editor.getBody()); } catch (e) {}
-                        }
-                        if (window.__estimateDraft) {
-                            var draft = window.__estimateDraft;
-                            editor.setContent(draft.body || '');
-                            var pdfBlobPromise = draft.attachment_base64
-                                ? Promise.resolve((function () {
-                                    var binary = atob(draft.attachment_base64);
-                                    var bytes = new Uint8Array(binary.length);
-                                    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
-                                    return new Blob([bytes], { type: 'application/pdf' });
-                                })())
-                                : fetch(draft.attachment_url, { credentials: 'same-origin' })
-                                    .then(function (response) {
-                                        if (!response.ok) throw new Error('Unable to load estimate PDF (' + response.status + ')');
-                                        return response.blob();
+                            if (window.__estimateDraft) {
+                                var draft = window.__estimateDraft;
+                                window.__estimateDraft = null; // consume once
+                                editor.setContent(draft.body || '');
+                                var pdfBlobPromise = draft.attachment_base64
+                                    ? Promise.resolve((function () {
+                                        var binary = atob(draft.attachment_base64);
+                                        var bytes = new Uint8Array(binary.length);
+                                        for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+                                        return new Blob([bytes], { type: 'application/pdf' });
+                                    })())
+                                    : fetch(draft.attachment_url, { credentials: 'same-origin' })
+                                        .then(function (response) {
+                                            if (!response.ok) throw new Error('Unable to load estimate PDF (' + response.status + ')');
+                                            return response.blob();
+                                        });
+                                pdfBlobPromise
+                                    .then(function (blob) {
+                                        if (!blob || blob.size === 0) throw new Error('Generated estimate PDF is empty');
+                                        var file = new File(
+                                            [blob],
+                                            draft.attachment_name || 'estimate.pdf',
+                                            { type: 'application/pdf', lastModified: Date.now() }
+                                        );
+                                        window.addReplyAttachments([file]);
+                                        document.getElementById('chat-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        editor.focus();
+                                    })
+                                    .catch(function (error) {
+                                        console.error('Estimate draft attachment error:', error);
+                                        alert('The estimate text was prepared, but the PDF could not be attached. Please reload and try again.');
                                     });
-                            pdfBlobPromise
-                                .then(function (blob) {
-                                    if (!blob || blob.size === 0) throw new Error('Generated estimate PDF is empty');
-                                    var file = new File(
-                                        [blob],
-                                        draft.attachment_name || 'estimate.pdf',
-                                        { type: 'application/pdf', lastModified: Date.now() }
-                                    );
-                                    window.addReplyAttachments([file]);
-                                    document.getElementById('chat-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    editor.focus();
-                                })
-                                .catch(function (error) {
-                                    console.error('Estimate draft attachment error:', error);
-                                    alert('The estimate text was prepared, but the PDF could not be attached. Please reload and try again.');
-                                });
+                            }
                         }
-                    }
+                    });
                 });
-            })();
-        });
+            }
+
+            // This inline script is re-executed by the CRM AJAX navigator on every
+            // partial page load, and the DOM is already in place when it runs, so we
+            // boot immediately rather than waiting for DOMContentLoaded (which only
+            // fires on a full page load, never on AJAX navigation).
+            bootReplyEditor();
+        })();
     </script>
     
     @if(request('action') == 'send_proof')
@@ -3835,9 +3863,8 @@
         @endphp
         @if($latestProof)
             <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    let proofHtml = `
+            (function () {
+                var proofHtml = `
                         <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px;">
                             <h3 style="margin-top: 0; color: #1e293b;">Final Proof for Approval</h3>
                             <p style="color: #475569;">Please review the attached proof for your order. Let us know if you approve it or if you need any changes.</p>
@@ -3845,16 +3872,24 @@
                         </div>
                         <p><br></p>
                     `;
-                    var __proofEd = window.getReplyEditor && window.getReplyEditor();
-                    if (__proofEd) {
-                        __proofEd.insertContent(proofHtml);
-                        __proofEd.getContainer().scrollIntoView({behavior: 'smooth', block: 'center'});
-                    } else {
+                // Wait for the reply editor to finish initialising, then insert the proof.
+                // Runs immediately (works on both full load and AJAX partial navigation).
+                var tries = 0;
+                (function waitForEditor() {
+                    var ed = window.getReplyEditor && window.getReplyEditor();
+                    if (ed) {
+                        ed.insertContent(proofHtml);
+                        ed.getContainer().scrollIntoView({behavior: 'smooth', block: 'center'});
+                        return;
+                    }
+                    if (tries++ > 200) { // ~12s; fall back to the plain textarea
                         var ta = document.getElementById('message_body');
                         if (ta) { ta.value = proofHtml + '\n' + ta.value; ta.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+                        return;
                     }
-                }, 1000); // Wait a bit for the editor to fully initialize
-            });
+                    setTimeout(waitForEditor, 60);
+                })();
+            })();
             </script>
         @endif
     @endif
