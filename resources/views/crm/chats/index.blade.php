@@ -96,7 +96,20 @@
     .msg-time { font-size: .68rem; margin-top: 4px; color: #94a3b8; }
 
     /* composer */
-    .chat-input-area { padding: .9rem 1.4rem 1rem; background: #fff; border-top: 1px solid #eef1f6; position: relative; }
+    .chat-input-area { padding: .9rem 1.4rem 1rem; background: #fff; border-top: 1px solid #eef1f6; position: relative; max-height: 52vh; overflow-y: auto; flex-shrink: 0; }
+    .chat-input-area.collapsed { padding: .6rem 1.4rem; max-height: none; overflow: visible; }
+    .chat-input-area.collapsed .composer-box { display: none; }
+    .reply-bar { display: none; align-items: center; gap: 8px; }
+    .chat-input-area.collapsed .reply-bar { display: flex; }
+    .reply-bar .reader-btn { padding: .55rem .95rem; }
+    .reply-bar .hint { margin-left: auto; font-size: .74rem; color: #94a3b8; }
+    .cf-close { margin-left: 6px; border: 0; background: #eef1f7; color: #64748b; width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: .75rem; }
+    .cf-close:hover { background: #fee2e2; color: #dc2626; }
+    .chat-header .who { flex: 1; }
+    .chat-header .meta .chat-name { white-space: normal; line-height: 1.2; }
+    .reader-actions { gap: 4px; }
+    .reader-btn { padding: .45rem .6rem; }
+    @media (max-width: 1500px) { .reader-btn .txt { display: none; } .reader-btn { padding: .45rem .55rem; } }
     .composer-box { border: 1.5px solid #e2e8f0; border-radius: 14px; background: #fff; overflow: hidden; }
     .composer-box:focus-within { border-color: var(--primary-purple); box-shadow: 0 0 0 3px var(--primary-shadow); }
     .composer-box textarea { width: 100%; min-height: 110px; border: 0; outline: 0; resize: vertical; padding: .9rem 1rem; font: inherit; font-size: .92rem; color: #1e293b; box-sizing: border-box; }
@@ -164,7 +177,7 @@
     .mail-meta-row .lines small { display: block; color: #8a94a6; font-size: .72rem; margin-top: 2px; overflow-wrap: anywhere; }
     .mail-meta-row .when { font-size: .72rem; color: #94a3b8; white-space: nowrap; }
     .mail-body-card { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; overflow: hidden; }
-    .mail-body-card iframe { width: 100%; border: 0; display: block; min-height: 160px; background: #fff; }
+    .mail-body-card iframe { width: 100%; border: 0; display: block; min-height: 240px; background: #fff; }
     .mail-body-card pre { margin: 0; padding: 1rem 1.2rem; white-space: pre-wrap; font: inherit; font-size: .9rem; color: #1e293b; }
     .mail-atts { display: flex; flex-wrap: wrap; gap: 8px; padding: .8rem 1.2rem; border-top: 1px solid #f1f5f9; background: #fbfcfe; }
     .mail-att { display: inline-flex; align-items: center; gap: 8px; padding: .45rem .7rem; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #334155; text-decoration: none; font-size: .78rem; font-weight: 700; max-width: 260px; }
@@ -308,6 +321,12 @@
             @if($mailIsAdminOnly)
                 <div class="admin-readonly"><i class="fas fa-eye"></i> Admin view is read-only — replies are sent by the mailbox owner.</div>
             @else
+                <div class="reply-bar" id="replyBar">
+                    <button type="button" class="reader-btn primary" onclick="replyActive('reply')"><i class="fas fa-reply"></i> Reply</button>
+                    <button type="button" class="reader-btn" onclick="replyActive('reply_all')"><i class="fas fa-reply-all"></i> Reply all</button>
+                    <button type="button" class="reader-btn" onclick="replyActive('forward')"><i class="fas fa-share"></i> Forward</button>
+                    <span class="hint" id="replyBarHint"></span>
+                </div>
                 <form id="chatForm" enctype="multipart/form-data">
                     {{ csrf_field() }}
                     <input type="hidden" name="email_subject" id="chatEmailSubject">
@@ -316,7 +335,7 @@
                     <div class="composer-box" id="replyDropZone">
                         <div id="replyDropOverlay" class="reply-drop-overlay"><i class="fas fa-cloud-upload-alt" style="font-size:1.6rem"></i>Drop files to attach</div>
                         <div id="composeFields" class="compose-fields">
-                            <div class="cf-row"><label>From</label><select id="cfFrom"></select><span class="cf-mode" id="cfModeLabel"></span></div>
+                            <div class="cf-row"><label>From</label><select id="cfFrom"></select><span class="cf-mode" id="cfModeLabel"></span><button type="button" class="cf-close" onclick="collapseComposer()" title="Close"><i class="fas fa-times"></i></button></div>
                             <div class="cf-row"><label>To</label><input type="text" id="cfTo" placeholder="name@company.com, another@company.com"><button type="button" class="cf-link" onclick="toggleCcBcc()">Cc / Bcc</button></div>
                             <div class="cf-row" id="cfCcRow" style="display:none"><label>Cc</label><input type="text" id="cfCc" placeholder="cc@company.com"></div>
                             <div class="cf-row" id="cfBccRow" style="display:none"><label>Bcc</label><input type="text" id="cfBcc" placeholder="bcc@company.com"></div>
@@ -666,7 +685,7 @@ function renderMailReader(){
     document.getElementById('readerReplyBtn').style.display = canSend ? '' : 'none';
     document.getElementById('readerReplyAllBtn').style.display = canSend ? '' : 'none';
     document.getElementById('readerForwardBtn').style.display = canSend ? '' : 'none';
-    if (canSend) { setComposerMode('mail-reply', { accountId: acc.id, to: m.is_outgoing ? (m.to||[]).map(function(a){return a.email;}).join(', ') : (m.reply_to || m.from_email || ''), subject: 'Re: ' + stripRe(m.subject) }); }
+    if (canSend) { setComposerMode('mail-reply', { accountId: acc.id, to: m.is_outgoing ? (m.to||[]).map(function(a){return a.email;}).join(', ') : (m.reply_to || m.from_email || ''), subject: 'Re: ' + stripRe(m.subject) }); collapseComposer(); }
     else { var ia=document.getElementById('inputArea'); if (ia) ia.style.display='none'; }
 
     var toList = (m.to||[]).map(function(a){ return esc(a.name ? a.name+' <'+a.email+'>' : a.email); }).join(', ');
@@ -699,7 +718,27 @@ function renderMailReader(){
     document.getElementById('mailReader').innerHTML = html;
     document.getElementById('mailReader').scrollTop = 0;
 }
-function fitMailFrame(f){ try { var h = f.contentDocument.documentElement.scrollHeight || f.contentDocument.body.scrollHeight; f.style.height = Math.min(Math.max(h + 24, 160), 4000) + 'px'; } catch(e) { f.style.height = '600px'; } }
+function fitMailFrame(f){
+    // Measure a few times: images/fonts inside the email load after onload and change the height.
+    var tries = 0;
+    (function fit(){
+        try {
+            var d = f.contentDocument, b = d && d.body, de = d && d.documentElement;
+            var h = Math.max(b ? b.scrollHeight : 0, de ? de.scrollHeight : 0, b ? b.offsetHeight : 0);
+            if (h > 0) f.style.height = Math.min(Math.max(h + 32, 240), 8000) + 'px';
+        } catch (e) { f.style.height = '640px'; f.setAttribute('scrolling', 'yes'); }
+        if (++tries < 7) setTimeout(fit, tries * 250);
+    })();
+}
+function collapseComposer(){
+    var ia = document.getElementById('inputArea'); if (!ia) return;
+    if (composerMode.indexOf('mail-') === 0) { ia.classList.add('collapsed'); var h=document.getElementById('replyBarHint'); if (h && activeMail) h.textContent = 'From ' + ((accountsData.find(function(a){ return a.id===activeMail.account_id; })||{}).email_address || ''); }
+}
+function expandComposer(){ var ia = document.getElementById('inputArea'); if (ia) ia.classList.remove('collapsed'); }
+if (!window.__mailFrameResizeBound) {
+    window.__mailFrameResizeBound = true;
+    window.addEventListener('resize', function(){ clearTimeout(window.__mailFrameResizeT); window.__mailFrameResizeT = setTimeout(function(){ document.querySelectorAll('iframe.mail-html').forEach(fitMailFrame); }, 200); });
+}
 function accountAction(id, action){
     fetch(MAIL_ROUTES.accounts+'/'+id+'/'+action, {method:'POST', headers:jsonHeaders(), body: action==='toggle' ? JSON.stringify({field:'sync_enabled'}) : '{}'})
         .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
@@ -1056,6 +1095,7 @@ function setComposerMode(mode, opts){
     var fields = document.getElementById('composeFields'); if(!fields) return; // admin: no composer rendered
     var isMail = mode.indexOf('mail-') === 0;
     fields.style.display = isMail ? 'block' : 'none';
+    if (!isMail) expandComposer();
     var toLine = document.querySelector('.composer-to'); if (toLine) toLine.style.display = isMail ? 'none' : '';
     if (!isMail) return;
     fillFromSelect(opts.accountId || null);
@@ -1084,6 +1124,7 @@ function replyActive(mode){
         cc = Array.from(new Set(others)).join(', ');
     }
     setComposerMode('mail-'+mode, { accountId: acc.id, to: mode==='forward' ? '' : to, cc: cc, subject: (mode==='forward' ? 'Fwd: ' : 'Re: ') + stripRe(activeMail.subject) });
+    expandComposer();
     setTimeout(function(){ var f = document.getElementById(mode==='forward' ? 'cfTo' : 'messageInput'); if (mode==='forward' && f) f.focus(); else focusComposer(); }, 50);
 }
 function startCompose(){
@@ -1102,6 +1143,7 @@ function startCompose(){
     ['readerStarBtn','readerUnreadBtn','readerReplyBtn','readerReplyAllBtn','readerForwardBtn','viewLeadBtn','readerArchiveBtn','readerJunkBtn','readerTrashBtn','readerRestoreBtn','readerDeleteBtn','readerMoveSel'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display='none'; });
     var def = own.find(function(a){ return a.is_default; }) || own[0];
     setComposerMode('mail-compose', { accountId: def.id, to: '', subject: '' });
+    expandComposer();
     setTimeout(function(){ var f=document.getElementById('cfTo'); if(f) f.focus(); }, 50);
 }
 function sendMailFromComposer(form){
