@@ -361,21 +361,33 @@ document.addEventListener('click',function(event){
     var form=document.getElementById('inquiryLiveFilter'), search=document.getElementById('inquiryLiveSearch'), workflow=document.getElementById('inquiryWorkflowFilter');
     if(!form||!search||!workflow)return;
     var timer=null, requestNumber=0;
-    function updateResults(){
+    // While a detail/offer modal or an action dropdown is open, or the user is typing a search,
+    // a silent background refresh would wipe their state — so we skip it in those cases.
+    function isBusy(){
+        return !!document.querySelector('.iq-modal.open')
+            || !!document.querySelector('.iq-action-menu[open]')
+            || !!document.querySelector('details[open]')
+            || document.activeElement===search;
+    }
+    function updateResults(silent){
         var current=++requestNumber, params=new URLSearchParams();
         if(search.value.trim())params.set('search',search.value.trim());
         if(workflow.value)params.set('workflow',workflow.value);
         var url=window.location.pathname+(params.toString()?'?'+params.toString():'');
         var results=document.getElementById('inquiryResults');
-        results.classList.add('loading');
+        if(!silent)results.classList.add('loading');
         fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(response){return response.text()}).then(function(html){
             if(current!==requestNumber)return;
+            // A modal/dropdown may have been opened during the request; don't clobber it on a silent refresh.
+            if(silent&&isBusy())return;
             var documentCopy=new DOMParser().parseFromString(html,'text/html'), fresh=documentCopy.getElementById('inquiryResults');
-            if(fresh){results.innerHTML=fresh.innerHTML;window.history.replaceState({},'',url)}
-        }).catch(function(){}).then(function(){if(current===requestNumber)results.classList.remove('loading')});
+            if(fresh&&fresh.innerHTML!==results.innerHTML){results.innerHTML=fresh.innerHTML;window.history.replaceState({},'',url)}
+        }).catch(function(){}).then(function(){if(current===requestNumber&&!silent)results.classList.remove('loading')});
     }
-    search.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(updateResults,300)});
-    workflow.addEventListener('change',updateResults);
+    search.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(function(){updateResults(false)},300)});
+    workflow.addEventListener('change',function(){updateResults(false)});
+    // Auto-refresh statuses every 15s without reloading the page.
+    setInterval(function(){if(!document.hidden&&!isBusy())updateResults(true)},15000);
 })();
 </script>
 @endsection
