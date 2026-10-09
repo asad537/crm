@@ -75,6 +75,12 @@ mailbox (IMAP) check remains as a **guarded fallback** that re-hashes the passwo
 5. Legacy `crm_users.email_pass` is no longer written anywhere; it can be nulled/dropped in a later cleanup once
    `crm:imap-daemon` / `crm:fetch-emails` are retired (they still read it).
 
-## 8. Still pending (next phases)
+## 8. Tests
+`php artisan test` (inside the `app` container). Mail/auth suites: `MailAccountOwnershipTest`, `MailComposeAuthorizationTest`,
+`LeadAccessHardeningTest`, `CrmLoginStepBTest`, `MailSyncAndSendTest` (faked IMAP/SMTP: idempotent sync, UIDVALIDITY reset,
+header threading, lead linking + legacy mirror once, send failure stores nothing, send success threads + Sent copy),
+`LegacyMailboxMigrationTest` (dry-run, encryption at rest, idempotency, safe rollback). Known pre-existing failure:
+`ExampleTest` expects 200 on `/` (it redirects).
+
+## 9. Still pending
 - Phase 6: server-side folder actions (archive/trash/move, flag sync to IMAP).
-- Phase 8: broader automated tests (sync idempotency with a mocked IMAP, threading, send routing).

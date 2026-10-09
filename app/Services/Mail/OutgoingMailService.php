@@ -31,8 +31,12 @@ class OutgoingMailService
 {
     private const PROTECTED_STATUSES = ['Qualified Lead', 'Order Done', 'Closed', 'Rejected'];
 
-    public function __construct(private HtmlSanitizerService $sanitizer, private MailThreader $threader)
-    {
+    public function __construct(
+        private HtmlSanitizerService $sanitizer,
+        private MailThreader $threader,
+        private MailTransportFactory $transports,
+        private ImapClientFactory $clients,
+    ) {
     }
 
     /**
@@ -110,7 +114,7 @@ class OutgoingMailService
 
         // ---- deliver through THIS mailbox's SMTP ------------------------------------------
         try {
-            (new Mailer($account->smtpTransport()))->send($email);
+            (new Mailer($this->transports->for($account)))->send($email);
         } catch (\Throwable $e) {
             Log::warning('Mail send failed', ['account_id' => $account->id, 'to' => $to, 'error' => $e->getMessage()]);
             throw new \RuntimeException($this->safeSmtpError($e->getMessage()));
@@ -201,7 +205,7 @@ class OutgoingMailService
 
         // ---- IMAP Sent copy (best effort; the Sent-folder sync dedupes by Message-ID) --------
         try {
-            $client = new ImapClient($account);
+            $client = $this->clients->make($account);
             $client->appendMessage($email->toString());
             $client->close();
         } catch (\Throwable $e) {

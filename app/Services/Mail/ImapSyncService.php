@@ -33,6 +33,7 @@ class ImapSyncService
         private HtmlSanitizerService $sanitizer,
         private MailThreader $threader,
         private LeadLinker $linker,
+        private ImapClientFactory $clients,
     ) {
     }
 
@@ -49,7 +50,7 @@ class ImapSyncService
             return $stats;
         }
 
-        $client = new ImapClient($account);
+        $client = $this->clients->make($account);
         try {
             $folders = $this->syncFolders($account, $client);
             $stats['folders'] = count($folders);
