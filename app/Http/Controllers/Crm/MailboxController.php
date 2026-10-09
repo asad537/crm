@@ -172,12 +172,14 @@ class MailboxController extends Controller
 
         $html = $message->html_body;
         if ($html) {
-            // inline images: cid:xyz → authorised attachment URL
+            // inline images: placeholder / cid:xyz → authorised attachment URL (matched by Content-ID)
+            $byCid = [];
             foreach ($attachments as $a) {
-                if ($a->content_id) {
-                    $html = str_ireplace(['cid:' . $a->content_id, 'cid:<' . $a->content_id . '>'], route('crm.mail.attachments.show', $a->id), $html);
-                }
+                if ($a->content_id) $byCid[strtolower(trim($a->content_id, '<> '))] = route('crm.mail.attachments.show', $a->id);
             }
+            $html = \App\Services\Mail\HtmlSanitizerService::resolveCids($html, function ($cid) use ($byCid) {
+                return $byCid[strtolower(trim($cid, '<> '))] ?? null;
+            });
         }
 
         // Only the mailbox owner's reading marks the message read (and pushes \Seen to the server);

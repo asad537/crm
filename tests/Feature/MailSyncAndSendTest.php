@@ -121,6 +121,27 @@ class MailSyncAndSendTest extends TestCase
         $this->assertSame(999, (int) $inbox->fresh()->uidvalidity);
     }
 
+    public function test_inline_cid_images_survive_sanitising_and_resolve_to_attachment_urls(): void
+    {
+        $owner = $this->owner(); $acc = $this->account($owner);
+        $this->imap->folders = [['path' => 'INBOX', 'name' => 'INBOX', 'type' => 'inbox', 'delimiter' => '.', 'selectable' => true]];
+        $this->imap->messages['INBOX'] = [7 => $this->msg(7, [
+            'html' => '<p>Logo: <img src="cid:logo001@acme" alt="Logo" width="60"> and <img src="https://x.test/r.png" alt="r"></p>',
+            'attachments' => [['name' => 'logo.png', 'mime' => 'image/png', 'content' => 'PNGDATA', 'size' => 7, 'cid' => 'logo001@acme', 'inline' => true]],
+        ])];
+        app(ImapSyncService::class)->syncAccount($acc);
+        $m = CrmMailMessage::withoutGlobalScopes()->where('account_id', $acc->id)->where('uid', 7)->first();
+        $this->assertStringContainsString('https://cid.invalid/logo001%40acme', (string) $m->html_body, 'cid kept as placeholder');
+        $att = CrmMailAttachment::where('message_id', $m->id)->where('is_inline', true)->first();
+        $this->assertNotNull($att);
+
+        $json = $this->actingAs($owner, 'crm')->withSession(['crm_workspace_id' => self::WS])
+            ->getJson(route('crm.mail.messages.show', $m->id))->assertOk()->json('message.html');
+        $this->assertStringContainsString(route('crm.mail.attachments.show', $att->id), $json, 'placeholder rewritten to the attachment route');
+        $this->assertStringNotContainsString('cid.invalid', $json);
+        $this->assertStringContainsString('https://x.test/r.png', $json, 'remote images untouched');
+    }
+
     public function test_inbound_reply_to_a_crm_sent_message_links_the_lead_and_mirrors_once(): void
     {
         $owner = $this->owner();

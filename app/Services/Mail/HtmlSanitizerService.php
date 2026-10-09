@@ -52,10 +52,36 @@ class HtmlSanitizerService
         if (preg_match('#<body\b[^>]*>(.*)</body>#is', $html, $m)) {
             $html = $m[1];
         }
+        // Inline images: the URL sanitizer drops "cid:" (not a parseable URL). Keep them as a
+        // harmless https placeholder that the reader later rewrites to the attachment route.
+        $html = self::cidToPlaceholder($html);
         if ($this->sanitizer) {
             return $this->sanitizer->sanitizeFor('body', $html);
         }
         return strip_tags($html, '<p><br><b><strong><i><em><u><a><ul><ol><li><blockquote><table><thead><tbody><tr><td><th><img><div><span><h1><h2><h3><h4><pre><code><hr>');
+    }
+
+    public const CID_HOST = 'https://cid.invalid/';
+
+    /** src="cid:abc@x" → src="https://cid.invalid/abc%40x" (survives sanitising). */
+    public static function cidToPlaceholder(string $html): string
+    {
+        return preg_replace_callback('/(src|background)\s*=\s*(["\'])\s*cid:\s*<?([^"\'<>]+?)>?\s*\2/i', function ($m) {
+            return $m[1] . '=' . $m[2] . self::CID_HOST . rawurlencode(trim($m[3])) . $m[2];
+        }, $html) ?? $html;
+    }
+
+    /** Replace placeholders (and any raw cid: left over) with real URLs; $resolver(contentId) → url|null. */
+    public static function resolveCids(string $html, callable $resolver): string
+    {
+        $html = preg_replace_callback('#' . preg_quote(self::CID_HOST, '#') . '([^"\'\s<>]+)#i', function ($m) use ($resolver) {
+            $url = $resolver(rawurldecode($m[1]));
+            return $url ?: $m[0];
+        }, $html) ?? $html;
+        return preg_replace_callback('/cid:\s*<?([^"\'\s<>]+)>?/i', function ($m) use ($resolver) {
+            $url = $resolver(trim($m[1]));
+            return $url ?: $m[0];
+        }, $html) ?? $html;
     }
 
     /** Plain-text preview from text or HTML. */
