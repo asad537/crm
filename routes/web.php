@@ -216,6 +216,9 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
             Route::post('messages/{id}/read', 'MailboxController@read')->name('messages.read')->where('id', '[0-9]+');
             Route::post('sync', 'MailboxController@sync')->name('sync')->middleware('throttle:6,1');
             Route::get('attachments/{id}', 'MailboxController@attachment')->name('attachments.show')->where('id', '[0-9]+');
+            // Sending from a mailbox (owner only): new message, reply / reply-all / forward.
+            Route::post('compose', 'MailComposeController@compose')->name('compose')->middleware('throttle:30,1');
+            Route::post('messages/{id}/reply', 'MailComposeController@reply')->name('messages.reply')->where('id', '[0-9]+')->middleware('throttle:30,1');
         });
 
         // User Management (Admin Only)

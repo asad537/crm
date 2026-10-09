@@ -235,6 +235,32 @@ class ImapClient
         return (bool) $ok;
     }
 
+    // ---- append (Sent copies) ------------------------------------------------
+
+    /** Path of the folder of a given type (e.g. "sent"), discovering it if needed. */
+    public function findFolderPathByType(string $type): ?string
+    {
+        foreach ($this->listFolders() as $f) {
+            if ($f['type'] === $type && $f['selectable']) return $f['path'];
+        }
+        return null;
+    }
+
+    /** Append a raw MIME message to a folder (used to store Sent copies). Returns the folder path used, or null. */
+    public function appendMessage(string $mime, ?string $folderPath = null, string $flags = '\\Seen'): ?string
+    {
+        $this->open('INBOX');
+        $candidates = array_values(array_unique(array_filter([$folderPath, $this->findFolderPathByType('sent'), 'INBOX.Sent', 'Sent', 'Sent Items'])));
+        foreach ($candidates as $path) {
+            if (@imap_append($this->conn, $this->root() . $path, $mime, $flags)) {
+                imap_errors();
+                return $path;
+            }
+        }
+        imap_errors();
+        return null;
+    }
+
     // ---- MIME walking -------------------------------------------------------
 
     private function walkParts(int $uid, object $part, string $prefix, array &$out): void

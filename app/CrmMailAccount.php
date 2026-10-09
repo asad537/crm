@@ -130,18 +130,32 @@ class CrmMailAccount extends Model
         return '{' . $this->imap_host . ':' . $this->imap_port . '/imap' . $enc . '}' . $folderPath;
     }
 
-    /** Symfony Mailer DSN for this account's SMTP. */
+    /**
+     * Symfony Mailer DSN for this account's SMTP. Symfony has no "encryption" option:
+     * smtps:// = implicit TLS (465), smtp:// = plain + opportunistic STARTTLS (587/25).
+     */
     public function smtpDsn(): string
     {
-        $enc = $this->smtp_encryption === 'none' ? '' : '?encryption=' . $this->smtp_encryption;
+        $scheme = $this->smtp_encryption === 'ssl' ? 'smtps' : 'smtp';
         return sprintf(
-            'smtp://%s:%s@%s:%d%s',
+            '%s://%s:%s@%s:%d',
+            $scheme,
             rawurlencode((string) $this->email_user),
             rawurlencode((string) $this->email_pass),
             $this->smtp_host,
-            $this->smtp_port,
-            $enc
+            $this->smtp_port
         );
+    }
+
+    /** Symfony SMTP transport for this account (same TLS semantics as the connection tester). */
+    public function smtpTransport(): \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport
+    {
+        $tls = $this->smtp_encryption === 'ssl' ? true : ($this->smtp_encryption === 'none' ? false : null);
+        $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport((string) $this->smtp_host, (int) $this->smtp_port, $tls);
+        $transport->setUsername((string) $this->email_user);
+        $transport->setPassword((string) $this->email_pass);
+        $transport->getStream()->setTimeout(20);
+        return $transport;
     }
 
     /** Best-effort provider from an IMAP/SMTP host name. */

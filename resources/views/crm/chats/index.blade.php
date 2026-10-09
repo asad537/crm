@@ -180,6 +180,17 @@
     .mail-reply-note a { color: var(--primary-purple); font-weight: 700; text-decoration: none; }
     .list-loadmore { display: block; width: calc(100% - 2rem); margin: .6rem 1rem 1rem; padding: .55rem; border: 1px solid #e5e9f0; border-radius: 9px; background: #fff; color: var(--primary-purple); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
 
+    /* ---- compose fields (mail reply / new message) ---- */
+    .compose-fields { display: none; border-bottom: 1px solid #f1f5f9; background: #fbfcfe; padding: .35rem .75rem; }
+    .compose-fields .cf-row { display: flex; align-items: center; gap: 8px; padding: .3rem 0; border-bottom: 1px dashed #eef1f6; }
+    .compose-fields .cf-row:last-child { border-bottom: 0; }
+    .compose-fields label { flex: 0 0 56px; font-size: .72rem; font-weight: 800; color: #8a94a6; text-transform: uppercase; letter-spacing: .04em; }
+    .compose-fields input, .compose-fields select { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: .86rem; color: #1e293b; padding: .15rem 0; }
+    .compose-fields .cf-link { border: 0; background: none; color: var(--primary-purple); font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; padding: 0 4px; }
+    .compose-fields .cf-mode { font-size: .72rem; color: #64748b; font-weight: 700; }
+    .nav-compose-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: .45rem .7rem; border: 0; border-radius: 9px; background: var(--primary-purple); color: #fff; font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 14px var(--primary-shadow); }
+    .nav-compose-btn:hover { background: var(--primary-hover); }
+
     /* ---- Responsive ---- */
     @media (max-width: 1200px) { .mail-app { grid-template-columns: 220px 330px minmax(0,1fr); } }
     @media (max-width: 1024px) {
@@ -214,6 +225,7 @@
         <div class="mail-nav-head">
             <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()" style="margin:0; cursor:pointer; color:#64748b;"></i>
             <h2><i class="fas fa-envelope"></i> Mail</h2>
+            <button type="button" class="nav-compose-btn" id="newMailBtn" style="display:none" onclick="startCompose()" title="New message"><i class="fas fa-pen"></i> New</button>
         </div>
         <div class="mail-nav-scroll">
             <div class="mail-section-title"><span>Mailboxes</span><button type="button" onclick="openAccountModal()" title="Connect a mailbox"><i class="fas fa-plus"></i> Add</button></div>
@@ -274,7 +286,9 @@
             <div class="reader-actions">
                 <button type="button" class="reader-btn" id="readerStarBtn" onclick="toggleStarActive()" title="Star" style="display:none"><i class="far fa-star"></i></button>
                 <button type="button" class="reader-btn" id="readerUnreadBtn" onclick="markActiveUnread()" title="Mark as unread" style="display:none"><i class="fas fa-envelope"></i></button>
-                <button type="button" class="reader-btn" id="readerReplyBtn" onclick="focusComposer()" title="Reply"><i class="fas fa-reply"></i><span class="txt">Reply</span></button>
+                <button type="button" class="reader-btn" id="readerReplyBtn" onclick="replyActive('reply')" title="Reply"><i class="fas fa-reply"></i><span class="txt">Reply</span></button>
+                <button type="button" class="reader-btn" id="readerReplyAllBtn" onclick="replyActive('reply_all')" title="Reply all" style="display:none"><i class="fas fa-reply-all"></i></button>
+                <button type="button" class="reader-btn" id="readerForwardBtn" onclick="replyActive('forward')" title="Forward" style="display:none"><i class="fas fa-share"></i></button>
                 <a href="#" id="viewLeadBtn" class="reader-btn" title="Open lead / case"><i class="fas fa-external-link-alt"></i><span class="txt">View Case</span></a>
             </div>
         </div>
@@ -293,6 +307,13 @@
                     <input type="hidden" name="bcc" id="chatBccField">
                     <div class="composer-box" id="replyDropZone">
                         <div id="replyDropOverlay" class="reply-drop-overlay"><i class="fas fa-cloud-upload-alt" style="font-size:1.6rem"></i>Drop files to attach</div>
+                        <div id="composeFields" class="compose-fields">
+                            <div class="cf-row"><label>From</label><select id="cfFrom"></select><span class="cf-mode" id="cfModeLabel"></span></div>
+                            <div class="cf-row"><label>To</label><input type="text" id="cfTo" placeholder="name@company.com, another@company.com"><button type="button" class="cf-link" onclick="toggleCcBcc()">Cc / Bcc</button></div>
+                            <div class="cf-row" id="cfCcRow" style="display:none"><label>Cc</label><input type="text" id="cfCc" placeholder="cc@company.com"></div>
+                            <div class="cf-row" id="cfBccRow" style="display:none"><label>Bcc</label><input type="text" id="cfBcc" placeholder="bcc@company.com"></div>
+                            <div class="cf-row"><label>Subject</label><input type="text" id="cfSubject" placeholder="Subject"></div>
+                        </div>
                         <div id="attachment-tray"></div>
                         <textarea id="messageInput" name="message_body" placeholder="Write your reply…"></textarea>
                         <div class="composer-bar">
@@ -421,6 +442,7 @@ function loadAccounts(){
         .catch(function(e){ console.error(e); var el=document.getElementById('mailAccountsList'); if(el) el.innerHTML = '<div class="mail-nav-item active" data-account="" onclick="selectAccount(null)"><i class="fas fa-fw fa-layer-group"></i><span class="label">All Inboxes</span></div><div style="padding:.4rem .6rem;font-size:.72rem;color:#b91c1c">Could not load mailboxes.</div>'; });
 }
 function renderAccounts(){
+    var nb = document.getElementById('newMailBtn'); if (nb) nb.style.display = (ownSendableAccounts().length && !MAIL_IS_ADMIN) ? '' : 'none';
     var el = document.getElementById('mailAccountsList'); if(!el) return;
     var html = '<div class="mail-nav-item '+(activeAccountId===null?'active':'')+'" data-account="" onclick="selectAccount(null)"><i class="fas fa-fw fa-layer-group"></i><span class="label">All Inboxes</span></div>';
     if(!accountsData.length){
@@ -594,7 +616,13 @@ function renderMailReader(){
     var lead = document.getElementById('viewLeadBtn'); lead.style.display = m.crm_email_id ? '' : 'none'; if (m.crm_email_id) lead.href = '/crm/email/'+m.crm_email_id;
     document.getElementById('readerStarBtn').style.display=''; paintStar();
     document.getElementById('readerUnreadBtn').style.display='';
-    var replyBtn = document.getElementById('readerReplyBtn'); replyBtn.style.display = m.crm_email_id ? '' : 'none';
+    var acc = accountsData.find(function(a){ return a.id===m.account_id; });
+    var canSend = !!(acc && acc.is_own && acc.is_active && !MAIL_IS_ADMIN && document.getElementById('composeFields'));
+    document.getElementById('readerReplyBtn').style.display = canSend ? '' : 'none';
+    document.getElementById('readerReplyAllBtn').style.display = canSend ? '' : 'none';
+    document.getElementById('readerForwardBtn').style.display = canSend ? '' : 'none';
+    if (canSend) { setComposerMode('mail-reply', { accountId: acc.id, to: m.is_outgoing ? (m.to||[]).map(function(a){return a.email;}).join(', ') : (m.reply_to || m.from_email || ''), subject: 'Re: ' + stripRe(m.subject) }); }
+    else { var ia=document.getElementById('inputArea'); if (ia) ia.style.display='none'; }
 
     var toList = (m.to||[]).map(function(a){ return esc(a.name ? a.name+' <'+a.email+'>' : a.email); }).join(', ');
     var ccList = (m.cc||[]).map(function(a){ return esc(a.name ? a.name+' <'+a.email+'>' : a.email); }).join(', ');
@@ -619,9 +647,9 @@ function renderMailReader(){
         html += '<div class="thread-strip"><h5>'+m.thread.length+' more in this conversation</h5>' + m.thread.map(function(t){ return '<div class="thread-item" onclick="openMail('+t.id+')"><span class="who">'+(t.is_outgoing?'You':esc(t.from_name||t.from_email||''))+'</span><span class="snip">'+esc(t.snippet||t.subject||'')+'</span>'+(t.has_attachments?'<i class="fas fa-paperclip" style="color:#94a3b8;font-size:.7rem"></i>':'')+'<span class="when">'+(t.received_at?moment(t.received_at).format('MMM D, h:mm A'):'')+'</span></div>'; }).join('') + '</div>';
     }
     if (m.crm_email_id) {
-        html += '<div class="mail-reply-note"><i class="fas fa-link"></i> Linked to lead <a href="/crm/email/'+m.crm_email_id+'">#'+m.crm_email_id+'</a> — reply from the lead conversation, or use Reply above.</div>';
-    } else if (!m.is_outgoing) {
-        html += '<div class="mail-reply-note"><i class="fas fa-info-circle"></i> Replying directly from this mailbox arrives with the next update (per-account sending).</div>';
+        html += '<div class="mail-reply-note"><i class="fas fa-link"></i> Linked to lead <a href="/crm/email/'+m.crm_email_id+'">#'+m.crm_email_id+'</a>' + (canSend ? ' — replies from here are also recorded on the lead.' : '') + '</div>';
+    } else if (!canSend && !m.is_outgoing) {
+        html += '<div class="mail-reply-note"><i class="fas fa-eye"></i> Read-only view — only the mailbox owner can reply from this mailbox.</div>';
     }
     document.getElementById('mailReader').innerHTML = html;
     document.getElementById('mailReader').scrollTop = 0;
@@ -825,6 +853,8 @@ function selectChat(id){
     document.getElementById('inputArea').style.display='block';
     document.getElementById('mailReader').style.display='none';
     document.getElementById('readerStarBtn').style.display='none'; document.getElementById('readerUnreadBtn').style.display='none'; document.getElementById('readerReplyBtn').style.display=''; document.getElementById('viewLeadBtn').style.display='';
+    document.getElementById('readerReplyAllBtn').style.display='none'; document.getElementById('readerForwardBtn').style.display='none';
+    setComposerMode('lead');
     document.getElementById('activeName').innerText = chat.client_name || 'Anonymous User';
     document.getElementById('activeEmailHeader').innerText = chat.client_email || '';
     document.getElementById('activeSubject').innerText = chat.subject ? '· '+chat.subject : (chat.product_name ? '· '+chat.product_name : '');
@@ -966,11 +996,108 @@ window.setupReplyDropZone = function(target){
 };
 (function(){ var zone=document.getElementById('replyDropZone'); if(zone) window.setupReplyDropZone(zone); var ov=document.getElementById('replyDropOverlay'); if(ov && !ov.dataset.ready){ ov.dataset.ready='1'; ov.addEventListener('drop', function(e){ e.preventDefault(); e.stopImmediatePropagation(); ov.classList.remove('active'); window.addReplyAttachments(e.dataTransfer.files); }, true); } })();
 
+// ====================== mailbox reply / compose (Phase 4) ======================
+var composerMode = 'lead';          // 'lead' | 'mail-reply' | 'mail-reply_all' | 'mail-forward' | 'mail-compose'
+function ownSendableAccounts(){ return accountsData.filter(function(a){ return a.is_own && a.is_active; }); }
+function toggleCcBcc(){ ['cfCcRow','cfBccRow'].forEach(function(id){ var r=document.getElementById(id); if(r) r.style.display = r.style.display==='none' ? 'flex' : 'none'; }); }
+function fillFromSelect(selectedId){
+    var sel = document.getElementById('cfFrom'); if(!sel) return;
+    sel.innerHTML = ownSendableAccounts().map(function(a){ return '<option value="'+a.id+'" '+(a.id===selectedId?'selected':'')+'>'+esc(a.display_name ? a.display_name+' <'+a.email_address+'>' : a.email_address)+'</option>'; }).join('');
+}
+function setComposerMode(mode, opts){
+    opts = opts || {};
+    composerMode = mode;
+    var fields = document.getElementById('composeFields'); if(!fields) return; // admin: no composer rendered
+    var isMail = mode.indexOf('mail-') === 0;
+    fields.style.display = isMail ? 'block' : 'none';
+    var toLine = document.querySelector('.composer-to'); if (toLine) toLine.style.display = isMail ? 'none' : '';
+    if (!isMail) return;
+    fillFromSelect(opts.accountId || null);
+    var fromSel = document.getElementById('cfFrom'); if (fromSel) fromSel.disabled = mode !== 'mail-compose';
+    document.getElementById('cfTo').value = opts.to || '';
+    document.getElementById('cfCc').value = opts.cc || '';
+    document.getElementById('cfBcc').value = '';
+    document.getElementById('cfCcRow').style.display = opts.cc ? 'flex' : 'none';
+    document.getElementById('cfBccRow').style.display = 'none';
+    document.getElementById('cfSubject').value = opts.subject || '';
+    document.getElementById('cfModeLabel').textContent = {'mail-reply':'Reply','mail-reply_all':'Reply all','mail-forward':'Forward','mail-compose':'New message'}[mode] || '';
+    var ia = document.getElementById('inputArea'); if (ia) ia.style.display = 'block';
+    var ed = window.getReplyEditor && window.getReplyEditor(); if (ed) ed.setContent(''); var ta=document.getElementById('messageInput'); if (ta) ta.value='';
+    window.replyAttachmentFiles = []; syncReplyFileInput(); renderReplyAttachments();
+}
+function stripRe(s){ return (s||'').replace(/^\s*((re|fw|fwd)\s*:\s*)+/i,''); }
+function replyActive(mode){
+    if (!activeMail) { focusComposer(); return; }
+    var acc = accountsData.find(function(a){ return a.id===activeMail.account_id; });
+    if (!acc || !acc.is_own || !acc.is_active) { toast('Only the mailbox owner can reply from this mailbox', 'error'); return; }
+    var own = (acc.email_address||'').toLowerCase();
+    var to = activeMail.is_outgoing ? (activeMail.to||[]).map(function(a){return a.email;}).join(', ') : (activeMail.reply_to || activeMail.from_email || '');
+    var cc = '';
+    if (mode === 'reply_all') {
+        var others = (activeMail.to||[]).concat(activeMail.cc||[]).map(function(a){return (a.email||'').toLowerCase();}).filter(function(e){ return e && e!==own && e!==(to||'').toLowerCase(); });
+        cc = Array.from(new Set(others)).join(', ');
+    }
+    setComposerMode('mail-'+mode, { accountId: acc.id, to: mode==='forward' ? '' : to, cc: cc, subject: (mode==='forward' ? 'Fwd: ' : 'Re: ') + stripRe(activeMail.subject) });
+    setTimeout(function(){ var f = document.getElementById(mode==='forward' ? 'cfTo' : 'messageInput'); if (mode==='forward' && f) f.focus(); else focusComposer(); }, 50);
+}
+function startCompose(){
+    var own = ownSendableAccounts(); if (!own.length) { openAccountModal(); return; }
+    activeMailId = null; activeMail = null; activeChatId = null;
+    if (window.__chatMsgPoll){ clearInterval(window.__chatMsgPoll); window.__chatMsgPoll=null; }
+    toggleMobileView(true);
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('chatHeader').style.display='flex';
+    document.getElementById('messagesContainer').style.display='none';
+    document.getElementById('mailReader').style.display='none';
+    document.getElementById('activeName').innerText = 'New message';
+    document.getElementById('activeEmailHeader').innerText = '';
+    document.getElementById('activeSubject').innerText = '';
+    document.getElementById('activeAvatar').innerHTML = '<i class="fas fa-pen"></i>';
+    ['readerStarBtn','readerUnreadBtn','readerReplyBtn','readerReplyAllBtn','readerForwardBtn','viewLeadBtn'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display='none'; });
+    var def = own.find(function(a){ return a.is_default; }) || own[0];
+    setComposerMode('mail-compose', { accountId: def.id, to: '', subject: '' });
+    setTimeout(function(){ var f=document.getElementById('cfTo'); if(f) f.focus(); }, 50);
+}
+function sendMailFromComposer(form){
+    var ed = window.getReplyEditor && window.getReplyEditor(); if (ed) ed.save();
+    var input = document.getElementById('messageInput');
+    var bodyHtml = input.value || '';
+    var plain = bodyHtml.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').trim();
+    var to = document.getElementById('cfTo').value.trim();
+    var files = document.getElementById('fileInput').files;
+    if ((composerMode==='mail-compose' || composerMode==='mail-forward') && !to) { toast('Add a recipient', 'error'); document.getElementById('cfTo').focus(); return; }
+    if (!plain && !files.length) { toast('Write a message or attach a file', 'error'); return; }
+    var fd = new FormData();
+    fd.append('_token', MAIL_CSRF);
+    fd.append('to', to); fd.append('cc', document.getElementById('cfCc').value.trim()); fd.append('bcc', document.getElementById('cfBcc').value.trim());
+    fd.append('subject', document.getElementById('cfSubject').value.trim()); fd.append('body', bodyHtml);
+    Array.prototype.forEach.call(files, function(f){ fd.append('attachments[]', f); });
+    var url;
+    if (composerMode === 'mail-compose') { fd.append('account_id', document.getElementById('cfFrom').value); url = '{{ route("crm.mail.compose") }}'; }
+    else { if (!activeMail) return; fd.append('mode', composerMode.replace('mail-','')); url = MAIL_ROUTES.messages + '/' + activeMail.id + '/reply'; }
+    var btn = document.getElementById('sendBtn'), txt = document.getElementById('sendBtnText');
+    btn.disabled = true; txt.textContent = 'Sending…';
+    fetch(url, {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(x){
+            if (!x.ok || !x.j.success) { var msg = x.j.message || (x.j.errors ? Object.values(x.j.errors)[0][0] : 'Could not send'); throw new Error(msg); }
+            toast('Sent from ' + (ownSendableAccounts().find(function(a){ return a.id===x.j.message.account_id; })||{}).email_address);
+            if (ed) ed.setContent(''); input.value = '';
+            window.replyAttachmentFiles = []; syncReplyFileInput(); renderReplyAttachments();
+            loadFolders();
+            if (composerMode === 'mail-compose') { closeReader(); if (activeFolder==='sent') loadMailList(true); }
+            else if (activeMail) { openMail(activeMail.id); }
+        })
+        .catch(function(e){ toast(e.message, 'error'); })
+        .then(function(){ btn.disabled = false; txt.textContent = 'Send'; });
+}
+
 // sending
 var chatForm = document.getElementById('chatForm');
 if (chatForm) {
     chatForm.onsubmit = function(e){
         e.preventDefault();
+        if (composerMode.indexOf('mail-') === 0) { sendMailFromComposer(e.target); return; }
         var ed = window.getReplyEditor && window.getReplyEditor(); if (ed) ed.save();
         var input = document.getElementById('messageInput');
         var body = (input.value||'').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').trim();
