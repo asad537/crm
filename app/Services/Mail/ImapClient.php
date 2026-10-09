@@ -20,6 +20,8 @@ class ImapClient
     /** @var resource|\IMAP\Connection|null */
     private $conn = null;
     private ?string $openPath = null;
+    /** When true, close() is a no-op so a long-running watcher can reuse the connection; use shutdown() to really close. */
+    private bool $persistent = false;
 
     public function __construct(private CrmMailAccount $account)
     {
@@ -27,7 +29,7 @@ class ImapClient
 
     public function __destruct()
     {
-        $this->close();
+        $this->shutdown();
     }
 
     // ---- connection ---------------------------------------------------------
@@ -37,10 +39,19 @@ class ImapClient
         return $this->account->imapMailbox('');
     }
 
+    public function setPersistent(bool $on = true): static
+    {
+        $this->persistent = $on;
+        return $this;
+    }
+
     public function open(string $folderPath = 'INBOX'): void
     {
         if ($this->conn && $this->openPath === $folderPath) {
-            return;
+            if (@imap_ping($this->conn)) {
+                return;
+            }
+            $this->shutdown(); // dead connection → reconnect below
         }
         if ($this->conn) {
             if (@imap_reopen($this->conn, $this->root() . $folderPath)) {
@@ -66,6 +77,15 @@ class ImapClient
     }
 
     public function close(): void
+    {
+        if ($this->persistent) {
+            return; // kept open for the next round
+        }
+        $this->shutdown();
+    }
+
+    /** Really close the connection (also for persistent clients). */
+    public function shutdown(): void
     {
         if ($this->conn) {
             @imap_close($this->conn);

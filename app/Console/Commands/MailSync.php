@@ -28,20 +28,63 @@ class MailSync extends Command
     public function handle(ImapSyncService $sync): int
     {
         if ($this->option('watch')) {
-            $interval = max(3, (int) $this->option('interval'));
-            $this->info("Watching mailboxes every {$interval}s (Ctrl+C to stop)…");
-            while (true) {
-                $started = microtime(true);
-                try {
-                    $this->runOnce($sync);
-                } catch (\Throwable $e) {
-                    $this->error('round failed: ' . $e->getMessage());
-                }
-                $sleep = max(1, $interval - (int) (microtime(true) - $started));
-                sleep($sleep);
-            }
+            return $this->watch();
         }
         return $this->runOnce($sync);
+    }
+
+    /**
+     * Long-running mode. Already-synced accounts are refreshed INLINE over persistent IMAP
+     * connections (no repeated logins — an idle round is a handful of STATUS calls per
+     * mailbox). Never-synced accounts (first 30-day backfill) are handed to queue workers so
+     * they never delay the live refresh. --queue forces everything through the queue.
+     */
+    private function watch(): int
+    {
+        $interval = max(3, (int) $this->option('interval'));
+        $pool = new \App\Services\Mail\PooledImapClientFactory();
+        app()->instance(\App\Services\Mail\ImapClientFactory::class, $pool);
+        /** @var ImapSyncService $sync */
+        $sync = app()->make(ImapSyncService::class);
+        $opts = $this->opts();
+        $this->info("Watching mailboxes every {$interval}s — persistent connections, backfills queued (Ctrl+C to stop)…");
+
+        while (true) {
+            $started = microtime(true);
+            $imported = 0; $errors = 0;
+            try {
+                $accounts = CrmMailAccount::withoutGlobalScopes()->syncable()->orderBy('id')->get();
+                foreach ($accounts as $account) {
+                    if ($this->option('queue') || $account->last_synced_at === null) {
+                        SyncMailAccountJob::dispatch($account->id, $opts); // unique per account
+                        continue;
+                    }
+                    $r = $sync->syncAccount($account, $opts);
+                    $imported += $r['imported'];
+                    if ($r['status'] === 'error' || $r['errors']) {
+                        $errors++;
+                        $pool->evict($account->id); // reconnect next round
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->error('round failed: ' . $e->getMessage());
+            }
+            $secs = microtime(true) - $started;
+            if ($imported || $errors) {
+                $this->line(sprintf('%s round: imported=%d errors=%d (%.1fs)', now()->format('H:i:s'), $imported, $errors, $secs));
+            }
+            $sleep = max(1, $interval - (int) $secs);
+            sleep($sleep);
+        }
+    }
+
+    private function opts(): array
+    {
+        return array_filter([
+            'since_days' => (int) $this->option('since'),
+            'cap' => (int) $this->option('cap'),
+            'types' => $this->option('types') ? array_filter(array_map('trim', explode(',', $this->option('types')))) : null,
+        ]);
     }
 
     private function runOnce(ImapSyncService $sync): int
@@ -57,11 +100,7 @@ class MailSync extends Command
             return 0;
         }
 
-        $opts = array_filter([
-            'since_days' => (int) $this->option('since'),
-            'cap' => (int) $this->option('cap'),
-            'types' => $this->option('types') ? array_filter(array_map('trim', explode(',', $this->option('types')))) : null,
-        ]);
+        $opts = $this->opts();
 
         foreach ($accounts as $account) {
             if ($this->option('queue')) {
