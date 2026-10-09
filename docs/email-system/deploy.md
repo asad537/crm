@@ -46,6 +46,9 @@ blocks a mailbox for long.
 - **Bare server:** run the same 7 watcher processes + queue workers under supervisor/systemd. The 1-minute
   scheduler entry (`app/Console/Kernel.php`) remains as a fallback when no watcher runs.
 - Manual: `php artisan crm:mail-sync [--account=<id>] [--since=7 --cap=50 --types=inbox,sent]`.
+- Gotchas baked into `ImapClient`: c-client's `imap_search()` has **no `UID` search key** (incremental fetch uses a UID
+  range `imap_fetch_overview("n:*", FT_UID)`), and on a persistent connection the selected mailbox's session is stale
+  until a NOOP (`imap_ping`) — STATUS is fresh, SEARCH/FETCH are not — so a NOOP precedes every search/fetch.
 
 Once the new sync is live, **stop the old cron** for `crm:imap-daemon` (inbound lead replies are now mirrored
 by the new sync; running both is harmless but doubles IMAP traffic).
