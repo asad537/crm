@@ -2729,16 +2729,12 @@
                                         <div style="clear: both;"></div>
                                         `;
 
-                                        if (window.CKEDITOR && CKEDITOR.instances.message_body) {
-                                            let currentData = CKEDITOR.instances.message_body.getData();
-                                            CKEDITOR.instances.message_body.setData(html + '<br/>' + currentData);
-                                            // Scroll to the chat editor
-                                            let editorElement = document.getElementById('message_body');
-                                            if (editorElement) {
-                                                editorElement.scrollIntoView({behavior: 'smooth', block: 'center'});
-                                            }
+                                        let __replyEd = window.getReplyEditor && window.getReplyEditor();
+                                        if (__replyEd) {
+                                            __replyEd.setContent(html + '<br/>' + __replyEd.getContent());
+                                            __replyEd.getContainer().scrollIntoView({behavior: 'smooth', block: 'center'});
                                         } else {
-                                            // Fallback if CKEditor is not initialized
+                                            // Fallback if the rich editor is not initialized
                                             let textarea = document.getElementById('message_body');
                                             if (textarea) {
                                                 textarea.value = html + '\n' + textarea.value;
@@ -3102,9 +3098,8 @@
 
                 function handleSendClick(e) {
                     if (e) e.preventDefault();
-                    if (window.CKEDITOR && CKEDITOR.instances.message_body) {
-                        CKEDITOR.instances.message_body.updateElement();
-                    }
+                    const __replyEd = window.getReplyEditor && window.getReplyEditor();
+                    if (__replyEd) __replyEd.save(); // flush editor HTML into the textarea
                     const form = document.getElementById('chat-form');
                     const textarea = document.getElementById('message_body');
                     const fileInput = document.getElementById('fileInput');
@@ -3163,8 +3158,9 @@
                                 appendMessage(result.data);
                                 form.reset();
                                 
-                                if (window.CKEDITOR && CKEDITOR.instances.message_body) {
-                                    CKEDITOR.instances.message_body.setData('');
+                                const __replyEd = window.getReplyEditor && window.getReplyEditor();
+                                if (__replyEd) {
+                                    __replyEd.setContent('');
                                 } else {
                                     textarea.style.height = '48px';
                                 }
@@ -3750,79 +3746,85 @@
 @endsection
 
 @section('scripts')
-    <script src="{{URL::asset('ckeditor/ckeditor.js')}}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.4/tinymce.min.js"></script>
     <script>
+        // Returns the live TinyMCE reply editor, or null if it never loaded
+        // (in which case the plain #message_body textarea is used as a fallback).
+        window.getReplyEditor = function () {
+            return (window.tinymce && tinymce.get && tinymce.get('message_body')) || null;
+        };
+        @if(session('estimate_draft'))
+            window.__estimateDraft = @json(session('estimate_draft'));
+        @endif
         document.addEventListener('DOMContentLoaded', function () {
             (function bootReplyEditor() {
                 if (!document.getElementById('message_body')) return;
-                // The first (uncached) page load can run this before ckeditor.js has finished
-                // parsing, so CKEDITOR is undefined and the rich editor silently fails to appear
-                // (plain textarea shows, then "fixes itself" on reload). Retry until it's ready,
-                // and clear any stale instance so re-initialisation is always safe.
-                if (typeof CKEDITOR === 'undefined' || !CKEDITOR.replace) { return setTimeout(bootReplyEditor, 60); }
-                if (CKEDITOR.instances.message_body) { try { CKEDITOR.instances.message_body.destroy(true); } catch (e) {} }
-                const replyEditor = CKEDITOR.replace('message_body', {
-                    filebrowserUploadUrl: "{{URL::asset('ckeditor/ck_upload.php')}}",
-                    filebrowserUploadMethod: 'form',
-                    height: 250,
-                    allowedContent: true,
-                    removePlugins: 'uploadimage,uploadfile'
-                });
-                replyEditor.on('drop', function (event) {
-                    const transfer = event.data && event.data.dataTransfer;
-                    const files = [];
-                    if (transfer && typeof transfer.getFilesCount === 'function') {
-                        for (let index = 0; index < transfer.getFilesCount(); index++) {
-                            const file = transfer.getFile(index);
-                            if (file) files.push(file);
+                // The CDN may still be parsing on the first (uncached) load, so tinymce can be
+                // undefined here. Retry until it's ready; if it never loads the plain textarea
+                // keeps working, so the reply box is never fully broken.
+                if (typeof tinymce === 'undefined' || !tinymce.init) { return setTimeout(bootReplyEditor, 60); }
+                if (tinymce.get('message_body')) { try { tinymce.get('message_body').remove(); } catch (e) {} }
+                tinymce.init({
+                    selector: '#message_body',
+                    height: 280,
+                    menubar: false,
+                    branding: false,
+                    promotion: false,
+                    convert_urls: false,
+                    paste_data_images: true,
+                    automatic_uploads: false,
+                    plugins: 'lists link image table code autolink',
+                    toolbar: 'undo redo | blocks | bold italic underline forecolor | alignleft aligncenter alignright | bullist numlist | link image table | removeformat | code',
+                    setup: function (editor) {
+                        // Files dropped onto the editor become reply attachments instead of
+                        // being embedded into the message body.
+                        editor.on('drop', function (event) {
+                            var dt = event.dataTransfer;
+                            if (dt && dt.files && dt.files.length && window.addReplyAttachments) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                window.addReplyAttachments(Array.prototype.slice.call(dt.files));
+                            }
+                        });
+                    },
+                    init_instance_callback: function (editor) {
+                        if (window.setupReplyDropZone) {
+                            try { window.setupReplyDropZone(editor.getBody()); } catch (e) {}
+                        }
+                        if (window.__estimateDraft) {
+                            var draft = window.__estimateDraft;
+                            editor.setContent(draft.body || '');
+                            var pdfBlobPromise = draft.attachment_base64
+                                ? Promise.resolve((function () {
+                                    var binary = atob(draft.attachment_base64);
+                                    var bytes = new Uint8Array(binary.length);
+                                    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+                                    return new Blob([bytes], { type: 'application/pdf' });
+                                })())
+                                : fetch(draft.attachment_url, { credentials: 'same-origin' })
+                                    .then(function (response) {
+                                        if (!response.ok) throw new Error('Unable to load estimate PDF (' + response.status + ')');
+                                        return response.blob();
+                                    });
+                            pdfBlobPromise
+                                .then(function (blob) {
+                                    if (!blob || blob.size === 0) throw new Error('Generated estimate PDF is empty');
+                                    var file = new File(
+                                        [blob],
+                                        draft.attachment_name || 'estimate.pdf',
+                                        { type: 'application/pdf', lastModified: Date.now() }
+                                    );
+                                    window.addReplyAttachments([file]);
+                                    document.getElementById('chat-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    editor.focus();
+                                })
+                                .catch(function (error) {
+                                    console.error('Estimate draft attachment error:', error);
+                                    alert('The estimate text was prepared, but the PDF could not be attached. Please reload and try again.');
+                                });
                         }
                     }
-                    if (files.length && window.addReplyAttachments) {
-                        event.cancel();
-                        window.addReplyAttachments(files);
-                    }
-                }, null, null, 1);
-                replyEditor.on('contentDom', function () {
-                    if (window.setupReplyDropZone) {
-                        window.setupReplyDropZone(replyEditor.editable().$);
-                    }
                 });
-                @if(session('estimate_draft'))
-                    const estimateDraft = @json(session('estimate_draft'));
-                    replyEditor.on('instanceReady', function () {
-                        replyEditor.setData(estimateDraft.body || '');
-                        const pdfBlobPromise = estimateDraft.attachment_base64
-                            ? Promise.resolve((function () {
-                                const binary = atob(estimateDraft.attachment_base64);
-                                const bytes = new Uint8Array(binary.length);
-                                for (let index = 0; index < binary.length; index++) {
-                                    bytes[index] = binary.charCodeAt(index);
-                                }
-                                return new Blob([bytes], { type: 'application/pdf' });
-                            })())
-                            : fetch(estimateDraft.attachment_url, { credentials: 'same-origin' })
-                                .then(response => {
-                                    if (!response.ok) throw new Error('Unable to load estimate PDF (' + response.status + ')');
-                                    return response.blob();
-                                });
-                        pdfBlobPromise
-                            .then(blob => {
-                                if (!blob || blob.size === 0) throw new Error('Generated estimate PDF is empty');
-                                const file = new File(
-                                    [blob],
-                                    estimateDraft.attachment_name || 'estimate.pdf',
-                                    { type: 'application/pdf', lastModified: Date.now() }
-                                );
-                                window.addReplyAttachments([file]);
-                                document.getElementById('chat-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                replyEditor.focus();
-                            })
-                            .catch(error => {
-                                console.error('Estimate draft attachment error:', error);
-                                alert('The estimate text was prepared, but the PDF could not be attached. Please reload and try again.');
-                            });
-                    });
-                @endif
             })();
         });
     </script>
@@ -3843,11 +3845,15 @@
                         </div>
                         <p><br></p>
                     `;
-                    if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances.message_body) {
-                        CKEDITOR.instances.message_body.insertHtml(proofHtml);
-                        document.getElementById('message_body').scrollIntoView({behavior: 'smooth', block: 'center'});
+                    var __proofEd = window.getReplyEditor && window.getReplyEditor();
+                    if (__proofEd) {
+                        __proofEd.insertContent(proofHtml);
+                        __proofEd.getContainer().scrollIntoView({behavior: 'smooth', block: 'center'});
+                    } else {
+                        var ta = document.getElementById('message_body');
+                        if (ta) { ta.value = proofHtml + '\n' + ta.value; ta.scrollIntoView({behavior: 'smooth', block: 'center'}); }
                     }
-                }, 1000); // Wait a bit for CKEditor to fully initialize
+                }, 1000); // Wait a bit for the editor to fully initialize
             });
             </script>
         @endif
