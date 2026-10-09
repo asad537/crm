@@ -73,7 +73,8 @@
     .chat-subject { font-size: .8rem; color: #334155; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .chat-subject .row-icons { margin-left: auto; }
     .chat-snippet { font-size: .74rem; color: #8a94a6; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
-    .chat-acc-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 140px; font-size: .62rem; font-weight: 700; color: #64748b; background: #f1f5f9; border-radius: 99px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-acc-chip { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; max-width: 60%; font-size: .66rem; font-weight: 700; color: #475569; background: #eef1f7; border-radius: 99px; padding: 2px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-acc-chip .mail-acc-dot { flex: 0 0 7px; }
     .chat-badge { background: var(--primary-purple); color: #fff; border-radius: 99px; font-size: .64rem; padding: 1px 7px; font-weight: 800; margin-left: 6px; }
     .chat-list-empty { padding: 2.5rem 1.5rem; text-align: center; color: #94a3b8; font-size: .85rem; }
     .chat-list-empty i { display: block; font-size: 2rem; opacity: .35; margin-bottom: .6rem; }
@@ -625,7 +626,7 @@ function renderMailList(){
         var who = m.is_outgoing ? ('To: ' + ((m.to && m.to[0]) ? (m.to[0].name || m.to[0].email) : '')) : (m.from_name || m.from_email || 'Unknown');
         var time = m.received_at ? moment(m.received_at).calendar(null, {sameDay:'h:mm A', lastDay:'[Yesterday]', lastWeek:'ddd', sameElse:'MMM D'}) : '';
         var acc = accountsData.find(function(a){return a.id===m.account_id;});
-        var accChip = acc && activeAccountId===null && accountsData.length>1 ? '<span class="chat-acc-chip"><span class="mail-acc-dot" style="width:7px;height:7px;flex-basis:7px;background:'+accColor(acc.id)+'"></span>'+esc(acc.display_name||acc.email_address)+'</span>' : '';
+        var accChip = acc && activeAccountId===null && accountsData.length>1 ? '<span class="chat-acc-chip" title="'+esc(acc.email_address)+'"><span class="mail-acc-dot" style="width:7px;height:7px;background:'+accColor(acc.id)+'"></span>'+esc(acc.owner_name || acc.display_name || acc.email_address)+'</span>' : '';
         html += '<div class="chat-item'+(activeMailId===m.id?' active':'')+(!m.is_read && !m.is_outgoing?' unread':'')+'" data-mail="'+m.id+'" onclick="openMail('+m.id+')">'
             + '<div class="chat-avatar" style="'+(m.is_outgoing?'background:#f1f5f9;color:#64748b':'')+'">'+esc(initialsOf(m.is_outgoing ? ((m.to&&m.to[0])?(m.to[0].name||m.to[0].email):'') : (m.from_name||m.from_email)))+'</div>'
             + '<div class="chat-info">'
@@ -953,7 +954,7 @@ function renderChatList(filter){
         var snippet = lm && lm.message_body ? lm.message_body.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim() : '';
         if (lm && lm.sender_type && lm.sender_type!=='client') snippet = 'You: ' + snippet;
         var acc = chat.mail_account_id ? accountsData.find(function(a){return a.id===chat.mail_account_id;}) : null;
-        var accChip = acc && activeAccountId===null ? '<span class="chat-acc-chip"><span class="mail-acc-dot" style="width:7px;height:7px;flex-basis:7px;background:'+accColor(acc.id)+'"></span>'+esc(acc.display_name||acc.email_address)+'</span>' : '';
+        var accChip = acc && activeAccountId===null ? '<span class="chat-acc-chip" title="'+esc(acc.email_address)+'"><span class="mail-acc-dot" style="width:7px;height:7px;background:'+accColor(acc.id)+'"></span>'+esc(acc.owner_name || acc.display_name || acc.email_address)+'</span>' : '';
         var item = document.createElement('div');
         item.className = 'chat-item' + (activeChatId==chat.id?' active':'') + (chat.unread_count>0?' unread':'');
         item.onclick = function(){ selectChat(chat.id); };
