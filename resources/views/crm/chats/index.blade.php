@@ -427,16 +427,20 @@
 
 @section('scripts')
     <script>
-        let activeChatId = null;
-        let chatsData = [];
-        let lastMsgId = 0;
-        let pollingInterval = null;
-        let lastDisplayedDateStr = null;
-        let pendingChatForm = null;
-        let chatListLoading = false;
-        let chatListController = null;
-        let chatListRetries = 0;
-        let inboxSyncRunning = false;
+        // NOTE: use var (not let/const) for every top-level declaration in this script.
+        // The CRM AJAX navigator re-executes this inline script on each partial visit to
+        // Chats; top-level let/const would throw "already declared" on the 2nd visit,
+        // aborting the script so loadChatList() never runs and "Loading chats..." hangs.
+        var activeChatId = null;
+        var chatsData = [];
+        var lastMsgId = 0;
+        var pollingInterval = null;
+        var lastDisplayedDateStr = null;
+        var pendingChatForm = null;
+        var chatListLoading = false;
+        var chatListController = null;
+        var chatListRetries = 0;
+        var inboxSyncRunning = false;
 
         function syncInbox() {
             if (inboxSyncRunning || document.hidden) return;
@@ -467,6 +471,11 @@
         }
 
         function loadChatList() {
+            // If we've navigated away (container gone), stop the background poll.
+            if (!document.getElementById('chatListContainer')) {
+                if (window.__chatsListPoll) { clearInterval(window.__chatsListPoll); window.__chatsListPoll = null; }
+                return Promise.resolve();
+            }
             if (chatListLoading) return Promise.resolve();
             chatListLoading = true;
             chatListController = new AbortController();
@@ -713,7 +722,7 @@
         }
 
         // Handle Sending
-        const chatForm = document.getElementById('chatForm');
+        var chatForm = document.getElementById('chatForm');
         if (chatForm) {
             chatForm.onsubmit = function (e) {
                 e.preventDefault();
@@ -831,11 +840,21 @@
 
         // Initial Load
         loadChatList();
-        setInterval(loadChatList, 10000); // Peer list refresh
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) resumeChatList();
-        });
-        window.addEventListener('pageshow', resumeChatList);
+        // Re-executed on every AJAX partial visit, so clear the previous poll before
+        // starting a new one — otherwise intervals stack up and multiply the requests.
+        if (window.__chatsListPoll) clearInterval(window.__chatsListPoll);
+        window.__chatsListPoll = setInterval(loadChatList, 10000); // Peer list refresh
+        // Bind the global listeners only once; the handlers they call (resumeChatList)
+        // operate on global state/DOM, so a single binding keeps working across visits.
+        if (!window.__chatsListenersBound) {
+            window.__chatsListenersBound = true;
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden && typeof resumeChatList === 'function') resumeChatList();
+            });
+            window.addEventListener('pageshow', function () {
+                if (typeof resumeChatList === 'function') resumeChatList();
+            });
+        }
         // Email import runs through crm:imap-daemon. Running it from the browser
         // blocked chat-list requests on single-worker/local servers.
     </script>
