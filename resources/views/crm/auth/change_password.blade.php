@@ -340,11 +340,17 @@
 @endsection
 
 @section('scripts')
-    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
     <script>
-        CKEDITOR.replace('signature', {
-            height: 200,
-            removeButtons: 'About'
+        // Lazy-load CKEditor: the CRM AJAX navigator skips <script src> tags on partial
+        // nav, so the library must be injected from inline JS or CKEDITOR is undefined.
+        loadScriptOnce('https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js', function () {
+            if (typeof CKEDITOR === 'undefined' || !document.getElementById('signature')) return;
+            // Clear any stale instance from a previous visit before re-creating.
+            if (CKEDITOR.instances.signature) { try { CKEDITOR.instances.signature.destroy(true); } catch (e) {} }
+            CKEDITOR.replace('signature', {
+                height: 200,
+                removeButtons: 'About'
+            });
         });
     </script>
 @endsection

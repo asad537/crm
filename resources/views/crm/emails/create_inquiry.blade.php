@@ -274,7 +274,7 @@ async function saveFinishingOption(){var parentField=document.getElementById('fi
     var parentList=document.getElementById('finishingParentOptions');if(parentList&&!Array.from(parentList.options).some(function(option){return option.value.toLowerCase()===parent.toLowerCase()})){var parentOption=document.createElement('option');parentOption.value=parent;parentList.appendChild(parentOption)}
     if(__finishDialogPicker)__finishDialogPicker.dispatchEvent(new Event('change',{bubbles:true}));parentField.value='';child.value='';closeFinishingDialog()}catch(error){alert(error.message)}finally{saveButton.disabled=false;saveButton.innerHTML=originalHtml}}
 
-document.addEventListener('click',function(event){document.querySelectorAll('.mi-finish.open').forEach(function(picker){if(!picker.contains(event.target))picker.classList.remove('open')})});
+if(!window.__ciFinishClickBound){window.__ciFinishClickBound=true;document.addEventListener('click',function(event){document.querySelectorAll('.mi-finish.open').forEach(function(picker){if(!picker.contains(event.target))picker.classList.remove('open')})});}
 
 // Before submit: fold each row's dimensions → finish_size and open L/W → open_size.
 document.querySelector('.mi-form').addEventListener('submit',function(){
@@ -287,7 +287,8 @@ document.querySelector('.mi-form').addEventListener('submit',function(){
     });
 });
 
-// Start with one product row.
-document.addEventListener('DOMContentLoaded',function(){ addProductRow(); });
+// Start with one product row. Run immediately — DOMContentLoaded never re-fires on
+// AJAX partial nav, which would otherwise leave the form with no product row.
+addProductRow();
 </script>
 @endsection
