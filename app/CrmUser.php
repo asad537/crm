@@ -20,6 +20,7 @@ class CrmUser extends Authenticatable
 
     protected $hidden = [
         'password', 'remember_token',
+        'email_pass', // legacy plaintext mailbox password — never serialize
     ];
 
     public function isAdmin()
@@ -119,6 +120,12 @@ class CrmUser extends Authenticatable
     public function productionFacility()
     {
         return $this->belongsTo(ProductionFacility::class, 'production_facility_id');
+    }
+
+    /** Mailboxes connected by this user (Outlook-style mail client). */
+    public function mailAccounts()
+    {
+        return $this->hasMany(CrmMailAccount::class, 'crm_user_id');
     }
 
     public function canAssign()
