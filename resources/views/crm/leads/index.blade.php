@@ -169,7 +169,9 @@
 
 @section('scripts')
 <script>
-    let timeout = null;
+    // var (not let): the CRM AJAX navigator re-executes this inline script on each
+    // partial visit; a top-level let/const would throw "already declared" and abort it.
+    var timeout = null;
 
     function updateLeads() {
         const form = document.getElementById('leadsFilterForm');

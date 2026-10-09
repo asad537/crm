@@ -1112,11 +1112,22 @@
 
             {{-- Proposals: Admin, plus only designers an admin has granted access to. --}}
             @if($__navUser->canAccessProposals())
+                @php
+                    $__proposalTicketCount = \App\CrmProposal::activeTicketCountFor(
+                        $__navUser,
+                        $activeCrmWorkspace->id
+                    );
+                @endphp
                 <a href="{{ route('crm.proposals.index') }}"
                     class="nav-item {{ request()->routeIs('crm.proposals.*') ? 'active' : '' }}">
                     <i class="fas fa-file-signature" style="margin-top:2px;"></i>
                     <span class="nav-label">Proposal</span>
-                    <span class="nav-right"><i class="fas fa-chevron-right arrow"></i></span>
+                    <span class="nav-right">
+                        @if($__proposalTicketCount > 0)
+                            <span class="nav-count">{{ $__proposalTicketCount }}</span>
+                        @endif
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
                 </a>
             @endif
 
@@ -1624,6 +1635,28 @@
     </div>
 
     <script>
+        // Lazy-load a <script>/<link> once (deduped). The CRM AJAX navigator (below)
+        // skips <script src>/<link> tags on partial nav, so any page that needs a library
+        // must inject it from inline JS via these helpers instead of a plain <script src>.
+        window.loadScriptOnce = window.loadScriptOnce || function (src, cb) {
+            cb = cb || function () {};
+            var existing = document.querySelector('script[data-lib-src="' + src + '"]');
+            if (existing) {
+                if (existing.dataset.loaded === '1') return cb();
+                return existing.addEventListener('load', cb);
+            }
+            var s = document.createElement('script');
+            s.src = src; s.dataset.libSrc = src;
+            s.addEventListener('load', function () { s.dataset.loaded = '1'; cb(); });
+            s.addEventListener('error', function () { console.error('Failed to load ' + src); });
+            document.body.appendChild(s);
+        };
+        window.loadCssOnce = window.loadCssOnce || function (href) {
+            if (document.querySelector('link[data-lib-href="' + href + '"]')) return;
+            var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.dataset.libHref = href;
+            document.head.appendChild(l);
+        };
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');

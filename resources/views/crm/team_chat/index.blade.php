@@ -802,26 +802,30 @@
 
 @section('scripts')
     <script>
-        let activeAgentId = null;
-        let activeAgentData = null;
-        let agentsData = @json($initialAgents ?? []);
-        let teamPollingInterval = null;
-        const currentUserId = {{ Auth::guard('crm')->id() }};
-        const storageUrl = "{{ asset('storage') }}/";
+        // var (not let/const) for every top-level declaration: the CRM AJAX navigator
+        // re-executes this inline script on each partial visit to Team Chat, and
+        // top-level let/const would throw "already declared" on the 2nd visit, aborting
+        // the whole script (same class of bug as the Chats "Loading..." hang).
+        var activeAgentId = null;
+        var activeAgentData = null;
+        var agentsData = @json($initialAgents ?? []);
+        var teamPollingInterval = null;
+        var currentUserId = {{ Auth::guard('crm')->id() }};
+        var storageUrl = "{{ asset('storage') }}/";
         // Docroot IS the public/ folder — serve chat_attachments straight from web root.
-        const publicUrl = "{{ rtrim(url('/'), '/') }}/";
+        var publicUrl = "{{ rtrim(url('/'), '/') }}/";
 
-        const getFullUrl = (path) => {
+        var getFullUrl = (path) => {
             if (!path) return '';
             if (path.startsWith('chat_attachments/')) return publicUrl + path;
             return storageUrl + path;
         };
 
-        const agentsUrl = '{{ route("crm.internal_chat.agents") }}';
-        const sendUrl = '{{ route("crm.internal_chat.send") }}';
-        const csrfToken = '{{ csrf_token() }}';
-        let agentListLoading = false;
-        let agentListController = null;
+        var agentsUrl = '{{ route("crm.internal_chat.agents") }}';
+        var sendUrl = '{{ route("crm.internal_chat.send") }}';
+        var csrfToken = '{{ csrf_token() }}';
+        var agentListLoading = false;
+        var agentListController = null;
 
         function filterAgents() {
             const query = document.getElementById('agentSearch').value.toLowerCase();
@@ -829,6 +833,11 @@
         }
 
         function loadAgentList() {
+            // Navigated away (container gone): stop the background poll.
+            if (!document.getElementById('agentListContainer')) {
+                if (window.__teamListPoll) { clearInterval(window.__teamListPoll); window.__teamListPoll = null; }
+                return Promise.resolve();
+            }
             if (agentListLoading || document.hidden) return Promise.resolve();
             agentListLoading = true;
             agentListController = new AbortController();
@@ -878,6 +887,7 @@
 
         function renderAgentList(filter = '') {
             const container = document.getElementById('agentListContainer');
+            if (!container) return;
             container.innerHTML = '';
 
             const filtered = agentsData.filter(a => a.name.toLowerCase().includes(filter));
@@ -972,6 +982,11 @@
         }
 
         function fetchTeamMessages(force = false) {
+            // Navigated away (messages pane gone): stop polling the open conversation.
+            if (!document.getElementById('messagesContainer')) {
+                if (teamPollingInterval) { clearInterval(teamPollingInterval); teamPollingInterval = null; }
+                return;
+            }
             if (!activeAgentId) return;
 
             fetch(`/crm/internal-chat/messages/${activeAgentId}`)
@@ -1125,7 +1140,7 @@
                 .catch(err => console.error('Fetch messages error:', err));
         }
 
-        let selectedAttachment = null;
+        var selectedAttachment = null;
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 selectedAttachment = input.files[0];
@@ -1211,8 +1226,8 @@
                 .catch(err => console.error('Edit error:', err));
         }
 
-        let messageToForward = null;
-        let selectedForwardIds = [];
+        var messageToForward = null;
+        var selectedForwardIds = [];
 
         function openForwardModal(msgId) {
             messageToForward = msgId;
@@ -1326,15 +1341,18 @@
                 });
         }
 
-        // Enter to send
-        document.addEventListener('keydown', function (e) {
-            if (e.target && e.target.id === 'teamMsgInput') {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendTeamMessage();
+        // Enter to send (bind once — delegated, survives across AJAX visits)
+        if (!window.__teamKeydownBound) {
+            window.__teamKeydownBound = true;
+            document.addEventListener('keydown', function (e) {
+                if (e.target && e.target.id === 'teamMsgInput') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendTeamMessage();
+                    }
                 }
-            }
-        });
+            });
+        }
 
         function toggleMobileView(active) {
             const container = document.getElementById('teamChatApp');
@@ -1407,26 +1425,33 @@
             });
         }
 
-        // Init
+        // Init — runs on every (full or AJAX partial) visit.
         renderAgentList();
         loadAgentList();
-        setInterval(loadAgentList, 5000);
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) resumeAgentList();
-        });
-        window.addEventListener('pageshow', resumeAgentList);
+        // Guard the poll so repeat AJAX visits don't stack intervals.
+        if (window.__teamListPoll) clearInterval(window.__teamListPoll);
+        window.__teamListPoll = setInterval(loadAgentList, 5000);
+        // Bind global listeners only once (they call global functions on live DOM).
+        if (!window.__teamListenersBound) {
+            window.__teamListenersBound = true;
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && typeof resumeAgentList === 'function') resumeAgentList();
+            });
+            window.addEventListener('pageshow', function () {
+                if (typeof resumeAgentList === 'function') resumeAgentList();
+            });
+        }
 
-        // Auto-select agent from URL
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const urlParams = new URLSearchParams(window.location.search);
-                const agentId = urlParams.get('agent');
-                if (agentId && agentsData.length > 0) {
-                    const agent = agentsData.find(a => a.id == agentId);
-                    if (agent) selectAgent(agent);
-                }
-            }, 800); // Small delay to ensure agentsData is loaded
-        });
+        // Auto-select agent from URL — run immediately (the 'load' event never re-fires
+        // on AJAX nav). Small delay so agentsData is populated first.
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const agentId = urlParams.get('agent');
+            if (agentId && agentsData.length > 0) {
+                const agent = agentsData.find(a => a.id == agentId);
+                if (agent) selectAgent(agent);
+            }
+        }, 800);
 
         // Media Menu Logic
         function toggleMediaMenu(e, id) {
@@ -1454,7 +1479,10 @@
             document.querySelectorAll('.media-dropdown').forEach(d => d.classList.remove('show'));
         }
 
-        window.addEventListener('click', closeAllMenus);
+        if (!window.__teamClickBound) {
+            window.__teamClickBound = true;
+            window.addEventListener('click', closeAllMenus);
+        }
 
         function deleteTeamMessage(id) {
             if (!confirm('Are you sure you want to delete this message?')) return;
@@ -1477,8 +1505,8 @@
                 .catch(err => console.error('Delete error:', err));
         }
 
-        let isEditing = false;
-        let editingMessageId = null;
+        var isEditing = false;
+        var editingMessageId = null;
 
         function startEditMessage(id, text) {
             isEditing = true;

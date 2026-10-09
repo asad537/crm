@@ -664,21 +664,25 @@
 
 @section('scripts')
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
 
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3500,
-            timerProgressBar: true,
-            background: '#ffffff',
-            color: '#0f172a',
-            customClass: {
-                popup: 'animated-toast'
-            }
+        // var (not const) + lazy-load SweetAlert2: the CRM AJAX navigator skips
+        // <script src> and re-executes this inline script on each partial visit, so a
+        // top-level const/let would throw "already declared" and Swal would be missing.
+        var Toast;
+        loadScriptOnce('https://cdn.jsdelivr.net/npm/sweetalert2@11', function () {
+            Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3500,
+                timerProgressBar: true,
+                background: '#ffffff',
+                color: '#0f172a',
+                customClass: {
+                    popup: 'animated-toast'
+                }
+            });
         });
 
         function togglePassword(id, btn) {
@@ -718,7 +722,7 @@
             }
         }
 
-        let isVerified = false;
+        var isVerified = false;
 
         document.getElementById('userForm').addEventListener('submit', async function (e) {
 
@@ -824,7 +828,8 @@
 
         });
 
-        document.addEventListener('DOMContentLoaded', function () {
+        // Run immediately (not on DOMContentLoaded, which never re-fires on AJAX nav).
+        (function () {
 
             const email = document.getElementById('email_user');
             const password = document.getElementById('email_pass');
@@ -864,7 +869,7 @@
             updateStars();
             updateFacilityField();
 
-        });
+        })();
 
     </script>
 

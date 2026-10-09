@@ -38,4 +38,19 @@ class CrmProposal extends Model
     {
         return $this->belongsTo(CrmUser::class, 'created_by');
     }
+
+    /** Count proposal tickets visible in a user's Active pool. */
+    public static function activeTicketCountFor($user, $workspaceId): int
+    {
+        return static::withoutGlobalScopes()
+            ->where('workspace_id', (int) $workspaceId)
+            ->where('status', 'requested')
+            ->when(!$user->isAdmin(), function ($query) use ($user) {
+                $query->where(function ($visible) use ($user) {
+                    $visible->whereNull('assigned_designer_id')
+                        ->orWhere('assigned_designer_id', $user->id);
+                });
+            })
+            ->count();
+    }
 }

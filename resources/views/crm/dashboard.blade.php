@@ -1054,9 +1054,29 @@
 @endsection
 
 @section('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script>
+        // Lazy-load a script once (deduped by src). The CRM AJAX navigator skips
+        // <script src> tags on partial nav, so libraries must be injected from inline JS
+        // or they are undefined when the page is reached via a sidebar link.
+        window.loadScriptOnce = window.loadScriptOnce || function (src, cb) {
+            var existing = document.querySelector('script[data-lib-src="' + src + '"]');
+            if (existing) {
+                if (existing.dataset.loaded === '1') return cb();
+                return existing.addEventListener('load', cb);
+            }
+            var s = document.createElement('script');
+            s.src = src; s.dataset.libSrc = src;
+            s.addEventListener('load', function () { s.dataset.loaded = '1'; cb(); });
+            s.addEventListener('error', function () { console.error('Failed to load ' + src); });
+            document.body.appendChild(s);
+        };
+        window.loadCssOnce = window.loadCssOnce || function (href) {
+            if (document.querySelector('link[data-lib-href="' + href + '"]')) return;
+            var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.dataset.libHref = href;
+            document.head.appendChild(l);
+        };
+
+        function initDashboardCharts() {
         Chart.defaults.font.family = "'DM Sans', sans-serif";
         Chart.register(ChartDataLabels); // Register the plugin globally
 
@@ -1478,21 +1498,25 @@
                 .catch(err => console.error('Error fetching data:', err));
         }
 
-        // Auto Refresh Dashboard every 30 seconds
-        setInterval(() => {
+        // Auto Refresh Dashboard every 30 seconds (guard so repeat AJAX visits don't stack intervals)
+        if (window.__dashPoll) clearInterval(window.__dashPoll);
+        window.__dashPoll = setInterval(function () {
             const activeBtn = document.querySelector('.filter-btn.active');
             const range = activeBtn ? activeBtn.innerText.toLowerCase() : 'today';
             fetchData(range);
         }, 30000);
-    </script>
+        } // end initDashboardCharts
 
-    <!-- jsvectormap CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/maps/world.js"></script>
+        // Load Chart.js (+ datalabels) on demand, then build the charts.
+        if (document.getElementById('topBarChart')) {
+            loadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js', function () {
+                loadScriptOnce('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0', initDashboardCharts);
+            });
+        }
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        // World map: lazy-load jsvectormap (+ world data) then render immediately
+        // (runs on both full load and AJAX partial nav; no DOMContentLoaded dependency).
+        function initWorldMap() {
             if (document.getElementById('world-map')) {
                 new jsVectorMap({
                     selector: '#world-map',
@@ -1544,6 +1568,13 @@
                     }
                 });
             }
-        });
+        } // end initWorldMap
+
+        loadCssOnce('https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css');
+        if (document.getElementById('world-map')) {
+            loadScriptOnce('https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js', function () {
+                loadScriptOnce('https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/maps/world.js', initWorldMap);
+            });
+        }
     </script>
 @endsection

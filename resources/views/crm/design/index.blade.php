@@ -221,7 +221,9 @@ function dtpShow(ticketId, idx){
     document.querySelectorAll('.dtp-tab[data-t="'+ticketId+'"]').forEach(function(b){ b.classList.toggle('active', parseInt(b.dataset.i,10)===idx); });
     document.querySelectorAll('.dtp-pane[data-t="'+ticketId+'"]').forEach(function(p){ p.style.display = (parseInt(p.dataset.i,10)===idx) ? '' : 'none'; });
 }
-let designSearchTimer=null,designSearchController=null;
+// var (not let): the CRM AJAX navigator re-executes this inline script on each
+// partial visit; a top-level let/const would throw "already declared" and abort it.
+var designSearchTimer=null,designSearchController=null;
 function loadDesignTickets(url=null){
     const form=document.getElementById('designTicketSearchForm');
     if(!form)return;
@@ -244,20 +246,25 @@ function loadDesignTickets(url=null){
         })
         .catch(error=>{if(error.name!=='AbortError')console.error(error)});
 }
-document.addEventListener('input',event=>{
-    if(event.target.id!=='designTicketSearch')return;
-    clearTimeout(designSearchTimer);
-    designSearchTimer=setTimeout(()=>loadDesignTickets(),300);
-});
-document.addEventListener('submit',event=>{
-    if(event.target.id!=='designTicketSearchForm')return;
-    event.preventDefault();
-    loadDesignTickets();
-});
-document.addEventListener('click',event=>{
-    const link=event.target.closest('#designTicketResults .pagination a');
-    if(link){event.preventDefault();loadDesignTickets(link.href)}
-});
+// Bind these document-level listeners only once (they are delegated and reference
+// global state), so repeat AJAX visits don't stack duplicate handlers.
+if(!window.__designNavBound){
+    window.__designNavBound=true;
+    document.addEventListener('input',event=>{
+        if(event.target.id!=='designTicketSearch')return;
+        clearTimeout(designSearchTimer);
+        designSearchTimer=setTimeout(()=>loadDesignTickets(),300);
+    });
+    document.addEventListener('submit',event=>{
+        if(event.target.id!=='designTicketSearchForm')return;
+        event.preventDefault();
+        loadDesignTickets();
+    });
+    document.addEventListener('click',event=>{
+        const link=event.target.closest('#designTicketResults .pagination a');
+        if(link){event.preventDefault();loadDesignTickets(link.href)}
+    });
+}
 @if(request()->filled('open_ticket'))
 (function(){var id={{ (int) request('open_ticket') }};if(document.getElementById('ticketDetail'+id))openTicketDetail(id)})();
 @endif
