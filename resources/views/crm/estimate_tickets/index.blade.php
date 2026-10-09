@@ -25,10 +25,11 @@
 @empty<tr><td colspan="7" style="text-align:center;padding:4rem;color:#94a3b8"><i class="fas fa-calculator" style="font-size:2.5rem;display:block;margin-bottom:1rem"></i>No estimate tickets yet.</td></tr>@endforelse
 </tbody></table></div><div style="padding:1rem">{{ $tickets->appends(request()->query())->links() }}</div></div>
 <script>
-let estimateSearchTimer=null,estimateSearchController=null;
+// var (not let): re-executed on each AJAX partial visit; top-level let/const would crash.
+var estimateSearchTimer=null,estimateSearchController=null;
 function loadEstimateTickets(url=null){const form=document.getElementById('estimateFilterForm'),params=new URLSearchParams(new FormData(form)),targetUrl=url||(`${window.location.pathname}?${params.toString()}`);if(estimateSearchController)estimateSearchController.abort();estimateSearchController=new AbortController();document.getElementById('ticketLoading').style.display='flex';fetch(targetUrl,{headers:{'X-Requested-With':'XMLHttpRequest'},signal:estimateSearchController.signal}).then(r=>r.text()).then(html=>{const doc=new DOMParser().parseFromString(html,'text/html'),fresh=doc.getElementById('ticketResults');if(fresh){document.getElementById('ticketResults').innerHTML=fresh.innerHTML;window.history.replaceState({},'',targetUrl)}}).catch(error=>{if(error.name!=='AbortError')console.error(error)}).finally(()=>{const loader=document.getElementById('ticketLoading');if(loader)loader.style.display='none'})}
 document.getElementById('estimateSearch').addEventListener('input',()=>{clearTimeout(estimateSearchTimer);estimateSearchTimer=setTimeout(()=>loadEstimateTickets(),300)});
 document.getElementById('estimateFilterForm').addEventListener('submit',event=>{event.preventDefault();loadEstimateTickets()});
-document.addEventListener('click',event=>{const link=event.target.closest('#ticketResults .pagination a');if(link){event.preventDefault();loadEstimateTickets(link.href)}});
+if(!window.__etPagerBound){window.__etPagerBound=true;document.addEventListener('click',event=>{const link=event.target.closest('#ticketResults .pagination a');if(link){event.preventDefault();loadEstimateTickets(link.href)}});}
 </script>
 @endsection

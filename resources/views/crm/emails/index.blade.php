@@ -818,8 +818,10 @@
         }
 
         // Bulk Selection Logic
-        const bulkBar = document.getElementById('bulkActionBar');
-        const countDisplay = document.getElementById('selectedCount');
+        // var (not const): the CRM AJAX navigator re-executes this inline script on each
+        // partial visit; top-level let/const would throw "already declared" and abort it.
+        var bulkBar = document.getElementById('bulkActionBar');
+        var countDisplay = document.getElementById('selectedCount');
 
         function updateBulkBar() {
             const selected = document.querySelectorAll('.email-checkbox:checked');
@@ -870,9 +872,9 @@
         }
 
         // Live Search & Filter AJAX
-        let filterTimeout = null;
-        let inboxFilterController = null;
-        let inboxFilterRequestId = 0;
+        var filterTimeout = null;
+        var inboxFilterController = null;
+        var inboxFilterRequestId = 0;
 
         function applyFilters() {
             const form = document.getElementById('inboxFilterForm');
@@ -948,8 +950,9 @@
             });
         }
 
+        // Runs immediately each visit (DOMContentLoaded never re-fires on AJAX nav, and
+        // calling it here + on DOMContentLoaded would double-bind on a full load).
         bindInboxFilters();
-        document.addEventListener('DOMContentLoaded', bindInboxFilters);
 
         function applyBulkAssign() {
             const userSelect = document.getElementById('bulkAssignUser');

@@ -2265,12 +2265,13 @@
                                 <textarea name="message_body" id="message_body" rows="6" placeholder="Type your message..." style="width: 100%; border: none; outline: none; padding: 0.5rem; font-family: inherit; font-size: 1rem; color: #1e293b; box-sizing: border-box;">{{ $__isFollowUp ? $__followUpTemplate : '' }}</textarea>
                                 @if($__isFollowUp)
                                 <script>
-                                    document.addEventListener('DOMContentLoaded', function () {
+                                    // Run immediately — reached via AJAX nav (follow-up), where DOMContentLoaded won't fire.
+                                    (function () {
                                         var c = document.getElementById('chat-composer');
                                         var t = document.getElementById('message_body');
                                         if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                         if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
-                                    });
+                                    })();
                                 </script>
                                 @endif
                                 
@@ -2967,10 +2968,12 @@
                 </div>
             </div>
             <script>
-                let lastMessageId = {{ $email->messages->last() ? $email->messages->last()->id : 0 }};
-                let lastDisplayedDateStr = "{{ $email->messages->last() ? $email->messages->last()->created_at->format('M j, Y') : '' }}";
-                const chatHistory = document.getElementById('chat-history');
-                let pendingEmailForm = null;
+                // var (not let/const): the CRM AJAX navigator re-executes this inline script
+                // on each partial visit; top-level let/const would throw "already declared".
+                var lastMessageId = {{ $email->messages->last() ? $email->messages->last()->id : 0 }};
+                var lastDisplayedDateStr = "{{ $email->messages->last() ? $email->messages->last()->created_at->format('M j, Y') : '' }}";
+                var chatHistory = document.getElementById('chat-history');
+                var pendingEmailForm = null;
 
                 function scrollToBottom() {
                     chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -3077,8 +3080,13 @@
                     scrollToBottom();
                 }
 
-                let emailMessageFetchRunning = false;
+                var emailMessageFetchRunning = false;
                 function fetchNewMessages() {
+                    // Navigated away (chat history gone): stop the 3s message poll.
+                    if (!document.getElementById('chat-history')) {
+                        if (window.__emailMsgPoll) { clearInterval(window.__emailMsgPoll); window.__emailMsgPoll = null; }
+                        return;
+                    }
                     if (emailMessageFetchRunning || document.hidden) return;
                     emailMessageFetchRunning = true;
                     fetch(`{{ route('crm.messages.fetch', $email->id) }}?last_id=${lastMessageId}`, {
@@ -3319,17 +3327,21 @@
                     window.addEventListener('dragend', () => overlay.classList.remove('active'), true);
                 };
 
-                // Initial Scroll
-                document.addEventListener('DOMContentLoaded', function () {
-                    scrollToBottom();
-                    window.setupReplyDropZone(document.getElementById('replyDropZone'));
-                    window.setupReplyDropOverlay();
-                    fetchNewMessages();
-                    setInterval(fetchNewMessages, 3000);
+                // Initial setup — run immediately (DOMContentLoaded never re-fires on AJAX
+                // partial nav, which would leave the conversation with no scroll, no drop
+                // zone and no message polling).
+                scrollToBottom();
+                window.setupReplyDropZone(document.getElementById('replyDropZone'));
+                window.setupReplyDropOverlay();
+                fetchNewMessages();
+                if (window.__emailMsgPoll) clearInterval(window.__emailMsgPoll);
+                window.__emailMsgPoll = setInterval(fetchNewMessages, 3000);
+                if (!window.__emailVisBound) {
+                    window.__emailVisBound = true;
                     document.addEventListener('visibilitychange', function () {
                         if (!document.hidden) fetchNewMessages();
                     });
-                });
+                }
             </script>
 
             {{-- ===== MESSAGE TO AGENT (internal notes) — themed to the workspace primary color ===== --}}
@@ -3541,14 +3553,15 @@
         </div>
 
         <script>
-            const emailId = {{ $email->id }};
-            const assignableUsersUrl = '{{ route("crm.emails.assignable_users") }}';
-            const assignUrl = '{{ route("crm.emails.assign", $email->id) }}';
-            const logsUrl = '{{ route("crm.emails.assignment_logs", $email->id) }}';
-            const csrfTokenAssign = '{{ csrf_token() }}';
-            let logsLoaded = false;
+            // var (not let/const): re-executed on each AJAX partial visit.
+            var emailId = {{ $email->id }};
+            var assignableUsersUrl = '{{ route("crm.emails.assignable_users") }}';
+            var assignUrl = '{{ route("crm.emails.assign", $email->id) }}';
+            var logsUrl = '{{ route("crm.emails.assignment_logs", $email->id) }}';
+            var csrfTokenAssign = '{{ csrf_token() }}';
+            var logsLoaded = false;
 
-            let allAssignableUsers = @json($assignableUsers ?? []);
+            var allAssignableUsers = @json($assignableUsers ?? []);
 
             function openAssignModal() {
                 document.getElementById('assignModal').style.display = 'flex';
