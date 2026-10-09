@@ -328,13 +328,12 @@
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { clearTimeout(timer); }
         });
-        // Keep the cursor at the end of the search box after the page reloads with a value.
-        window.addEventListener('DOMContentLoaded', function () {
-            if (input.value) {
-                input.focus();
-                var v = input.value; input.value = ''; input.value = v;
-            }
-        });
+        // Keep the cursor at the end of the search box (run now — DOMContentLoaded does
+        // not re-fire on AJAX partial nav; this IIFE already runs after the DOM is ready).
+        if (input.value) {
+            input.focus();
+            var v = input.value; input.value = ''; input.value = v;
+        }
     })();
 </script>
 @endsection

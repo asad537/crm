@@ -1887,8 +1887,9 @@ function applyAdvancedEstToCosting() {
     alert('Applied to Costing Table:\nPaper ' + data.currencySymbol + ' ' + stripZeros(data.paperCost, 2) + '   ·   Printing ' + data.currencySymbol + ' ' + stripZeros(data.printingCost, 2) + '   ·   CTP Plate ' + data.currencySymbol + ' ' + stripZeros(data.plateCost, 2) + '\nFinishing/Tooling: ' + matchedCount + ' pasted into existing rows, ' + createdCount + ' new row(s) added.');
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+// Run immediately — DOMContentLoaded never re-fires on AJAX partial nav.
+(function() {
     onCurrencyChange();
     calculateAdvancedEst();
-});
+})();
 </script>

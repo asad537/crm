@@ -484,7 +484,7 @@
                             if (totalDisplay) totalDisplay.innerText = totalPrice.toFixed(2);
                         }
                         
-                        document.addEventListener('DOMContentLoaded', calculateTotal);
+                        calculateTotal(); // run immediately (DOMContentLoaded does not re-fire on AJAX nav)
                     </script>
                 </div>
 

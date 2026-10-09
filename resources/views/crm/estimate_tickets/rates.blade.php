@@ -831,12 +831,13 @@ function rmReloadKeepingTab(tab) {
     try { sessionStorage.setItem('rm_active_tab', tab); } catch(e){}
     window.location.reload();
 }
-document.addEventListener('DOMContentLoaded', function(){
+// Run immediately — DOMContentLoaded never re-fires on AJAX partial nav.
+(function(){
     try {
         var t = sessionStorage.getItem('rm_active_tab');
         if (t && t !== 'paper') switchPageTab(t);
     } catch(e){}
-});
+})();
 
 function openRmAddModal(type) {
     document.getElementById('rm_add_type').value = type;
@@ -965,7 +966,7 @@ function rmLoadLiveRates() {
         })
         .catch(function(){ /* keep fallback rates */ });
 }
-document.addEventListener('DOMContentLoaded', rmLoadLiveRates);
+rmLoadLiveRates(); // run immediately (DOMContentLoaded does not re-fire on AJAX nav)
 
 function rmConvertRate(selectEl, rateInputId) {
     var rateInput = document.getElementById(rateInputId);

@@ -327,7 +327,7 @@
     }
 
     @if(session('open_ticket'))
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         var ticketId = {{ session('open_ticket') }};
         var panel = document.getElementById('prepressTicket' + ticketId);
         if(panel) {
@@ -335,7 +335,7 @@
             if(btn) btn.click();
             panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    });
+    })();
     @endif
 </script>
 @endsection

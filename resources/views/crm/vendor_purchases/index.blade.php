@@ -472,14 +472,17 @@
 <script>
 // Whole-row click opens the vendor/purchase, but ignore clicks on interactive controls
 // (links, buttons, inputs, delete/payment forms) and on text selections.
-document.addEventListener('click', function (event) {
-    var row = event.target.closest('.vp-row-link');
-    if (!row || !row.dataset.href) return;
-    if (event.target.closest('a, button, input, select, textarea, label, form')) return;
-    if (window.getSelection && String(window.getSelection())) return;
-    if (event.metaKey || event.ctrlKey) { window.open(row.dataset.href, '_blank'); return; }
-    window.location = row.dataset.href;
-});
+if (!window.__vpRowClickBound) {
+    window.__vpRowClickBound = true;
+    document.addEventListener('click', function (event) {
+        var row = event.target.closest('.vp-row-link');
+        if (!row || !row.dataset.href) return;
+        if (event.target.closest('a, button, input, select, textarea, label, form')) return;
+        if (window.getSelection && String(window.getSelection())) return;
+        if (event.metaKey || event.ctrlKey) { window.open(row.dataset.href, '_blank'); return; }
+        window.location = row.dataset.href;
+    });
+}
 function initVendorExpenseCharts() {
     if (typeof Chart === 'undefined') return;
     (window.vendorExpenseCharts || []).forEach(function (chart) { chart.destroy(); });

@@ -367,7 +367,8 @@
         </form>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        // Run immediately — DOMContentLoaded never re-fires on AJAX partial nav.
+        (function () {
             var roleSelect = document.getElementById('roleSelect');
             var facilityField = document.getElementById('facilityField');
             var facilitySelect = document.getElementById('facilitySelect');
@@ -383,6 +384,6 @@
 
             roleSelect.addEventListener('change', updateFacilityField);
             updateFacilityField();
-        });
+        })();
     </script>
 @endsection

@@ -173,6 +173,7 @@ function vtCalc(){
     document.getElementById('vtGstAmt').textContent=f(gstAmt);
     document.getElementById('vtTotal').textContent=f(total);
 }
-document.addEventListener('DOMContentLoaded',function(){ vtAddItem(); vtVendorChanged(); });
+// Run immediately — DOMContentLoaded never re-fires on AJAX nav (would leave no item row).
+vtAddItem(); vtVendorChanged();
 </script>
 @endsection
