@@ -1001,7 +1001,7 @@
             @if($__isSalesRole)
             <a href="{{ route('crm.chats.index') }}"
                 class="nav-item {{ request()->routeIs('crm.chats.*') ? 'active' : '' }}">
-                <i class="fas fa-comments"></i> Chats
+                <i class="fas fa-envelope"></i> Mail
                 <span class="nav-right">
                     @if($__chatUnreadCount > 0)
                         <span class="nav-count">{{ $__chatUnreadCount }}</span>

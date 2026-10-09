@@ -1,861 +1,805 @@
 @extends('crm.layout')
-@section('title', 'Live Chat Center')
+@section('title', 'Mail')
 
 @section('styles')
-    /* Full height layout adjustment */
-    .main-area { padding: 0 !important; overflow: hidden !important; background: #fff; display: flex; flex-direction:
-    column; }
-    .top-bar {
-    display: none !important;
-    }
+    /* ===== Outlook-style 3-pane mail client (converted Live Chat page) ===== */
+    .main-area { padding: 0 !important; overflow: hidden !important; background: #fff; display: flex; flex-direction: column; }
+    .top-bar { display: none !important; }
 
-    .chat-container {
-    display: flex;
-    height: 100vh;
-    width: 100%;
-    background: white;
-    }
+    .mail-app { display: grid; grid-template-columns: 250px 380px minmax(0, 1fr); height: 100vh; width: 100%; background: #fff; }
 
-    /* Left Sidebar: Contact List */
-    .chat-list-sidebar {
-    width: 380px;
-    border-right: 1px solid #f1f5f9;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    flex-shrink: 0;
-    }
+    /* ---- Left: accounts + folders ---- */
+    .mail-nav { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #eef1f6; background: #fafbfd; }
+    .mail-nav-head { display: flex; align-items: center; gap: 10px; padding: 1.1rem 1rem .8rem; }
+    .mail-nav-head h2 { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
+    .mail-nav-head h2 i { color: var(--primary-purple); }
+    .mail-nav-scroll { flex: 1; overflow-y: auto; padding: 0 .6rem 1rem; }
+    .mail-section-title { display: flex; align-items: center; justify-content: space-between; padding: .9rem .5rem .35rem; font-size: .66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #8a94a6; }
+    .mail-section-title button { border: 0; background: transparent; color: var(--primary-purple); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+    .mail-section-title button:hover { background: var(--primary-soft); }
+    .mail-nav-item { display: flex; align-items: center; gap: 10px; padding: .55rem .6rem; border-radius: 9px; cursor: pointer; color: #334155; font-size: .84rem; font-weight: 600; user-select: none; position: relative; }
+    .mail-nav-item:hover { background: #eef1f7; }
+    .mail-nav-item.active { background: var(--primary-soft); color: var(--primary-purple); }
+    .mail-nav-item i.fa-fw { width: 18px; text-align: center; color: #94a3b8; font-size: .85rem; }
+    .mail-nav-item.active i.fa-fw { color: var(--primary-purple); }
+    .mail-nav-item .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-nav-item .count { font-size: .68rem; font-weight: 800; color: #64748b; background: #e9edf4; border-radius: 99px; padding: 1px 7px; }
+    .mail-nav-item.active .count { background: #fff; color: var(--primary-purple); }
+    .mail-nav-item.disabled { opacity: .45; cursor: not-allowed; }
+    .mail-acc-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; }
+    .mail-acc-sub { display: block; font-size: .68rem; color: #94a3b8; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-acc-menu { display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); gap: 2px; }
+    .mail-nav-item:hover .mail-acc-menu { display: flex; }
+    .mail-acc-menu button { width: 24px; height: 24px; border: 0; border-radius: 6px; background: #fff; color: #64748b; cursor: pointer; font-size: .7rem; box-shadow: 0 1px 2px rgba(15,23,42,.1); }
+    .mail-acc-menu button:hover { color: var(--primary-purple); }
+    .mail-acc-menu button.danger:hover { color: #dc2626; }
+    .mail-acc-err { position: absolute; right: 8px; top: 8px; color: #dc2626; font-size: .7rem; }
+    .mail-add-btn { width: 100%; margin-top: .35rem; display: flex; align-items: center; justify-content: center; gap: 8px; padding: .6rem; border: 1.5px dashed #cbd5e1; border-radius: 10px; background: #fff; color: #475569; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+    .mail-add-btn:hover { border-color: var(--primary-purple); color: var(--primary-purple); }
+    .mail-nav-foot { padding: .6rem .8rem; border-top: 1px solid #eef1f6; display: flex; align-items: center; justify-content: space-between; font-size: .72rem; color: #94a3b8; }
+    .mail-nav-foot button { border: 0; background: transparent; color: var(--primary-purple); font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer; }
 
-    .chat-list-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #f1f5f9;
-    }
-
-    .chat-list-header h2 {
-    margin: 0 0 1rem 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1e293b;
-    }
-
-    .search-chat {
-    background: #f1f5f9;
-    border-radius: 10px;
-    padding: 0.6rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    }
-
-    .search-chat input {
-    border: none;
-    background: none;
-    outline: none;
-    width: 100%;
-    font-size: 0.9rem;
-    }
-
-    .chat-list-items {
-    flex: 1;
-    overflow-y: auto;
-    }
-
-    .chat-item {
-    padding: 1.2rem 1.5rem;
-    border-bottom: 1px solid #f8fafc;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    }
-
-    .chat-item:hover { background: #f8fafcb3; }
-    .chat-item.active { background: #f0f3ff; border-right: 3px solid var(--primary-purple); }
-
-    .chat-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 14px;
-    background: #ecf0ff;
-    color: var(--primary-purple);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    flex-shrink: 0;
-    font-size: 1.1rem;
-    }
-
+    /* ---- Middle: conversation list ---- */
+    .mail-list { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #eef1f6; background: #fff; }
+    .mail-list-head { padding: 1rem 1rem .7rem; border-bottom: 1px solid #f1f5f9; }
+    .mail-list-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: .7rem; }
+    .mail-list-title h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-dark); }
+    .mail-list-title small { display: block; font-size: .7rem; color: #94a3b8; font-weight: 500; }
+    .mail-list-title .icon-btn { width: 32px; height: 32px; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; color: #64748b; cursor: pointer; }
+    .mail-list-title .icon-btn:hover { color: var(--primary-purple); border-color: var(--primary-purple); }
+    .search-chat { background: #f1f5f9; border-radius: 10px; padding: .55rem .9rem; display: flex; align-items: center; gap: .5rem; }
+    .search-chat input { border: none; background: none; outline: none; width: 100%; font-size: .86rem; }
+    .chat-list-items { flex: 1; overflow-y: auto; }
+    .chat-item { padding: .85rem 1rem; border-bottom: 1px solid #f3f5f9; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: background .15s; position: relative; }
+    .chat-item:hover { background: #f8fafc; }
+    .chat-item.active { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary-purple); }
+    .chat-item.unread .chat-name, .chat-item.unread .chat-subject { font-weight: 800; color: #0f172a; }
+    .chat-item.unread::before { content: ""; position: absolute; left: 6px; top: 1.25rem; width: 7px; height: 7px; border-radius: 50%; background: var(--primary-purple); }
+    .chat-avatar { width: 40px; height: 40px; border-radius: 11px; background: #ecf0ff; color: var(--primary-purple); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; font-size: .9rem; }
     .chat-info { flex: 1; min-width: 0; }
-    .chat-name { font-weight: 600; color: #1e293b; font-size: 0.95rem; margin-bottom: 2px; display: block; }
-    .chat-product { font-size: 0.75rem; color: var(--primary-purple); font-weight: 700; text-transform: uppercase; margin-bottom: 4px;
-    display: block; }
-    .chat-last-msg { font-size: 0.85rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    display: block; }
-    .chat-meta { text-align: right; min-width: 95px; }
-    .chat-time { font-size: 0.75rem; color: #94a3b8; white-space: nowrap; }
-    .chat-badge {
-    background: #ef4444; color: white; border-radius: 99px;
-    font-size: 0.7rem; padding: 2px 8px; font-weight: 700;
-    margin-top: 6px; display: inline-block;
-    }
+    .chat-row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .chat-name { font-weight: 600; color: #1e293b; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-time { font-size: .68rem; color: #94a3b8; white-space: nowrap; }
+    .chat-subject { font-size: .78rem; color: #334155; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-snippet { font-size: .74rem; color: #8a94a6; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    .chat-acc-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 140px; font-size: .62rem; font-weight: 700; color: #64748b; background: #f1f5f9; border-radius: 99px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-badge { background: var(--primary-purple); color: #fff; border-radius: 99px; font-size: .64rem; padding: 1px 7px; font-weight: 800; margin-left: 6px; }
+    .chat-list-empty { padding: 2.5rem 1.5rem; text-align: center; color: #94a3b8; font-size: .85rem; }
+    .chat-list-empty i { display: block; font-size: 2rem; opacity: .35; margin-bottom: .6rem; }
 
-    /* Right Side: Chat Window */
-    .chat-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: #f8fafc;
-    position: relative;
-    }
-
-    .chat-header {
-    padding: 1rem 2rem;
-    background: white;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 75px;
-    z-index: 10;
-    }
-
-    .chat-messages-container {
-    flex: 1;
-    padding: 2rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    scroll-behavior: smooth;
-    }
-
-    .chat-input-area {
-    padding: 1.2rem 2rem;
-    background: white;
-    border-top: 1px solid #f1f5f9;
-    }
-
-    .chat-input-wrapper {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    background: #f1f5f9;
-    padding: 0.5rem 1rem;
-    border-radius: 12px;
-    }
-
-    .email-copy-fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-    }
-
-    .email-copy-field {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 0.55rem 0.75rem;
-    }
-
-    .email-copy-field label {
-    color: #475569;
-    font-size: 0.8rem;
-    font-weight: 700;
-    }
-
-    .email-copy-field input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    background: transparent;
-    outline: none;
-    color: #1e293b;
-    font: inherit;
-    font-size: 0.82rem;
-    }
-
-    .chat-input-wrapper textarea {
-    flex: 1;
-    border: none;
-    background: none;
-    outline: none;
-    padding: 0.5rem 0;
-    resize: none;
-    font-family: inherit;
-    font-size: 0.95rem;
-    max-height: 100px;
-    }
-
-    .send-btn {
-    background: var(--primary-purple);
-    color: white;
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border: none;
-    transition: transform 0.2s;
-    }
-    .send-btn:hover { transform: scale(1.05); background: var(--primary-purple); }
-
+    /* ---- Right: reading pane ---- */
+    .chat-main { display: flex; flex-direction: column; min-width: 0; background: #f8fafc; position: relative; }
+    .chat-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #94a3b8; padding: 2rem; text-align: center; }
+    .chat-empty i { font-size: 4rem; opacity: .25; margin-bottom: 1.2rem; }
+    .chat-empty h3 { margin: 0 0 .4rem; color: #64748b; }
+    .chat-header { padding: .8rem 1.4rem; background: #fff; border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: space-between; gap: 1rem; z-index: 10; }
+    .chat-header .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .chat-header .who .chat-avatar { width: 42px; height: 42px; }
+    .chat-header .meta { min-width: 0; }
+    .chat-header .meta .chat-name { font-size: .95rem; font-weight: 800; }
+    .chat-header .meta .sub { font-size: .74rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .reader-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .reader-btn { display: inline-flex; align-items: center; gap: 6px; padding: .5rem .8rem; border: 1px solid #e5e9f0; border-radius: 9px; background: #fff; color: #475569; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; }
+    .reader-btn:hover { border-color: var(--primary-purple); color: var(--primary-purple); }
+    .reader-btn.primary { background: var(--primary-purple); border-color: var(--primary-purple); color: #fff; }
+    .reader-btn.primary:hover { background: var(--primary-hover); color: #fff; }
+    #mobileBackBtn { display: none; background: none; border: none; color: #64748b; font-size: 1.1rem; cursor: pointer; padding: 0 6px 0 0; }
+    .chat-messages-container { flex: 1; padding: 1.5rem 1.8rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem; scroll-behavior: smooth; }
     .msg-row { display: flex; flex-direction: column; width: 100%; }
-    .msg-bubble {
-    max-width: 75%;
-    padding: 0.85rem 1.1rem;
-    border-radius: 14px;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    position: relative;
-    }
-    .msg-bubble > *:first-child { margin-top: 0; }
-    .msg-bubble > *:last-child { margin-bottom: 0; }
-    .msg-bubble p { margin-top: 0; margin-bottom: 0; }
+    .msg-bubble { max-width: 78%; padding: .85rem 1.1rem; border-radius: 14px; font-size: .92rem; line-height: 1.55; position: relative; overflow-wrap: anywhere; }
+    .msg-bubble > *:first-child { margin-top: 0; } .msg-bubble > *:last-child { margin-bottom: 0; } .msg-bubble p { margin: 0; }
+    .msg-bubble img { max-width: 100%; height: auto; }
+    .msg-admin { align-self: flex-end; background: linear-gradient(135deg, color-mix(in srgb, var(--primary-purple) 16%, #fff), color-mix(in srgb, var(--primary-purple) 30%, #fff)); color: #273449; border: 1px solid color-mix(in srgb, var(--primary-purple) 22%, #fff); border-bottom-right-radius: 4px; }
+    .msg-client { align-self: flex-start; background: #fff; color: #1e293b; border: 1px solid #eef1f6; border-bottom-left-radius: 4px; box-shadow: 0 2px 6px rgba(15,23,42,.04); }
+    .msg-time { font-size: .68rem; margin-top: 4px; color: #94a3b8; }
 
-    .msg-admin {
-    align-self: flex-end;
-    background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--primary-purple) 20%, #fff) 0%,
-        color-mix(in srgb, var(--primary-purple) 34%, #fff) 100%
-    );
-    color: #273449;
-    border: 1px solid color-mix(in srgb, var(--primary-purple) 22%, #fff);
-    border-bottom-right-radius: 4px;
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--primary-shadow) 60%, transparent);
-    }
+    /* composer */
+    .chat-input-area { padding: .9rem 1.4rem 1rem; background: #fff; border-top: 1px solid #eef1f6; position: relative; }
+    .composer-box { border: 1.5px solid #e2e8f0; border-radius: 14px; background: #fff; overflow: hidden; }
+    .composer-box:focus-within { border-color: var(--primary-purple); box-shadow: 0 0 0 3px var(--primary-shadow); }
+    .composer-box textarea { width: 100%; min-height: 110px; border: 0; outline: 0; resize: vertical; padding: .9rem 1rem; font: inherit; font-size: .92rem; color: #1e293b; box-sizing: border-box; }
+    .composer-box .tox-tinymce { border: 0 !important; border-radius: 0 !important; }
+    .composer-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: .55rem .75rem; border-top: 1px solid #f1f5f9; background: #fbfcfe; }
+    .composer-bar .left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .chat-attach-button { display: inline-flex; align-items: center; gap: 6px; padding: .45rem .7rem; border-radius: 8px; color: #475569; font-size: .78rem; font-weight: 700; cursor: pointer; }
+    .chat-attach-button:hover { background: #eef1f7; color: var(--primary-purple); }
+    .composer-to { font-size: .72rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .composer-to strong { color: #475569; }
+    .send-btn { display: inline-flex; align-items: center; gap: 8px; padding: .55rem 1.1rem; border: 0; border-radius: 9px; background: var(--primary-purple); color: #fff; font: inherit; font-size: .82rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 14px var(--primary-shadow); }
+    .send-btn:hover { background: var(--primary-hover); }
+    .send-btn:disabled { opacity: .6; cursor: default; }
+    #attachment-tray { display: none; gap: 8px; flex-wrap: wrap; padding: .6rem .75rem 0; }
+    .attachment-chip { display: flex; align-items: center; gap: 9px; max-width: 260px; padding: 7px 8px 7px 10px; background: #fff; border: 1px solid #dbe3ef; border-radius: 10px; box-shadow: 0 2px 5px rgba(15,23,42,.06); }
+    .attachment-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; font-weight: 700; color: #334155; }
+    .attachment-chip-open { display: flex; min-width: 0; flex: 1; align-items: center; gap: 9px; color: inherit; text-decoration: none; cursor: pointer; }
+    .attachment-chip-open:hover .attachment-chip-name { color: var(--primary-purple); text-decoration: underline; }
+    .attachment-chip-preview { width: 32px; height: 32px; flex: 0 0 32px; object-fit: cover; border-radius: 7px; border: 1px solid #e2e8f0; }
+    .attachment-chip-remove { flex: 0 0 24px; width: 24px; height: 24px; padding: 0; border: none; border-radius: 7px; background: #fef2f2; color: #dc2626; cursor: pointer; }
+    .reply-drop-overlay { position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; border: 2px dashed var(--primary-purple); border-radius: 12px; background: rgba(238,242,255,.96); color: var(--primary-purple); font-weight: 800; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s ease; }
+    .reply-drop-overlay.active { opacity: 1; visibility: visible; pointer-events: auto; }
+    .admin-readonly { text-align: center; color: #94a3b8; padding: .8rem; font-size: .82rem; }
 
-    .msg-client {
-    align-self: flex-start;
-    background: white;
-    color: #1e293b;
-    border-bottom-left-radius: 4px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    }
+    /* ---- Modals (email meta + account) ---- */
+    .mm-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 99999; align-items: center; justify-content: center; padding: 20px; }
+    .mm-backdrop.open { display: flex; }
+    .mm-dialog { width: 100%; max-width: 560px; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(15,23,42,.25); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column; }
+    .mm-dialog.wide { max-width: 640px; }
+    .mm-head { padding: 16px 22px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+    .mm-head h4 { margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a; }
+    .mm-head button { border: none; background: none; font-size: 1.1rem; color: #94a3b8; cursor: pointer; }
+    .mm-body { padding: 18px 22px; overflow-y: auto; }
+    .mm-foot { padding: 14px 22px 18px; display: flex; gap: 10px; justify-content: flex-end; align-items: center; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+    .mm-grid { display: grid; gap: 12px; }
+    .mm-grid.two { grid-template-columns: 1fr 1fr; }
+    .mm-field label { display: block; font-size: .78rem; font-weight: 700; color: #475569; margin-bottom: 5px; }
+    .mm-field input, .mm-field select, .mm-field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 12px; font: inherit; font-size: .88rem; outline: none; box-sizing: border-box; background: #fff; }
+    .mm-field input:focus, .mm-field select:focus { border-color: var(--primary-purple); box-shadow: 0 0 0 3px var(--primary-shadow); }
+    .mm-hint { font-size: .72rem; color: #94a3b8; margin-top: 4px; }
+    .mm-btn { border: 1px solid #cbd5e1; background: #fff; color: #475569; border-radius: 10px; padding: 9px 15px; font: inherit; font-weight: 700; cursor: pointer; }
+    .mm-btn.primary { border-color: var(--primary-purple); background: var(--primary-purple); color: #fff; font-weight: 800; }
+    .mm-btn:disabled { opacity: .6; cursor: default; }
+    .mm-status { flex: 1; font-size: .76rem; font-weight: 700; }
+    .mm-status.ok { color: #047857; } .mm-status.err { color: #b91c1c; }
+    .mm-toggle { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: #475569; font-weight: 600; cursor: pointer; }
+    .mm-adv { font-size: .76rem; color: var(--primary-purple); font-weight: 800; cursor: pointer; border: 0; background: none; padding: 0; }
+    .mm-test { font-size: .75rem; margin-top: 4px; }
+    .mm-test .ok { color: #047857; } .mm-test .err { color: #b91c1c; }
 
-    .msg-time { font-size: 0.7rem; margin-top: 5px; color: #94a3b8; }
-    .msg-admin .msg-time { color: #64748b; opacity: 0.9; }
-
-    /* Empty State */
-    .chat-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #94a3b8;
-    padding: 2rem;
-    text-align: center;
-    }
-    .chat-empty i { font-size: 4rem; opacity: 0.3; margin-bottom: 1.5rem; }
-
-    /* Responsive */
+    /* ---- Responsive ---- */
+    @media (max-width: 1200px) { .mail-app { grid-template-columns: 220px 330px minmax(0,1fr); } }
     @media (max-width: 1024px) {
-    .chat-list-sidebar { width: 300px; }
+        .mail-app { grid-template-columns: 320px minmax(0,1fr); }
+        .mail-nav { position: fixed; top: 0; left: 0; bottom: 0; width: 270px; z-index: 1200; transform: translateX(-100%); transition: transform .2s; box-shadow: 0 0 40px rgba(15,23,42,.2); }
+        .mail-app.nav-open .mail-nav { transform: none; }
+        .mail-nav-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 1199; }
+        .mail-app.nav-open .mail-nav-backdrop { display: block; }
+        .nav-toggle-btn { display: inline-flex !important; }
     }
-
     @media (max-width: 768px) {
-    .chat-container { height: 100vh; }
-
-    .chat-list-sidebar {
-    width: 100%;
-    display: flex;
+        .mail-app { grid-template-columns: 1fr; height: 100vh; }
+        .chat-main { position: fixed; inset: 0; z-index: 1000; display: none; }
+        .mail-app.chat-active .mail-list { display: none; }
+        .mail-app.chat-active .chat-main { display: flex; }
+        #mobileBackBtn { display: inline-flex !important; }
+        .chat-header { padding: .7rem .9rem; }
+        .chat-messages-container { padding: 1rem; gap: .8rem; }
+        .chat-input-area { padding: .7rem .9rem .8rem; }
+        .mm-grid.two { grid-template-columns: 1fr; }
+        .reader-btn .txt { display: none; }
     }
-
-    .chat-main {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    z-index: 1000;
-    display: none;
-    }
-
-    .chat-container.chat-active .chat-list-sidebar { display: none; }
-    .chat-container.chat-active .chat-main { display: flex; }
-
-    .chat-header { padding: 1rem; height: auto; min-height: 65px; }
-    .chat-messages-container { padding: 1rem; gap: 1rem; }
-    .chat-input-area { padding: 1rem; }
-
-    .email-copy-fields { grid-template-columns: 1fr; }
-
-    #mobileBackBtn { display: flex !important; }
-    .view-lead-text { display: none; }
-    }
+    .mail-nav-backdrop { display: none; } /* only a grid child on desktop; shown as an overlay by the <=1024px rules */
+    .nav-toggle-btn { display: none; width: 32px; height: 32px; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
 @endsection
 
 @section('content')
-    <div class="chat-container" id="app">
-        <!-- Chat List Sidebar -->
-        <div class="chat-list-sidebar">
-            <div class="chat-list-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()"
-                        style="margin-right:0; margin-bottom:1rem;"></i>
-                    <h2>Live Chat</h2>
+@php $mailUser = Auth::guard('crm')->user(); $mailIsAdminOnly = $mailUser->isAdmin(); @endphp
+<div class="mail-app" id="app">
+    <!-- ============ LEFT: accounts + folders ============ -->
+    <aside class="mail-nav" id="mailNav">
+        <div class="mail-nav-head">
+            <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()" style="margin:0; cursor:pointer; color:#64748b;"></i>
+            <h2><i class="fas fa-envelope"></i> Mail</h2>
+        </div>
+        <div class="mail-nav-scroll">
+            <div class="mail-section-title"><span>Mailboxes</span><button type="button" onclick="openAccountModal()" title="Connect a mailbox"><i class="fas fa-plus"></i> Add</button></div>
+            <div id="mailAccountsList">
+                <div class="mail-nav-item active" data-account="" onclick="selectAccount(null)"><i class="fas fa-fw fa-layer-group"></i><span class="label">All Inboxes</span></div>
+                <div style="padding:.5rem .6rem; font-size:.74rem; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading mailboxes…</div>
+            </div>
+            <button type="button" class="mail-add-btn" onclick="openAccountModal()"><i class="fas fa-plus-circle"></i> Add mailbox</button>
+
+            <div class="mail-section-title"><span>Folders</span></div>
+            <div id="mailFoldersList">
+                <div class="mail-nav-item active" data-folder="inbox" onclick="selectFolder('inbox')"><i class="fas fa-fw fa-inbox"></i><span class="label">Inbox</span><span class="count" id="folderInboxCount" style="display:none">0</span></div>
+                <div class="mail-nav-item disabled" data-folder="starred" title="Available after mailbox sync"><i class="fas fa-fw fa-star"></i><span class="label">Starred</span></div>
+                <div class="mail-nav-item disabled" data-folder="sent" title="Available after mailbox sync"><i class="fas fa-fw fa-paper-plane"></i><span class="label">Sent</span></div>
+                <div class="mail-nav-item disabled" data-folder="drafts" title="Available after mailbox sync"><i class="fas fa-fw fa-file-alt"></i><span class="label">Drafts</span></div>
+                <div class="mail-nav-item disabled" data-folder="archive" title="Available after mailbox sync"><i class="fas fa-fw fa-archive"></i><span class="label">Archive</span></div>
+                <div class="mail-nav-item disabled" data-folder="junk" title="Available after mailbox sync"><i class="fas fa-fw fa-exclamation-circle"></i><span class="label">Junk</span></div>
+                <div class="mail-nav-item disabled" data-folder="trash" title="Available after mailbox sync"><i class="fas fa-fw fa-trash-alt"></i><span class="label">Trash</span></div>
+            </div>
+        </div>
+        <div class="mail-nav-foot"><span id="mailSyncStatus">Lead conversations</span><button type="button" onclick="manualSync()" title="Check mailbox for new replies"><i class="fas fa-sync-alt"></i> Sync</button></div>
+    </aside>
+    <div class="mail-nav-backdrop" onclick="toggleMailNav(false)"></div>
+
+    <!-- ============ MIDDLE: conversation list ============ -->
+    <section class="mail-list">
+        <div class="mail-list-head">
+            <div class="mail-list-title">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                    <button type="button" class="nav-toggle-btn" onclick="toggleMailNav(true)" title="Mailboxes & folders"><i class="fas fa-bars"></i></button>
+                    <div style="min-width:0;"><h3 id="listTitle">Inbox</h3><small id="listSubtitle">All inboxes</small></div>
                 </div>
-                <div class="search-chat">
-                    <i class="fas fa-search" style="color:#94a3b8"></i>
-                    <input type="text" id="chatSearch" placeholder="Search conversations..." onkeyup="filterChats()">
+                <button type="button" class="icon-btn" onclick="chatListRetries=0;loadChatList()" title="Refresh"><i class="fas fa-redo-alt"></i></button>
+            </div>
+            <div class="search-chat">
+                <i class="fas fa-search" style="color:#94a3b8"></i>
+                <input type="text" id="chatSearch" placeholder="Search conversations…" onkeyup="filterChats()">
+            </div>
+        </div>
+        <div class="chat-list-items" id="chatListContainer">
+            <div class="chat-list-empty"><i class="fas fa-spinner fa-spin"></i> Loading conversations…</div>
+        </div>
+    </section>
+
+    <!-- ============ RIGHT: reading pane ============ -->
+    <section class="chat-main" id="chatWindow">
+        <div class="chat-empty" id="emptyState">
+            <i class="fas fa-envelope-open-text"></i>
+            <h3>Select a conversation</h3>
+            <p>Pick a conversation from the list to read and reply.</p>
+        </div>
+
+        <div class="chat-header" id="chatHeader" style="display:none">
+            <div class="who">
+                <button id="mobileBackBtn" type="button" onclick="toggleMobileView(false)"><i class="fas fa-arrow-left"></i></button>
+                <div class="chat-avatar" id="activeAvatar">U</div>
+                <div class="meta">
+                    <div class="chat-name" id="activeName">User Name</div>
+                    <div class="sub"><span id="activeEmailHeader"></span> <span id="activeSubject" style="color:#94a3b8"></span></div>
                 </div>
             </div>
-            <div class="chat-list-items" id="chatListContainer">
-                <!-- Loaded via JS -->
-                <div style="text-align:center; padding: 2rem; color: #94a3b8;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading chats...
-                </div>
+            <div class="reader-actions">
+                <button type="button" class="reader-btn" onclick="focusComposer()" title="Reply"><i class="fas fa-reply"></i><span class="txt">Reply</span></button>
+                <a href="#" id="viewLeadBtn" class="reader-btn" title="Open lead / case"><i class="fas fa-external-link-alt"></i><span class="txt">View Case</span></a>
             </div>
         </div>
 
-        <!-- Chat Main Area -->
-        <div class="chat-main" id="chatWindow">
-            <div class="chat-empty" id="emptyState">
-                <i class="fas fa-comments"></i>
-                <h3>Select a conversation</h3>
-                <p>Pick a client from the list on the left to start messaging.</p>
-            </div>
+        <div class="chat-messages-container" id="messagesContainer" style="display:none"></div>
 
-            <!-- Chat Header (Hidden by default) -->
-            <div class="chat-header" id="chatHeader" style="display:none">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <button id="mobileBackBtn" onclick="toggleMobileView(false)"
-                        style="display:none; background:none; border:none; color:#64748b; font-size:1.2rem; cursor:pointer; padding:0 5px;">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
-                    <div class="chat-avatar" id="activeAvatar">U</div>
-                    <div style="min-width: 0; display: flex; align-items: center; gap: 6px;">
-                        <div class="chat-name" id="activeName"
-                            style="margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">User Name
+        <div class="chat-input-area" id="inputArea" style="display:none">
+            @if($mailIsAdminOnly)
+                <div class="admin-readonly"><i class="fas fa-eye"></i> Admin view is read-only — replies are sent by the mailbox owner.</div>
+            @else
+                <form id="chatForm" enctype="multipart/form-data">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="email_subject" id="chatEmailSubject">
+                    <input type="hidden" name="cc" id="chatCcField">
+                    <input type="hidden" name="bcc" id="chatBccField">
+                    <div class="composer-box" id="replyDropZone">
+                        <div id="replyDropOverlay" class="reply-drop-overlay"><i class="fas fa-cloud-upload-alt" style="font-size:1.6rem"></i>Drop files to attach</div>
+                        <div id="attachment-tray"></div>
+                        <textarea id="messageInput" name="message_body" placeholder="Write your reply…"></textarea>
+                        <div class="composer-bar">
+                            <div class="left">
+                                <label for="fileInput" class="chat-attach-button"><i class="fas fa-paperclip"></i> Attach
+                                    <input type="file" id="fileInput" name="attachments[]" multiple style="display:none" onchange="handleFileSelect(this)">
+                                </label>
+                                <span class="composer-to">To <strong id="activeEmail">client@example.com</strong></span>
+                            </div>
+                            <button type="submit" class="send-btn" id="sendBtn"><span id="sendBtnText">Send</span> <i class="fas fa-paper-plane"></i></button>
                         </div>
-                        <i class="fas fa-circle" style="font-size:8px; color:#10b981;"></i>
                     </div>
-                </div>
-                <div>
-                    <a href="#" id="viewLeadBtn" class="btn-action"
-                        style="padding: 0.5rem 1rem; background: #fff; border: 1px solid #e2e8f0; color: #475569; font-size: 0.8rem; border-radius: 8px; text-decoration:none; display: flex; align-items: center; gap: 5px;">
-                        <span class="view-lead-text">View Case</span> <i class="fas fa-external-link-alt"></i>
-                    </a>
-                </div>
-            </div>
+                </form>
+            @endif
+        </div>
+    </section>
+</div>
 
-            <!-- Messages Area -->
-            <div class="chat-messages-container" id="messagesContainer" style="display:none">
-                <!-- Messages load here -->
-            </div>
-
-            <div class="chat-input-area" id="inputArea" style="display:none">
-                @if(Auth::guard('crm')->user()->isAdmin())
-                    <div style="text-align: center; color: #94a3b8; padding: 1rem;">
-                        Admin can view chat only
-                    </div>
-                @else
-                    <form id="chatForm" enctype="multipart/form-data">
-                        {{ csrf_field() }}
-                        <div id="attachment-tray"
-                            style="display:none; padding: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                            <!-- Previews go here -->
-                        </div>
-                        <input type="hidden" name="email_subject" id="chatEmailSubject">
-                        <input type="hidden" name="cc" id="chatCcField">
-                        <input type="hidden" name="bcc" id="chatBccField">
-                        <div class="chat-input-wrapper">
-                            <label for="fileInput" class="send-btn"
-                                style="background: #f1f5f9; color: #64748b; font-size: 1.2rem; cursor: pointer;">
-                                <i class="fas fa-paperclip"></i>
-                                <input type="file" id="fileInput" name="attachments[]" multiple style="display:none"
-                                    onchange="handleFileSelect(this)">
-                            </label>
-                            <textarea id="messageInput" name="message_body" placeholder="Write your message here..." rows="1"
-                                oninput="autoExpand(this)"></textarea>
-                            <button type="submit" class="send-btn" id="sendBtn"
-                                style="width: auto; padding: 0 1.5rem; border-radius: 12px; font-weight: 600; display: flex; gap: 8px;">
-                                <span id="sendBtnText">Send</span>
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                        <div
-                            style="font-size: 0.8rem; color: #64748b; margin-top: 10px; display: flex; align-items: center; gap: 6px;">
-                            <i class="fas fa-info-circle"></i> This will send an email to <strong
-                                id="activeEmail">client@example.com</strong>
-                        </div>
-                    </form>
-                @endif
+<!-- Subject / CC / BCC before sending -->
+<div id="emailMetaModal" class="mm-backdrop" onclick="if(event.target===this)closeEmailMetaModal()">
+    <div class="mm-dialog">
+        <div class="mm-head"><h4>Email Details</h4><button type="button" onclick="closeEmailMetaModal()"><i class="fas fa-times"></i></button></div>
+        <div class="mm-body">
+            <div class="mm-grid">
+                <div class="mm-field"><label>Subject</label><input type="text" id="modalSubject"></div>
+                <div class="mm-grid two">
+                    <div class="mm-field"><label>CC</label><input type="text" id="modalCc" placeholder="cc@example.com, cc2@example.com"></div>
+                    <div class="mm-field"><label>BCC</label><input type="text" id="modalBcc" placeholder="bcc@example.com"></div>
+                </div>
             </div>
         </div>
-    </div>
-    <div id="emailMetaModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:99999; align-items:center; justify-content:center; padding:20px;">
-        <div style="width:100%; max-width:560px; background:#fff; border-radius:18px; box-shadow:0 24px 60px rgba(15,23,42,.25); overflow:hidden;">
-            <div style="padding:18px 22px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between;">
-                <div style="font-size:1rem; font-weight:800; color:#0f172a;">Email Details</div>
-                <button type="button" onclick="closeEmailMetaModal()" style="border:none; background:none; font-size:1.2rem; color:#94a3b8; cursor:pointer;"><i class="fas fa-times"></i></button>
-            </div>
-            <div style="padding:20px 22px;">
-                <div style="display:grid; gap:12px;">
-                    <div>
-                        <label style="display:block; font-size:.82rem; font-weight:700; color:#475569; margin-bottom:6px;">Subject</label>
-                        <input type="text" id="modalSubject" style="width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px; font-size:.95rem; outline:none;">
-                    </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div>
-                            <label style="display:block; font-size:.82rem; font-weight:700; color:#475569; margin-bottom:6px;">CC</label>
-                            <input type="text" id="modalCc" placeholder="cc@example.com, cc2@example.com" style="width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px; font-size:.9rem; outline:none;">
-                        </div>
-                        <div>
-                            <label style="display:block; font-size:.82rem; font-weight:700; color:#475569; margin-bottom:6px;">BCC</label>
-                            <input type="text" id="modalBcc" placeholder="bcc@example.com" style="width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px; font-size:.9rem; outline:none;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div style="padding:16px 22px 22px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #e2e8f0; background:#f8fafc;">
-                <button type="button" onclick="closeEmailMetaModal()" style="border:1px solid #cbd5e1; background:#fff; color:#475569; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer;">Cancel</button>
-                <button type="button" onclick="submitEmailMeta()" style="border:none; background:var(--primary-purple); color:#fff; border-radius:10px; padding:10px 16px; font-weight:800; cursor:pointer;">Send Reply</button>
-            </div>
+        <div class="mm-foot">
+            <button type="button" class="mm-btn" onclick="closeEmailMetaModal()">Cancel</button>
+            <button type="button" class="mm-btn primary" onclick="submitEmailMeta()"><i class="fas fa-paper-plane"></i> Send Reply</button>
         </div>
     </div>
+</div>
+
+<!-- Add / edit mailbox -->
+<div id="accountModal" class="mm-backdrop" onclick="if(event.target===this)closeAccountModal()">
+    <div class="mm-dialog wide">
+        <div class="mm-head"><h4 id="accountModalTitle">Connect a mailbox</h4><button type="button" onclick="closeAccountModal()"><i class="fas fa-times"></i></button></div>
+        <div class="mm-body">
+            <input type="hidden" id="accId">
+            <div class="mm-grid">
+                <div class="mm-grid two">
+                    <div class="mm-field"><label>Provider</label><select id="accProvider" onchange="applyPreset()"></select><div class="mm-hint" id="accProviderHint"></div></div>
+                    <div class="mm-field"><label>Display name</label><input type="text" id="accDisplayName" placeholder="e.g. Jack · Sales"></div>
+                </div>
+                <div class="mm-grid two">
+                    <div class="mm-field"><label>Email address</label><input type="email" id="accEmail" placeholder="you@company.com" oninput="syncAccUser()"></div>
+                    <div class="mm-field"><label>Password / App password</label><input type="password" id="accPass" autocomplete="new-password" placeholder="••••••••"><div class="mm-hint" id="accPassHint"></div></div>
+                </div>
+                <div><button type="button" class="mm-adv" onclick="toggleAdvanced()"><i class="fas fa-sliders-h"></i> <span id="advLabel">Show server settings</span></button></div>
+                <div id="accAdvanced" style="display:none" class="mm-grid">
+                    <div class="mm-field"><label>Login username <span style="font-weight:500;color:#94a3b8">(usually the email)</span></label><input type="text" id="accUser"></div>
+                    <div class="mm-grid two">
+                        <div class="mm-field"><label>IMAP host</label><input type="text" id="accImapHost"></div>
+                        <div class="mm-grid two">
+                            <div class="mm-field"><label>Port</label><input type="number" id="accImapPort"></div>
+                            <div class="mm-field"><label>Encryption</label><select id="accImapEnc"><option value="ssl">SSL</option><option value="tls">STARTTLS</option><option value="none">None</option></select></div>
+                        </div>
+                    </div>
+                    <div class="mm-grid two">
+                        <div class="mm-field"><label>SMTP host</label><input type="text" id="accSmtpHost"></div>
+                        <div class="mm-grid two">
+                            <div class="mm-field"><label>Port</label><input type="number" id="accSmtpPort"></div>
+                            <div class="mm-field"><label>Encryption</label><select id="accSmtpEnc"><option value="tls">STARTTLS</option><option value="ssl">SSL</option><option value="none">None</option></select></div>
+                        </div>
+                    </div>
+                    <div class="mm-field"><label>Signature (HTML allowed)</label><textarea id="accSignature" rows="3" placeholder="Regards, …"></textarea></div>
+                </div>
+                <label class="mm-toggle"><input type="checkbox" id="accShare" checked> Allow admins read-only access to this mailbox</label>
+                <div class="mm-test" id="accTestResult"></div>
+            </div>
+        </div>
+        <div class="mm-foot">
+            <span class="mm-status" id="accStatus"></span>
+            <button type="button" class="mm-btn" id="accTestBtn" onclick="testAccount()"><i class="fas fa-plug"></i> Test connection</button>
+            <button type="button" class="mm-btn primary" id="accSaveBtn" onclick="saveAccount()"><i class="fas fa-check"></i> Save</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
-    <script>
-        // NOTE: use var (not let/const) for every top-level declaration in this script.
-        // The CRM AJAX navigator re-executes this inline script on each partial visit to
-        // Chats; top-level let/const would throw "already declared" on the 2nd visit,
-        // aborting the script so loadChatList() never runs and "Loading chats..." hangs.
-        var activeChatId = null;
-        var chatsData = [];
-        var lastMsgId = 0;
-        var pollingInterval = null;
-        var lastDisplayedDateStr = null;
-        var pendingChatForm = null;
-        var chatListLoading = false;
-        var chatListController = null;
-        var chatListRetries = 0;
-        var inboxSyncRunning = false;
+<script>
+// ---------------------------------------------------------------------------
+// AJAX-nav safe: top-level `var`/function only, init runs immediately, timers and
+// listeners are stored on window and self-stop when #app is gone.
+// ---------------------------------------------------------------------------
+var MAIL_ROUTES = {
+    list:      '{{ route("crm.chats.list") }}',
+    sync:      '{{ route("crm.chats.sync") }}',
+    accounts:  '{{ route("crm.mail.accounts.index") }}',
+    presets:   '{{ route("crm.mail.accounts.presets") }}',
+    accTest:   '{{ route("crm.mail.accounts.test") }}'
+};
+var MAIL_CSRF = '{{ csrf_token() }}';
+var MAIL_IS_ADMIN = {{ $mailIsAdminOnly ? 'true' : 'false' }};
+var MAIL_TINYMCE_SRC = "{{ URL::asset('tinymce/tinymce.min.js') }}";
 
-        function syncInbox() {
-            if (inboxSyncRunning || document.hidden) return;
-            inboxSyncRunning = true;
-            fetch('{{ route("crm.chats.sync") }}', {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error(`Inbox sync failed (${response.status})`);
-                    return response.json();
-                })
-                .then(() => {
-                    loadChatList();
-                    if (activeChatId) fetchMessages();
-                })
-                .catch(error => console.error('Inbox sync error:', error))
-                .finally(() => { inboxSyncRunning = false; });
+var activeChatId = null, activeAccountId = null, activeFolder = 'inbox';
+var chatsData = [], accountsData = [], presetsData = {};
+var lastMsgId = 0, lastDisplayedDateStr = null, pendingChatForm = null;
+var chatListLoading = false, chatListController = null, chatListRetries = 0, inboxSyncRunning = false;
+var ACC_COLORS = ['#6c5ce7','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f97316'];
+
+function esc(s){ return (window.crmEsc ? crmEsc(String(s==null?'':s)) : String(s==null?'':s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];})); }
+function initialsOf(name){ return name ? name.split(' ').filter(function(n){return n;}).map(function(n){return n[0];}).join('').substring(0,2).toUpperCase() : '?'; }
+function accColor(id){ return ACC_COLORS[(parseInt(id,10)||0) % ACC_COLORS.length]; }
+function jsonHeaders(){ return {'X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':MAIL_CSRF,'Accept':'application/json','Content-Type':'application/json'}; }
+function toast(msg, type){ if (window.showToast) showToast(msg, type||'success'); else alert(msg); }
+
+// ============================== accounts ===================================
+function loadAccounts(){
+    return fetch(MAIL_ROUTES.accounts, {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+        .then(function(r){ if(!r.ok) throw new Error('accounts '+r.status); return r.json(); })
+        .then(function(d){ accountsData = d.accounts || []; renderAccounts(); })
+        .catch(function(e){ console.error(e); var el=document.getElementById('mailAccountsList'); if(el) el.innerHTML = '<div class="mail-nav-item active" data-account="" onclick="selectAccount(null)"><i class="fas fa-fw fa-layer-group"></i><span class="label">All Inboxes</span></div><div style="padding:.4rem .6rem;font-size:.72rem;color:#b91c1c">Could not load mailboxes.</div>'; });
+}
+function renderAccounts(){
+    var el = document.getElementById('mailAccountsList'); if(!el) return;
+    var html = '<div class="mail-nav-item '+(activeAccountId===null?'active':'')+'" data-account="" onclick="selectAccount(null)"><i class="fas fa-fw fa-layer-group"></i><span class="label">All Inboxes</span></div>';
+    if(!accountsData.length){
+        html += '<div style="padding:.45rem .6rem; font-size:.74rem; color:#94a3b8;">No mailbox connected yet.</div>';
+    }
+    accountsData.forEach(function(a){
+        var own = a.is_own, warn = a.last_sync_error ? '<i class="fas fa-exclamation-triangle mail-acc-err" title="'+esc(a.last_sync_error)+'"></i>' : '';
+        var menu = '';
+        if(own){
+            menu = '<span class="mail-acc-menu">'
+                + (a.is_default ? '' : '<button type="button" title="Make default" onclick="event.stopPropagation();accountAction('+a.id+',\'default\')"><i class="fas fa-star"></i></button>')
+                + '<button type="button" title="Edit" onclick="event.stopPropagation();openAccountModal('+a.id+')"><i class="fas fa-pen"></i></button>'
+                + '<button type="button" title="'+(a.sync_enabled?'Pause sync':'Resume sync')+'" onclick="event.stopPropagation();accountAction('+a.id+',\'toggle\')"><i class="fas '+(a.sync_enabled?'fa-pause':'fa-play')+'"></i></button>'
+                + '<button type="button" class="danger" title="Remove" onclick="event.stopPropagation();removeAccount('+a.id+')"><i class="fas fa-trash-alt"></i></button>'
+                + '</span>';
         }
+        html += '<div class="mail-nav-item '+(activeAccountId===a.id?'active':'')+'" data-account="'+a.id+'" onclick="selectAccount('+a.id+')" title="'+esc(a.email_address)+(own?'':' · '+esc(a.owner_name||'')+' (read-only)')+'">'
+            + '<span class="mail-acc-dot" style="background:'+accColor(a.id)+';opacity:'+(a.is_active?1:.35)+'"></span>'
+            + '<span class="label">'+esc(a.display_name || a.email_address)+(a.is_default?' <i class="fas fa-star" style="font-size:.6rem;color:#f59e0b"></i>':'')
+            + '<span class="mail-acc-sub">'+esc(a.email_address)+(own?'':' · '+esc(a.owner_name||''))+'</span></span>'
+            + warn + menu + '</div>';
+    });
+    el.innerHTML = html;
+}
+function selectAccount(id){
+    activeAccountId = id;
+    renderAccounts();
+    var a = accountsData.find(function(x){return x.id===id;});
+    var sub = document.getElementById('listSubtitle'); if(sub) sub.textContent = a ? a.email_address : 'All inboxes';
+    toggleMailNav(false);
+    chatListRetries = 0; loadChatList(true);
+}
+function selectFolder(folder){
+    activeFolder = folder;
+    document.querySelectorAll('#mailFoldersList .mail-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.folder===folder); });
+    var t = document.getElementById('listTitle'); if(t) t.textContent = folder.charAt(0).toUpperCase()+folder.slice(1);
+    toggleMailNav(false);
+}
+function accountAction(id, action){
+    fetch(MAIL_ROUTES.accounts+'/'+id+'/'+action, {method:'POST', headers:jsonHeaders(), body: action==='toggle' ? JSON.stringify({field:'sync_enabled'}) : '{}'})
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(x){ if(!x.ok) throw new Error(x.j.message||'Failed'); toast(action==='default'?'Default mailbox updated':'Mailbox updated'); loadAccounts(); })
+        .catch(function(e){ toast(e.message, 'error'); });
+}
+function removeAccount(id){
+    var a = accountsData.find(function(x){return x.id===id;}); if(!a) return;
+    var go = function(){
+        fetch(MAIL_ROUTES.accounts+'/'+id, {method:'DELETE', headers:jsonHeaders()})
+            .then(function(r){ if(!r.ok) throw new Error('Could not remove mailbox'); toast('Mailbox removed'); if(activeAccountId===id) activeAccountId=null; loadAccounts().then(function(){ loadChatList(true); }); })
+            .catch(function(e){ toast(e.message,'error'); });
+    };
+    if (window.customConfirm) customConfirm('Remove mailbox?', a.email_address+' will be disconnected. Already-synced mail is kept.', go, 'Yes, Remove', 'btn-confirm'); else if(confirm('Remove '+a.email_address+'?')) go();
+}
 
-        function autoExpand(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
-        }
+// ------------------------------ account modal -------------------------------
+function loadPresets(){
+    if (Object.keys(presetsData).length) return Promise.resolve(presetsData);
+    return fetch(MAIL_ROUTES.presets, {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}).then(function(r){return r.json();}).then(function(d){ presetsData = d.presets||{}; return presetsData; });
+}
+function openAccountModal(id){
+    var m = document.getElementById('accountModal'); if(!m) return;
+    loadPresets().then(function(){
+        var sel = document.getElementById('accProvider'); sel.innerHTML = '';
+        Object.keys(presetsData).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=presetsData[k].label; sel.appendChild(o); });
+        var a = id ? accountsData.find(function(x){return x.id===id;}) : null;
+        document.getElementById('accountModalTitle').textContent = a ? 'Edit mailbox' : 'Connect a mailbox';
+        document.getElementById('accId').value = a ? a.id : '';
+        sel.value = a ? a.provider : 'hostinger';
+        document.getElementById('accDisplayName').value = a ? (a.display_name||'') : '';
+        document.getElementById('accEmail').value = a ? a.email_address : '';
+        document.getElementById('accPass').value = '';
+        document.getElementById('accPassHint').textContent = a ? 'Leave blank to keep the current password.' : '';
+        document.getElementById('accUser').value = a ? (a.email_user||'') : '';
+        document.getElementById('accImapHost').value = a ? (a.imap_host||'') : '';
+        document.getElementById('accImapPort').value = a ? (a.imap_port||993) : 993;
+        document.getElementById('accImapEnc').value = a ? (a.imap_encryption||'ssl') : 'ssl';
+        document.getElementById('accSmtpHost').value = a ? (a.smtp_host||'') : '';
+        document.getElementById('accSmtpPort').value = a ? (a.smtp_port||587) : 587;
+        document.getElementById('accSmtpEnc').value = a ? (a.smtp_encryption||'tls') : 'tls';
+        document.getElementById('accSignature').value = a ? (a.signature||'') : '';
+        document.getElementById('accShare').checked = a ? !!a.share_with_admin : true;
+        document.getElementById('accTestResult').innerHTML = '';
+        setAccStatus('', '');
+        if(!a) applyPreset(); else document.getElementById('accProviderHint').textContent = (presetsData[a.provider]||{}).hint||'';
+        var adv = document.getElementById('accAdvanced'); adv.style.display = (a && a.provider==='custom') || (!a && sel.value==='custom') ? 'grid' : 'none';
+        document.getElementById('advLabel').textContent = adv.style.display==='none' ? 'Show server settings' : 'Hide server settings';
+        m.classList.add('open');
+        setTimeout(function(){ document.getElementById(a?'accDisplayName':'accEmail').focus(); }, 50);
+    });
+}
+function closeAccountModal(){ var m=document.getElementById('accountModal'); if(m) m.classList.remove('open'); }
+function applyPreset(){
+    var p = presetsData[document.getElementById('accProvider').value]; if(!p) return;
+    document.getElementById('accProviderHint').textContent = p.hint||'';
+    document.getElementById('accImapHost').value = p.imap_host||''; document.getElementById('accImapPort').value = p.imap_port||993; document.getElementById('accImapEnc').value = p.imap_encryption||'ssl';
+    document.getElementById('accSmtpHost').value = p.smtp_host||''; document.getElementById('accSmtpPort').value = p.smtp_port||587; document.getElementById('accSmtpEnc').value = p.smtp_encryption||'tls';
+    if (document.getElementById('accProvider').value==='custom') { document.getElementById('accAdvanced').style.display='grid'; document.getElementById('advLabel').textContent='Hide server settings'; }
+}
+function syncAccUser(){ var u=document.getElementById('accUser'); if(!u.dataset.touched) u.value = document.getElementById('accEmail').value; }
+function toggleAdvanced(){ var adv=document.getElementById('accAdvanced'); var show = adv.style.display==='none'; adv.style.display = show?'grid':'none'; document.getElementById('advLabel').textContent = show?'Hide server settings':'Show server settings'; }
+function setAccStatus(text, cls){ var s=document.getElementById('accStatus'); s.textContent=text; s.className='mm-status '+(cls||''); }
+function accPayload(){
+    var email = document.getElementById('accEmail').value.trim();
+    return {
+        email_address: email,
+        display_name: document.getElementById('accDisplayName').value.trim() || null,
+        provider: document.getElementById('accProvider').value,
+        email_user: document.getElementById('accUser').value.trim() || email,
+        email_pass: document.getElementById('accPass').value,
+        imap_host: document.getElementById('accImapHost').value.trim(), imap_port: parseInt(document.getElementById('accImapPort').value,10)||null, imap_encryption: document.getElementById('accImapEnc').value,
+        smtp_host: document.getElementById('accSmtpHost').value.trim(), smtp_port: parseInt(document.getElementById('accSmtpPort').value,10)||null, smtp_encryption: document.getElementById('accSmtpEnc').value,
+        signature: document.getElementById('accSignature').value,
+        share_with_admin: document.getElementById('accShare').checked
+    };
+}
+function renderTest(t){
+    var el = document.getElementById('accTestResult'); if(!t){ el.innerHTML=''; return; }
+    el.innerHTML = '<div class="'+(t.imap&&t.imap.ok?'ok':'err')+'"><i class="fas '+(t.imap&&t.imap.ok?'fa-check-circle':'fa-times-circle')+'"></i> '+esc(t.imap?t.imap.message:'')+'</div>'
+                 + '<div class="'+(t.smtp&&t.smtp.ok?'ok':'err')+'"><i class="fas '+(t.smtp&&t.smtp.ok?'fa-check-circle':'fa-times-circle')+'"></i> '+esc(t.smtp?t.smtp.message:'')+'</div>';
+}
+function firstError(j){ if(j.errors){ var k=Object.keys(j.errors)[0]; if(k) return j.errors[k][0]; } return j.message||'Request failed'; }
+function testAccount(){
+    var id = document.getElementById('accId').value, p = accPayload();
+    if(!p.email_address){ setAccStatus('Enter the email address first.','err'); return; }
+    if(!id && !p.email_pass){ setAccStatus('Enter the password to test.','err'); return; }
+    var btn=document.getElementById('accTestBtn'); btn.disabled=true; setAccStatus('Testing IMAP and SMTP…',''); renderTest(null);
+    fetch(id ? MAIL_ROUTES.accounts+'/'+id+'/test' : MAIL_ROUTES.accTest, {method:'POST', headers:jsonHeaders(), body:JSON.stringify(p)})
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(x){ if(!x.ok && !x.j.imap){ throw new Error(firstError(x.j)); } renderTest(x.j); setAccStatus(x.j.success?'Connection OK':'Connection failed', x.j.success?'ok':'err'); })
+        .catch(function(e){ setAccStatus(e.message,'err'); })
+        .then(function(){ btn.disabled=false; });
+}
+function saveAccount(){
+    var id = document.getElementById('accId').value, p = accPayload();
+    if(!p.email_address){ setAccStatus('Email address is required.','err'); return; }
+    if(!id && !p.email_pass){ setAccStatus('Password is required.','err'); return; }
+    var btn=document.getElementById('accSaveBtn'); btn.disabled=true; setAccStatus('Verifying and saving…',''); renderTest(null);
+    fetch(id ? MAIL_ROUTES.accounts+'/'+id : MAIL_ROUTES.accounts, {method: id?'PUT':'POST', headers:jsonHeaders(), body:JSON.stringify(p)})
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(x){
+            if(!x.ok){ if(x.j.test) renderTest(x.j.test); throw new Error(firstError(x.j)); }
+            toast(id?'Mailbox updated':'Mailbox connected'); closeAccountModal(); loadAccounts();
+        })
+        .catch(function(e){ setAccStatus(e.message,'err'); })
+        .then(function(){ btn.disabled=false; });
+}
 
-        function filterChats() {
-            const query = document.getElementById('chatSearch').value.toLowerCase();
-            renderChatList(query);
-        }
-
-        function loadChatList() {
-            // If we've navigated away (container gone), stop the background poll.
-            if (!document.getElementById('chatListContainer')) {
-                if (window.__chatsListPoll) { clearInterval(window.__chatsListPoll); window.__chatsListPoll = null; }
-                return Promise.resolve();
+// ============================ conversations ================================
+function manualSync(){
+    if (inboxSyncRunning) return; inboxSyncRunning = true;
+    var st=document.getElementById('mailSyncStatus'); if(st) st.textContent='Syncing…';
+    fetch(MAIL_ROUTES.sync, {headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){ return r.json(); })
+        .then(function(){ loadChatList(true); if(activeChatId) fetchMessages(); if(st) st.textContent='Synced '+moment().format('h:mm A'); })
+        .catch(function(){ if(st) st.textContent='Sync failed'; })
+        .then(function(){ inboxSyncRunning=false; });
+}
+function filterChats(){ renderChatList(document.getElementById('chatSearch').value.toLowerCase()); }
+function loadChatList(force){
+    if (!document.getElementById('chatListContainer')) { if (window.__chatsListPoll){ clearInterval(window.__chatsListPoll); window.__chatsListPoll=null; } return Promise.resolve(); }
+    if (chatListLoading && !force) return Promise.resolve();
+    if (chatListController) { try{ chatListController.abort(); }catch(e){} }
+    chatListLoading = true; chatListController = new AbortController(); var controller = chatListController;
+    var timeout = setTimeout(function(){ controller.abort(); }, 12000);
+    var url = MAIL_ROUTES.list + (activeAccountId ? '?account='+activeAccountId : '');
+    return fetch(url, {signal:controller.signal, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+        .then(function(res){ if(!res.ok) throw new Error('Chat list request failed ('+res.status+')'); return res.json(); })
+        .then(function(data){
+            chatsData = Array.isArray(data)?data:[]; chatListRetries=0;
+            // Only rebuild the DOM when the data actually changed — avoids flicker and keeps
+            // hover/selection stable while the 10s poll runs (Outlook-style).
+            var sig = JSON.stringify(chatsData) + '|' + activeAccountId;
+            var container = document.getElementById('chatListContainer');
+            if (force || sig !== window.__chatsListSig || !container || !container.querySelector('.chat-item')) {
+                window.__chatsListSig = sig;
+                renderChatList(document.getElementById('chatSearch') ? document.getElementById('chatSearch').value.toLowerCase() : '');
             }
-            if (chatListLoading) return Promise.resolve();
-            chatListLoading = true;
-            chatListController = new AbortController();
-            const controller = chatListController;
-            const timeout = setTimeout(() => controller.abort(), 12000);
+        })
+        .catch(function(error){
+            if (error.name==='AbortError') return;
+            console.error('Chat list error:', error);
+            if (chatListRetries < 3) { chatListRetries++; setTimeout(function(){ loadChatList(true); }, 800*chatListRetries); return; }
+            if (!chatsData.length) { var c=document.getElementById('chatListContainer'); if(c) c.innerHTML = '<div class="chat-list-empty"><i class="fas fa-plug"></i>Conversations could not be loaded.<br><button type="button" class="reader-btn" style="margin-top:.8rem" onclick="chatListRetries=0;loadChatList(true)">Retry</button></div>'; }
+        })
+        .then(function(){ clearTimeout(timeout); if (chatListController===controller){ chatListController=null; chatListLoading=false; } });
+}
+function resumeChatList(){ if (document.hidden) return; loadChatList(true); if (activeChatId) fetchMessages(); }
+function renderChatList(filter){
+    filter = filter || '';
+    var container = document.getElementById('chatListContainer'); if(!container) return;
+    var filtered = chatsData.filter(function(chat){
+        var hay = ((chat.client_name||'')+' '+(chat.client_email||'')+' '+(chat.subject||'')+' '+(chat.product_name||'')).toLowerCase();
+        return hay.indexOf(filter) !== -1;
+    });
+    var unreadTotal = chatsData.reduce(function(n,c){ return n + (c.unread_count>0?1:0); }, 0);
+    var cnt = document.getElementById('folderInboxCount'); if(cnt){ cnt.textContent = unreadTotal; cnt.style.display = unreadTotal?'':'none'; }
+    if (!filtered.length) { container.innerHTML = '<div class="chat-list-empty"><i class="fas fa-inbox"></i>'+(chatsData.length?'No conversations match your search.':'No conversations in this mailbox yet.')+'</div>'; return; }
+    container.innerHTML = '';
+    filtered.forEach(function(chat){
+        var lm = chat.latest_message || null;
+        var time = lm ? moment.utc(lm.created_at).local().calendar(null, {sameDay:'h:mm A', lastDay:'[Yesterday]', lastWeek:'ddd', sameElse:'MMM D'}) : '';
+        var snippet = lm && lm.message_body ? lm.message_body.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim() : '';
+        if (lm && lm.sender_type && lm.sender_type!=='client') snippet = 'You: ' + snippet;
+        var acc = chat.mail_account_id ? accountsData.find(function(a){return a.id===chat.mail_account_id;}) : null;
+        var accChip = acc && activeAccountId===null ? '<span class="chat-acc-chip"><span class="mail-acc-dot" style="width:7px;height:7px;flex-basis:7px;background:'+accColor(acc.id)+'"></span>'+esc(acc.display_name||acc.email_address)+'</span>' : '';
+        var item = document.createElement('div');
+        item.className = 'chat-item' + (activeChatId==chat.id?' active':'') + (chat.unread_count>0?' unread':'');
+        item.onclick = function(){ selectChat(chat.id); };
+        item.innerHTML = '<div class="chat-avatar">'+esc(initialsOf(chat.client_name))+'</div>'
+            + '<div class="chat-info">'
+            +   '<div class="chat-row1"><span class="chat-name">'+esc(chat.client_name||'Anonymous User')+'</span><span class="chat-time">'+esc(time)+'</span></div>'
+            +   '<div class="chat-subject">'+esc(chat.subject || chat.product_name || 'General Inquiry')+(chat.unread_count>0?'<span class="chat-badge">'+chat.unread_count+'</span>':'')+'</div>'
+            +   '<div class="chat-snippet">'+accChip+'<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(snippet || (chat.product_name||''))+'</span></div>'
+            + '</div>';
+        container.appendChild(item);
+    });
+}
 
-            return fetch('{{ route("crm.chats.list") }}', {
-                    signal: controller.signal,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Chat list request failed (${res.status})`);
-                    return res.json();
-                })
-                .then(data => {
-                    chatsData = Array.isArray(data) ? data : [];
-                    chatListRetries = 0;
-                    renderChatList();
-                })
-                .catch(error => {
-                    if (error.name === 'AbortError') return;
-                    console.error('Chat list error:', error);
-                    // Transient blips (busy server, dropped connection) should self-heal instead of
-                    // showing an error. Auto-retry a few times with a short backoff before giving up.
-                    if (chatListRetries < 3) {
-                        chatListRetries++;
-                        setTimeout(loadChatList, 800 * chatListRetries);
-                        return;
-                    }
-                    if (!chatsData.length) {
-                        document.getElementById('chatListContainer').innerHTML = `
-                            <div style="padding:2rem;text-align:center;color:#64748b">
-                                <div style="margin-bottom:.75rem">Chats could not be loaded.</div>
-                                <button type="button" onclick="chatListRetries=0;loadChatList()" style="border:1px solid #cbd5e1;background:#fff;color:var(--primary-purple);border-radius:8px;padding:.5rem .9rem;font-weight:700;cursor:pointer">Retry</button>
-                            </div>`;
-                    }
-                })
-                .finally(() => {
-                    clearTimeout(timeout);
-                    if (chatListController === controller) {
-                        chatListController = null;
-                        chatListLoading = false;
-                    }
-                });
-        }
-
-        function resumeChatList() {
-            if (document.hidden) return;
-            if (chatListController) chatListController.abort();
-            chatListController = null;
-            chatListLoading = false;
-            loadChatList();
-            if (activeChatId) fetchMessages();
-        }
-
-        function renderChatList(filter = '') {
-            const container = document.getElementById('chatListContainer');
-            container.innerHTML = '';
-
-            const filtered = chatsData.filter(chat =>
-                (chat.client_name || '').toLowerCase().includes(filter) ||
-                (chat.client_email || '').toLowerCase().includes(filter)
-            );
-
-            if (filtered.length === 0) {
-                container.innerHTML = '<div style="padding:2rem; text-align:center; color:#94a3b8">No conversations found.</div>';
-                return;
+function selectChat(id){
+    activeChatId = id;
+    var chat = chatsData.find(function(c){ return c.id==id; }); if(!chat) return;
+    toggleMobileView(true);
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('chatHeader').style.display='flex';
+    document.getElementById('messagesContainer').style.display='flex';
+    document.getElementById('inputArea').style.display='block';
+    document.getElementById('activeName').innerText = chat.client_name || 'Anonymous User';
+    document.getElementById('activeEmailHeader').innerText = chat.client_email || '';
+    document.getElementById('activeSubject').innerText = chat.subject ? '· '+chat.subject : (chat.product_name ? '· '+chat.product_name : '');
+    var ae = document.getElementById('activeEmail'); if(ae) ae.innerText = chat.client_email || '';
+    document.getElementById('viewLeadBtn').href = '/crm/email/'+chat.id;
+    document.getElementById('activeAvatar').innerText = initialsOf(chat.client_name);
+    renderChatList(document.getElementById('chatSearch').value.toLowerCase());
+    lastMsgId = 0; lastDisplayedDateStr = null;
+    document.getElementById('messagesContainer').innerHTML = '<div class="chat-list-empty"><i class="fas fa-spinner fa-spin"></i></div>';
+    fetchMessages(true);
+    if (window.__chatMsgPoll) clearInterval(window.__chatMsgPoll);
+    window.__chatMsgPoll = setInterval(fetchMessages, 5000);
+}
+function fetchMessages(initial){
+    if (!activeChatId) return;
+    if (!document.getElementById('messagesContainer')) { if(window.__chatMsgPoll){ clearInterval(window.__chatMsgPoll); window.__chatMsgPoll=null; } return; }
+    var chatIdAtRequest = activeChatId;
+    fetch('/crm/email/'+activeChatId+'/messages?last_id='+lastMsgId, {headers:{'X-Requested-With':'XMLHttpRequest'}, cache:'no-store'})
+        .then(function(res){ return res.json(); })
+        .then(function(messages){
+            if (chatIdAtRequest !== activeChatId) return;
+            var c = document.getElementById('messagesContainer');
+            if (initial && c) c.innerHTML = '';
+            if (messages.length > 0) {
+                messages.forEach(function(msg){ appendMessage(msg); lastMsgId = msg.id; });
+                scrollToBottom();
+                loadChatList(true);
+            } else if (initial && c && !c.children.length) {
+                c.innerHTML = '<div class="chat-list-empty"><i class="fas fa-comment-slash"></i>No messages in this conversation yet.</div>';
             }
+        }).catch(function(e){ console.error(e); });
+}
+function appendMessage(msg){
+    var container = document.getElementById('messagesContainer'); if(!container) return;
+    if (document.getElementById('msg-'+msg.id)) return;
+    var ph = container.querySelector('.chat-list-empty'); if (ph) ph.remove();
+    var msgDate = moment(msg.created_at).format('MMM D, YYYY');
+    if (msgDate !== lastDisplayedDateStr) {
+        lastDisplayedDateStr = msgDate;
+        var today = moment().format('MMM D, YYYY'), yesterday = moment().subtract(1,'days').format('MMM D, YYYY');
+        var displayDate = msgDate===today ? 'Today' : (msgDate===yesterday ? 'Yesterday' : msgDate);
+        var dateHeader = document.createElement('div');
+        dateHeader.style.cssText = 'text-align:center; margin:.6rem 0 .2rem; width:100%; align-self:center;';
+        dateHeader.innerHTML = '<span style="background:var(--primary-soft); color:var(--primary-purple); padding:4px 12px; border-radius:99px; font-size:.72rem; font-weight:700;">'+displayDate+'</span>';
+        container.appendChild(dateHeader);
+    }
+    var isSelf = msg.sender_type === 'admin' || msg.sender_type === 'agent';
+    var time = moment(msg.created_at).format('h:mm A');
+    var row = document.createElement('div'); row.id = 'msg-'+msg.id; row.className = 'msg-row'; row.style.alignItems = isSelf?'flex-end':'flex-start';
+    var hasText = msg.message_body && msg.message_body.trim().length > 0;
+    var hasAttachments = msg.attachments && msg.attachments.length > 0;
+    var attachmentsHtml = '';
+    if (hasAttachments) {
+        attachmentsHtml = '<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">';
+        msg.attachments.forEach(function(path){
+            var isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path), url = window.location.origin+'/'+path;
+            if (isImg) attachmentsHtml += '<a href="'+url+'" target="_blank" rel="noopener" style="display:block; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,.1);"><img src="'+url+'" style="max-width:280px; max-height:320px; display:block; object-fit:cover;"></a>';
+            else attachmentsHtml += '<a href="'+url+'" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; text-decoration:none; color:#273449; font-size:.8rem;"><i class="fas fa-file" style="color:var(--primary-purple)"></i> '+esc(path.split('/').pop())+'</a>';
+        });
+        attachmentsHtml += '</div>';
+    }
+    var isOnlyImage = !hasText && hasAttachments && msg.attachments.every(function(p){ return /\.(jpg|jpeg|png|gif|webp)$/i.test(p); });
+    var isTemplate = hasText && msg.message_body.indexOf('Custom Packaging Quote') !== -1;
+    var bubbleStyle = isOnlyImage ? 'background:none; padding:0; box-shadow:none; border:0;' : (isTemplate ? 'background:transparent; padding:0; box-shadow:none; border:0; max-width:100%; color:inherit;' : '');
+    var bodyHtml = hasText ? (isSelf ? msg.message_body : esc(msg.message_body).replace(/\n/g,'<br>')) : '';
+    var bubbleClass = isTemplate ? '' : (isSelf ? 'msg-admin' : 'msg-client');
+    var html = '';
+    if (hasText) html += '<div class="msg-bubble '+bubbleClass+'" style="'+bubbleStyle+'">'+bodyHtml+'</div>';
+    if (hasAttachments) html += '<div style="margin-top:'+(hasText?'5px':'0')+'; display:flex; flex-direction:column; align-items:'+(isSelf?'flex-end':'flex-start')+';">'+attachmentsHtml+'</div>';
+    html += '<div class="msg-time">'+time+(isSelf ? ' • '+esc(msg.user ? msg.user.name : 'You') : '')+'</div>';
+    row.innerHTML = html; container.appendChild(row);
+}
+function scrollToBottom(){ var c=document.getElementById('messagesContainer'); if(c) c.scrollTop = c.scrollHeight; }
+function toggleMobileView(active){
+    var app=document.getElementById('app'); if(!app) return;
+    if (active) app.classList.add('chat-active');
+    else { app.classList.remove('chat-active'); activeChatId=null; if(window.__chatMsgPoll){ clearInterval(window.__chatMsgPoll); window.__chatMsgPoll=null; } document.querySelectorAll('.chat-item.active').forEach(function(el){ el.classList.remove('active'); }); }
+}
+function toggleMailNav(open){ var app=document.getElementById('app'); if(app) app.classList.toggle('nav-open', !!open); }
+function focusComposer(){ var ed = window.getReplyEditor && window.getReplyEditor(); if (ed) ed.focus(); else { var t=document.getElementById('messageInput'); if(t) t.focus(); } var ia=document.getElementById('inputArea'); if(ia) ia.scrollIntoView({behavior:'smooth', block:'end'}); }
 
-            filtered.forEach(chat => {
-                const lastMessage = chat.latest_message || null;
-                const time = lastMessage ? moment.utc(lastMessage.created_at).local().format('MMM D, h:mm A') : '';
-                const isActive = activeChatId == chat.id ? 'active' : '';
-                const unreadBadge = chat.unread_count > 0 ? `<span class="chat-badge">${chat.unread_count}</span>` : '';
+// ============================== composer ===================================
+window.getReplyEditor = function(){ return (window.tinymce && tinymce.get && tinymce.get('messageInput')) || null; };
+function ensureTinymce(cb){
+    if (window.tinymce && tinymce.init) return cb();
+    if (!document.getElementById('tinymce-lib')) { var s=document.createElement('script'); s.id='tinymce-lib'; s.src=MAIL_TINYMCE_SRC; document.body.appendChild(s); }
+    var tries=0; (function wait(){ if (window.tinymce && tinymce.init) return cb(); if (tries++ > 200) return; setTimeout(wait, 60); })();
+}
+function bootComposerEditor(){
+    if (!document.getElementById('messageInput')) return;
+    ensureTinymce(function(){
+        if (!document.getElementById('messageInput')) return;
+        if (tinymce.get('messageInput')) { try { tinymce.get('messageInput').remove(); } catch(e){} }
+        tinymce.init({
+            selector: '#messageInput', height: 220, menubar: false, branding: false, promotion: false, statusbar: false,
+            convert_urls: false, paste_data_images: true, automatic_uploads: false,
+            plugins: 'lists link image table code autolink',
+            toolbar: 'undo redo | blocks | bold italic underline forecolor | alignleft aligncenter alignright | bullist numlist | link image table | removeformat | code',
+            placeholder: 'Write your reply…',
+            setup: function(editor){
+                editor.on('drop', function(event){ var dt=event.dataTransfer; if (dt && dt.files && dt.files.length && window.addReplyAttachments){ event.preventDefault(); event.stopPropagation(); window.addReplyAttachments(Array.prototype.slice.call(dt.files)); } });
+            },
+            init_instance_callback: function(editor){ if (window.setupReplyDropZone) { try { window.setupReplyDropZone(editor.getBody()); } catch(e){} } }
+        });
+    });
+}
 
-                const initials = chat.client_name ? chat.client_name.split(' ').filter(n => n).map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?';
+// attachments (same helpers as the email page, window-scoped for inline handlers)
+window.replyAttachmentFiles = [];
+function syncReplyFileInput(){ var input=document.getElementById('fileInput'); if(!input) return; var t=new DataTransfer(); window.replyAttachmentFiles.forEach(function(f){ t.items.add(f); }); input.files = t.files; }
+function renderReplyAttachments(){
+    var tray=document.getElementById('attachment-tray'); if(!tray) return;
+    (window.replyAttachmentObjectUrls||[]).forEach(function(u){ URL.revokeObjectURL(u); }); window.replyAttachmentObjectUrls=[];
+    tray.innerHTML='';
+    if (!window.replyAttachmentFiles.length) { tray.style.display='none'; return; }
+    tray.style.display='flex';
+    window.replyAttachmentFiles.forEach(function(file, index){
+        var item=document.createElement('div'); item.className='attachment-chip';
+        var url=URL.createObjectURL(file); window.replyAttachmentObjectUrls.push(url);
+        var open=document.createElement('a'); open.className='attachment-chip-open'; open.href=url; open.target='_blank'; open.rel='noopener'; open.title='Open '+file.name;
+        var preview; if ((file.type && file.type.indexOf('image/')===0) || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name)) { preview=document.createElement('img'); preview.className='attachment-chip-preview'; preview.src=url; } else { preview=document.createElement('i'); preview.className='fas fa-file-alt'; preview.style.color='var(--primary-purple)'; }
+        var name=document.createElement('span'); name.className='attachment-chip-name'; name.title=file.name; name.textContent=file.name;
+        var remove=document.createElement('button'); remove.type='button'; remove.className='attachment-chip-remove'; remove.title='Remove file'; remove.innerHTML='<i class="fas fa-times"></i>'; remove.onclick=function(){ window.removeReplyAttachment(index); };
+        open.append(preview, name); item.append(open, remove); tray.appendChild(item);
+    });
+}
+window.addReplyAttachments = function(files, replace){
+    var incoming = Array.from(files||[]); if (replace) window.replyAttachmentFiles = [];
+    incoming.forEach(function(file){ var dup = window.replyAttachmentFiles.some(function(e){ return e.name===file.name && e.size===file.size && e.lastModified===file.lastModified; }); if(!dup) window.replyAttachmentFiles.push(file); });
+    syncReplyFileInput(); renderReplyAttachments();
+};
+window.removeReplyAttachment = function(index){ window.replyAttachmentFiles.splice(index,1); syncReplyFileInput(); renderReplyAttachments(); };
+window.handleFileSelect = function(input){ window.addReplyAttachments(input.files, true); };
+window.setupReplyDropZone = function(target){
+    if (!target || target.dataset.replyDropReady) return; target.dataset.replyDropReady='1';
+    ['dragenter','dragover'].forEach(function(type){ target.addEventListener(type, function(e){ e.preventDefault(); e.stopPropagation(); var z=document.getElementById('replyDropOverlay'); if(z) z.classList.add('active'); }, true); });
+    target.addEventListener('dragleave', function(e){ e.preventDefault(); e.stopPropagation(); var z=document.getElementById('replyDropOverlay'); if(z) z.classList.remove('active'); }, true);
+    target.addEventListener('drop', function(e){ e.preventDefault(); e.stopImmediatePropagation(); var z=document.getElementById('replyDropOverlay'); if(z) z.classList.remove('active'); if (e.dataTransfer && e.dataTransfer.files.length) window.addReplyAttachments(e.dataTransfer.files); }, true);
+};
+(function(){ var zone=document.getElementById('replyDropZone'); if(zone) window.setupReplyDropZone(zone); var ov=document.getElementById('replyDropOverlay'); if(ov && !ov.dataset.ready){ ov.dataset.ready='1'; ov.addEventListener('drop', function(e){ e.preventDefault(); e.stopImmediatePropagation(); ov.classList.remove('active'); window.addReplyAttachments(e.dataTransfer.files); }, true); } })();
 
-                const item = document.createElement('div');
-                item.className = `chat-item ${isActive}`;
-                item.onclick = () => selectChat(chat.id);
-                item.innerHTML = `
-                    <div class="chat-avatar">${initials}</div>
-                    <div class="chat-info">
-                        <span class="chat-name">${chat.client_name || 'Anonymous User'}</span>
-                        <span class="chat-product">${chat.product_name || 'General Inquiry'}</span>
-                    </div>
-                    <div class="chat-meta">
-                        <div class="chat-time">${time}</div>
-                        ${unreadBadge}
-                    </div>
-                `;
-                container.appendChild(item);
-            });
-        }
+// sending
+var chatForm = document.getElementById('chatForm');
+if (chatForm) {
+    chatForm.onsubmit = function(e){
+        e.preventDefault();
+        var ed = window.getReplyEditor && window.getReplyEditor(); if (ed) ed.save();
+        var input = document.getElementById('messageInput');
+        var body = (input.value||'').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').trim();
+        if (!body && !document.getElementById('fileInput').files.length) return;
+        pendingChatForm = e.target;
+        var chat = chatsData.find(function(c){ return c.id==activeChatId; });
+        document.getElementById('modalSubject').value = chat ? ('Re: ' + (chat.subject || chat.product_name || 'Your Inquiry')) : 'Re: Your Inquiry';
+        document.getElementById('modalCc').value = document.getElementById('chatCcField').value || '';
+        document.getElementById('modalBcc').value = document.getElementById('chatBccField').value || '';
+        openEmailMetaModal();
+    };
+}
+function openEmailMetaModal(){ document.getElementById('emailMetaModal').classList.add('open'); setTimeout(function(){ document.getElementById('modalSubject').focus(); }, 30); }
+function closeEmailMetaModal(){ document.getElementById('emailMetaModal').classList.remove('open'); pendingChatForm = null; }
+function submitEmailMeta(){
+    var subject = document.getElementById('modalSubject').value.trim();
+    if (!subject) { alert('Email subject is required.'); return; }
+    if (!pendingChatForm || !activeChatId) return;
+    document.getElementById('chatEmailSubject').value = subject;
+    document.getElementById('chatCcField').value = document.getElementById('modalCc').value.trim();
+    document.getElementById('chatBccField').value = document.getElementById('modalBcc').value.trim();
+    var form = pendingChatForm, btn = document.getElementById('sendBtn'), txt = document.getElementById('sendBtnText');
+    btn.disabled = true; txt.textContent = 'Sending…';
+    fetch('/crm/email/'+activeChatId+'/message', {method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){ return r.json(); })
+        .then(function(result){
+            if (result.success) {
+                appendMessage(result.data); if (result.data && result.data.id) lastMsgId = Math.max(lastMsgId, result.data.id); scrollToBottom();
+                var ed = window.getReplyEditor && window.getReplyEditor(); if (ed) ed.setContent(''); document.getElementById('messageInput').value='';
+                window.replyAttachmentFiles = []; syncReplyFileInput(); renderReplyAttachments();
+                closeEmailMetaModal(); toast('Reply sent'); loadChatList(true);
+            } else { alert('Error: ' + (result.message||'Could not send')); }
+        })
+        .catch(function(err){ console.error(err); alert('Failed to send message. Please try again.'); })
+        .then(function(){ btn.disabled=false; txt.textContent='Send'; });
+}
 
-        function selectChat(id) {
-            activeChatId = id;
-            const chat = chatsData.find(c => c.id == id);
-            if (!chat) return;
-
-            // Mobile Toggle
-            toggleMobileView(true);
-
-            // Update UI
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('chatHeader').style.display = 'flex';
-            document.getElementById('messagesContainer').style.display = 'flex';
-            document.getElementById('inputArea').style.display = 'block';
-
-            document.getElementById('activeName').innerText = chat.client_name || 'Anonymous User';
-            if (document.getElementById('activeEmail')) {
-                document.getElementById('activeEmail').innerText = chat.client_email;
-            }
-            document.getElementById('viewLeadBtn').href = `/crm/email/${chat.id}`;
-
-            const initials = chat.client_name ? chat.client_name.split(' ').filter(n => n).map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?';
-            document.getElementById('activeAvatar').innerText = initials;
-
-            // Highlighting
-            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-            renderChatList(document.getElementById('chatSearch').value.toLowerCase());
-
-            // Load Messages
-            lastMsgId = 0;
-            lastDisplayedDateStr = null;
-            document.getElementById('messagesContainer').innerHTML = '';
-            fetchMessages();
-
-            // Start polling for this chat
-            if (pollingInterval) clearInterval(pollingInterval);
-            pollingInterval = setInterval(fetchMessages, 5000);
-        }
-
-        function fetchMessages() {
-            if (!activeChatId) return;
-
-            fetch(`/crm/email/${activeChatId}/messages?last_id=${lastMsgId}`)
-                .then(res => res.json())
-                .then(messages => {
-                    if (messages.length > 0) {
-                        messages.forEach(msg => {
-                            appendMessage(msg);
-                            lastMsgId = msg.id;
-                        });
-                        scrollToBottom();
-
-                        // Also refresh chat list unread counts
-                        loadChatList();
-                    }
-                });
-        }
-
-        function appendMessage(msg) {
-            const container = document.getElementById('messagesContainer');
-
-            // 🚨 DUPLICATE CHECK: Don't add if already exists in DOM
-            if (document.getElementById(`msg-${msg.id}`)) return;
-
-            const msgDate = moment(msg.created_at).format('MMM D, YYYY');
-            if (msgDate !== lastDisplayedDateStr) {
-                lastDisplayedDateStr = msgDate;
-                const today = moment().format('MMM D, YYYY');
-                const yesterday = moment().subtract(1, 'days').format('MMM D, YYYY');
-                let displayDate = msgDate;
-                if (msgDate === today) displayDate = 'Today';
-                else if (msgDate === yesterday) displayDate = 'Yesterday';
-
-                const dateHeader = document.createElement('div');
-                dateHeader.style.cssText = "text-align:center; margin: 1.5rem 0 1rem; position: relative; width: 100%; align-self: center;";
-                dateHeader.innerHTML = `<span style="background: #eef2ff; color: var(--primary-purple); padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 600;">${displayDate}</span>`;
-                container.appendChild(dateHeader);
-            }
-
-            const isSelf = msg.sender_type === 'admin';
-            const time = moment(msg.created_at).format('h:mm A');
-
-            const row = document.createElement('div');
-            row.id = `msg-${msg.id}`; // Assign unique ID
-            row.className = 'msg-row';
-            row.style.alignItems = isSelf ? 'flex-end' : 'flex-start';
-
-            const hasText = msg.message_body && msg.message_body.trim().length > 0;
-            let attachmentsHtml = '';
-            let hasImageAttachment = false;
-
-            const hasAttachments = msg.attachments && msg.attachments.length > 0;
-            const isOnlyImage = !hasText && hasAttachments && msg.attachments.every(path => /\.(jpg|jpeg|png|gif|webp)$/i.test(path));
-
-            if (hasAttachments) {
-                attachmentsHtml = '<div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">';
-                msg.attachments.forEach(path => {
-                    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path);
-                    const baseUrl = window.location.origin;
-                    if (isImg) {
-                        hasImageAttachment = true;
-                        attachmentsHtml += `<a href="${baseUrl}/${path}" target="_blank" style="display:block; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);"><img src="${baseUrl}/${path}" style="max-width:280px; max-height:350px; display:block; object-fit:cover;"></a>`;
-                    } else {
-                        const filename = path.split('/').pop();
-                        attachmentsHtml += `<a href="${baseUrl}/${path}" target="_blank" style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:${isSelf ? 'color-mix(in srgb, var(--primary-purple) 22%, #fff)' : '#fff'}; border:1px solid ${isSelf ? 'color-mix(in srgb, var(--primary-purple) 28%, #fff)' : '#e2e8f0'}; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); text-decoration:none; color:#273449; font-size:0.8rem;"><i class="fas fa-file" style="color:${isSelf ? 'var(--primary-purple)' : '#64748b'}"></i> ${filename}</a>`;
-                    }
-                });
-                attachmentsHtml += '</div>';
-            }
-
-            let bubbleStyle = '';
-            const isTemplate = hasText && msg.message_body.includes('Custom Packaging Quote');
-            
-            if (isOnlyImage) {
-                bubbleStyle = 'background:none; padding:0; box-shadow:none;';
-            } else if (isTemplate) {
-                bubbleStyle = 'background:transparent; padding:0; box-shadow:none; max-width:100%; color:inherit;';
-            }
-
-            let bodyHtml = hasText ? (isSelf ? msg.message_body : msg.message_body.replace(/\n/g, '<br>')) : '';
-            if (hasText && hasImageAttachment) {
-                // Text is slightly larger when there is an image
-                bodyHtml = `<div style="font-size: 1.15rem; margin-bottom: 8px;">${bodyHtml}</div>`;
-            }
-
-            const bubbleClass = isTemplate ? '' : (isSelf ? 'msg-admin' : 'msg-client');
-
-            row.innerHTML = '';
-            if (hasText) {
-                row.innerHTML += `
-                    <div class="msg-bubble ${bubbleClass}" style="${bubbleStyle}">
-                        ${bodyHtml}
-                    </div>
-                `;
-            }
-            if (hasAttachments) {
-                row.innerHTML += `
-                    <div style="margin-top: ${hasText ? '5px' : '0'}; display: flex; flex-direction: column; align-items: ${isSelf ? 'flex-end' : 'flex-start'};">
-                        ${attachmentsHtml}
-                    </div>
-                `;
-            }
-            row.innerHTML += `<div class="msg-time">${time} ${isSelf ? '• ' + (msg.user ? msg.user.name : 'Admin') : ''}</div>`;
-            container.appendChild(row);
-        }
-
-        function scrollToBottom() {
-            const container = document.getElementById('messagesContainer');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        // Handle Sending
-        var chatForm = document.getElementById('chatForm');
-        if (chatForm) {
-            chatForm.onsubmit = function (e) {
-                e.preventDefault();
-                const form = e.target;
-                const input = document.getElementById('messageInput');
-                const btn = document.getElementById('sendBtn');
-                const btnText = document.getElementById('sendBtnText');
-                const body = input.value.trim();
-
-                if (!body && !document.getElementById('fileInput').files.length) return;
-
-                pendingChatForm = form;
-                const chat = chatsData.find(c => c.id == activeChatId);
-                document.getElementById('modalSubject').value = chat ? ("Re: " + (chat.subject || "")) : "Re: Your Inquiry";
-                document.getElementById('modalCc').value = form.querySelector('[name="cc"]').value || '';
-                document.getElementById('modalBcc').value = form.querySelector('[name="bcc"]').value || '';
-                openEmailMetaModal();
-            };
-        }
-
-        function openEmailMetaModal() {
-            document.getElementById('emailMetaModal').style.display = 'flex';
-            document.getElementById('modalSubject').focus();
-        }
-
-        function closeEmailMetaModal() {
-            document.getElementById('emailMetaModal').style.display = 'none';
-            pendingChatForm = null;
-        }
-
-        function submitEmailMeta() {
-            const subject = document.getElementById('modalSubject').value.trim();
-            if (!subject) {
-                alert('Email subject is required to send a message.');
-                return;
-            }
-            if (!pendingChatForm) return;
-
-            pendingChatForm.querySelector('[name="email_subject"]').value = subject;
-            pendingChatForm.querySelector('[name="cc"]').value = document.getElementById('modalCc').value.trim();
-            pendingChatForm.querySelector('[name="bcc"]').value = document.getElementById('modalBcc').value.trim();
-
-            const form = pendingChatForm;
-            const input = document.getElementById('messageInput');
-            const btn = document.getElementById('sendBtn');
-            const btnText = document.getElementById('sendBtnText');
-
-            btn.disabled = true;
-            btn.style.opacity = '0.7';
-            btnText.innerText = 'Sending...';
-
-            const formData = new FormData(form);
-
-            fetch(`/crm/email/${activeChatId}/message`, {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-                .then(res => res.json())
-                .then(res => {
-                    if (res.success) {
-                        appendMessage(res.data);
-                        lastMsgId = res.data.id;
-                        form.reset();
-                        input.style.height = 'auto';
-                        document.getElementById('attachment-tray').style.display = 'none';
-                        scrollToBottom();
-                        loadChatList();
-                        closeEmailMetaModal();
-                    } else {
-                        alert('Error: ' + res.message);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Failed to send message.');
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btnText.innerText = 'Send';
-                });
-        }
-
-        function handleFileSelect(input) {
-            const tray = document.getElementById('attachment-tray');
-            tray.innerHTML = '';
-            if (input.files.length > 0) {
-                tray.style.display = 'flex';
-                Array.from(input.files).forEach(file => {
-                    const item = document.createElement('div');
-                    item.style.padding = '4px 8px';
-                    item.style.background = '#eef2ff';
-                    item.style.borderRadius = '6px';
-                    item.style.fontSize = '0.75rem';
-                    item.style.color = 'var(--primary-purple)';
-                    item.innerHTML = `<i class="fas fa-file"></i> ${file.name}`;
-                    tray.appendChild(item);
-                });
-            } else {
-                tray.style.display = 'none';
-            }
-        }
-
-        function toggleMobileView(active) {
-            const container = document.getElementById('app');
-            if (active) {
-                container.classList.add('chat-active');
-            } else {
-                container.classList.remove('chat-active');
-                activeChatId = null;
-                if (pollingInterval) clearInterval(pollingInterval);
-            }
-        }
-
-        // Initial Load
-        loadChatList();
-        // Re-executed on every AJAX partial visit, so clear the previous poll before
-        // starting a new one — otherwise intervals stack up and multiply the requests.
-        if (window.__chatsListPoll) clearInterval(window.__chatsListPoll);
-        window.__chatsListPoll = setInterval(loadChatList, 10000); // Peer list refresh
-        // Bind the global listeners only once; the handlers they call (resumeChatList)
-        // operate on global state/DOM, so a single binding keeps working across visits.
-        if (!window.__chatsListenersBound) {
-            window.__chatsListenersBound = true;
-            document.addEventListener('visibilitychange', function () {
-                if (!document.hidden && typeof resumeChatList === 'function') resumeChatList();
-            });
-            window.addEventListener('pageshow', function () {
-                if (typeof resumeChatList === 'function') resumeChatList();
-            });
-        }
-        // Email import runs through crm:imap-daemon. Running it from the browser
-        // blocked chat-list requests on single-worker/local servers.
-    </script>
+// ================================ boot =====================================
+loadAccounts().then(function(){ loadChatList(true); });
+bootComposerEditor();
+if (window.__chatsListPoll) clearInterval(window.__chatsListPoll);
+window.__chatsListPoll = setInterval(function(){ loadChatList(false); }, 10000);
+if (!window.__chatsListenersBound) {
+    window.__chatsListenersBound = true;
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden && typeof resumeChatList==='function') resumeChatList(); });
+    window.addEventListener('pageshow', function(){ if (typeof resumeChatList==='function') resumeChatList(); });
+    document.addEventListener('keydown', function(e){ if (e.key==='Escape'){ var m=document.getElementById('accountModal'); if(m) m.classList.remove('open'); var em=document.getElementById('emailMetaModal'); if(em) em.classList.remove('open'); } });
+}
+</script>
 @endsection
