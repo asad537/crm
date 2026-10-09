@@ -145,6 +145,41 @@
     .mm-test { font-size: .75rem; margin-top: 4px; }
     .mm-test .ok { color: #047857; } .mm-test .err { color: #b91c1c; }
 
+
+    /* ---- mail message rows / reader ---- */
+    .chat-item .row-icons { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; color: #94a3b8; font-size: .7rem; }
+    .chat-item .star-btn { border: 0; background: none; padding: 0 2px; cursor: pointer; color: #cbd5e1; font-size: .78rem; line-height: 1; }
+    .chat-item .star-btn.on, .mail-reader-head .star-btn.on { color: #f59e0b; }
+    .mail-reader { flex: 1; overflow-y: auto; padding: 1.2rem 1.6rem 1.4rem; display: none; flex-direction: column; gap: .9rem; }
+    .mail-reader-head { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; padding: 1rem 1.2rem; }
+    .mail-reader-head h2 { margin: 0 0 .6rem; font-size: 1.05rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .mail-reader-head .star-btn { border: 0; background: none; cursor: pointer; color: #cbd5e1; font-size: 1rem; }
+    .mail-meta-row { display: flex; align-items: flex-start; gap: 10px; font-size: .8rem; color: #475569; }
+    .mail-meta-row .chat-avatar { width: 38px; height: 38px; font-size: .8rem; }
+    .mail-meta-row .lines { flex: 1; min-width: 0; }
+    .mail-meta-row .lines b { color: #0f172a; }
+    .mail-meta-row .lines .addr { color: #64748b; }
+    .mail-meta-row .lines small { display: block; color: #8a94a6; font-size: .72rem; margin-top: 2px; overflow-wrap: anywhere; }
+    .mail-meta-row .when { font-size: .72rem; color: #94a3b8; white-space: nowrap; }
+    .mail-body-card { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; overflow: hidden; }
+    .mail-body-card iframe { width: 100%; border: 0; display: block; min-height: 160px; background: #fff; }
+    .mail-body-card pre { margin: 0; padding: 1rem 1.2rem; white-space: pre-wrap; font: inherit; font-size: .9rem; color: #1e293b; }
+    .mail-atts { display: flex; flex-wrap: wrap; gap: 8px; padding: .8rem 1.2rem; border-top: 1px solid #f1f5f9; background: #fbfcfe; }
+    .mail-att { display: inline-flex; align-items: center; gap: 8px; padding: .45rem .7rem; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #334155; text-decoration: none; font-size: .78rem; font-weight: 700; max-width: 260px; }
+    .mail-att i { color: var(--primary-purple); }
+    .mail-att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-att small { color: #94a3b8; font-weight: 500; }
+    .thread-strip { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; padding: .6rem .8rem; }
+    .thread-strip h5 { margin: 0 0 .4rem .3rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: #8a94a6; }
+    .thread-item { display: flex; align-items: center; gap: 10px; padding: .5rem .6rem; border-radius: 9px; cursor: pointer; font-size: .78rem; color: #334155; }
+    .thread-item:hover { background: #f5f7fb; }
+    .thread-item .who { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+    .thread-item .snip { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a94a6; }
+    .thread-item .when { font-size: .68rem; color: #94a3b8; white-space: nowrap; }
+    .mail-reply-note { background: #fff; border: 1px dashed #d8deea; border-radius: 12px; padding: .7rem 1rem; font-size: .8rem; color: #64748b; display: flex; align-items: center; gap: 8px; }
+    .mail-reply-note a { color: var(--primary-purple); font-weight: 700; text-decoration: none; }
+    .list-loadmore { display: block; width: calc(100% - 2rem); margin: .6rem 1rem 1rem; padding: .55rem; border: 1px solid #e5e9f0; border-radius: 9px; background: #fff; color: var(--primary-purple); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+
     /* ---- Responsive ---- */
     @media (max-width: 1200px) { .mail-app { grid-template-columns: 220px 330px minmax(0,1fr); } }
     @media (max-width: 1024px) {
@@ -190,14 +225,10 @@
 
             <div class="mail-section-title"><span>Folders</span></div>
             <div id="mailFoldersList">
-                <div class="mail-nav-item active" data-folder="inbox" onclick="selectFolder('inbox')"><i class="fas fa-fw fa-inbox"></i><span class="label">Inbox</span><span class="count" id="folderInboxCount" style="display:none">0</span></div>
-                <div class="mail-nav-item disabled" data-folder="starred" title="Available after mailbox sync"><i class="fas fa-fw fa-star"></i><span class="label">Starred</span></div>
-                <div class="mail-nav-item disabled" data-folder="sent" title="Available after mailbox sync"><i class="fas fa-fw fa-paper-plane"></i><span class="label">Sent</span></div>
-                <div class="mail-nav-item disabled" data-folder="drafts" title="Available after mailbox sync"><i class="fas fa-fw fa-file-alt"></i><span class="label">Drafts</span></div>
-                <div class="mail-nav-item disabled" data-folder="archive" title="Available after mailbox sync"><i class="fas fa-fw fa-archive"></i><span class="label">Archive</span></div>
-                <div class="mail-nav-item disabled" data-folder="junk" title="Available after mailbox sync"><i class="fas fa-fw fa-exclamation-circle"></i><span class="label">Junk</span></div>
-                <div class="mail-nav-item disabled" data-folder="trash" title="Available after mailbox sync"><i class="fas fa-fw fa-trash-alt"></i><span class="label">Trash</span></div>
+                <div class="mail-nav-item active" data-folder="inbox" onclick="selectFolder('inbox')"><i class="fas fa-fw fa-inbox"></i><span class="label">Inbox</span></div>
             </div>
+            <div class="mail-section-title"><span>CRM</span></div>
+            <div class="mail-nav-item" data-folder="leads" onclick="selectFolder('leads')" title="Lead conversations (website/form inquiries and their replies)"><i class="fas fa-fw fa-user-tag"></i><span class="label">Lead conversations</span><span class="count" id="folderLeadsCount" style="display:none">0</span></div>
         </div>
         <div class="mail-nav-foot"><span id="mailSyncStatus">Lead conversations</span><button type="button" onclick="manualSync()" title="Check mailbox for new replies"><i class="fas fa-sync-alt"></i> Sync</button></div>
     </aside>
@@ -241,12 +272,15 @@
                 </div>
             </div>
             <div class="reader-actions">
-                <button type="button" class="reader-btn" onclick="focusComposer()" title="Reply"><i class="fas fa-reply"></i><span class="txt">Reply</span></button>
+                <button type="button" class="reader-btn" id="readerStarBtn" onclick="toggleStarActive()" title="Star" style="display:none"><i class="far fa-star"></i></button>
+                <button type="button" class="reader-btn" id="readerUnreadBtn" onclick="markActiveUnread()" title="Mark as unread" style="display:none"><i class="fas fa-envelope"></i></button>
+                <button type="button" class="reader-btn" id="readerReplyBtn" onclick="focusComposer()" title="Reply"><i class="fas fa-reply"></i><span class="txt">Reply</span></button>
                 <a href="#" id="viewLeadBtn" class="reader-btn" title="Open lead / case"><i class="fas fa-external-link-alt"></i><span class="txt">View Case</span></a>
             </div>
         </div>
 
         <div class="chat-messages-container" id="messagesContainer" style="display:none"></div>
+        <div class="mail-reader" id="mailReader"></div>
 
         <div class="chat-input-area" id="inputArea" style="display:none">
             @if($mailIsAdminOnly)
@@ -355,7 +389,10 @@ var MAIL_ROUTES = {
     sync:      '{{ route("crm.chats.sync") }}',
     accounts:  '{{ route("crm.mail.accounts.index") }}',
     presets:   '{{ route("crm.mail.accounts.presets") }}',
-    accTest:   '{{ route("crm.mail.accounts.test") }}'
+    accTest:   '{{ route("crm.mail.accounts.test") }}',
+    folders:   '{{ route("crm.mail.folders") }}',
+    messages:  '{{ route("crm.mail.messages") }}',
+    mailSync:  '{{ route("crm.mail.sync") }}'
 };
 var MAIL_CSRF = '{{ csrf_token() }}';
 var MAIL_IS_ADMIN = {{ $mailIsAdminOnly ? 'true' : 'false' }};
@@ -363,6 +400,9 @@ var MAIL_TINYMCE_SRC = "{{ URL::asset('tinymce/tinymce.min.js') }}";
 
 var activeChatId = null, activeAccountId = null, activeFolder = 'inbox';
 var chatsData = [], accountsData = [], presetsData = {};
+var folderCounts = {}, customFolders = [], mailMessages = [], mailPage = 1, mailHasMore = false, activeMailId = null, activeMail = null, mailListLoading = false, mailListController = null;
+var FOLDER_META = { inbox:['fa-inbox','Inbox'], starred:['fa-star','Starred'], sent:['fa-paper-plane','Sent'], drafts:['fa-file-alt','Drafts'], archive:['fa-archive','Archive'], junk:['fa-exclamation-circle','Junk'], trash:['fa-trash-alt','Trash'] };
+function isMailMode(){ return activeFolder !== 'leads'; }
 var lastMsgId = 0, lastDisplayedDateStr = null, pendingChatForm = null;
 var chatListLoading = false, chatListController = null, chatListRetries = 0, inboxSyncRunning = false;
 var ACC_COLORS = ['#6c5ce7','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f97316'];
@@ -411,14 +451,182 @@ function selectAccount(id){
     var a = accountsData.find(function(x){return x.id===id;});
     var sub = document.getElementById('listSubtitle'); if(sub) sub.textContent = a ? a.email_address : 'All inboxes';
     toggleMailNav(false);
-    chatListRetries = 0; loadChatList(true);
+    loadFolders();
+    if (isMailMode()) { loadMailList(true); } else { chatListRetries = 0; loadChatList(true); }
 }
 function selectFolder(folder){
     activeFolder = folder;
-    document.querySelectorAll('#mailFoldersList .mail-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.folder===folder); });
-    var t = document.getElementById('listTitle'); if(t) t.textContent = folder.charAt(0).toUpperCase()+folder.slice(1);
+    document.querySelectorAll('.mail-nav-item[data-folder]').forEach(function(el){ el.classList.toggle('active', el.dataset.folder===folder); });
+    var t = document.getElementById('listTitle');
+    if (t) {
+        if (folder === 'leads') t.textContent = 'Lead conversations';
+        else if (folder.indexOf('custom:')===0) { var cf = customFolders.find(function(f){ return 'custom:'+f.id===folder; }); t.textContent = cf ? cf.name : 'Folder'; }
+        else t.textContent = (FOLDER_META[folder]||['',folder])[1];
+    }
+    var search = document.getElementById('chatSearch'); if (search) { search.value=''; search.placeholder = isMailMode() ? 'Search mail…' : 'Search conversations…'; }
     toggleMailNav(false);
+    closeReader();
+    if (isMailMode()) loadMailList(true); else { chatListRetries = 0; loadChatList(true); }
 }
+function closeReader(){
+    activeMailId = null; activeMail = null;
+    if (window.__chatMsgPoll){ clearInterval(window.__chatMsgPoll); window.__chatMsgPoll=null; }
+    activeChatId = null;
+    var app=document.getElementById('app'); if(app) app.classList.remove('chat-active');
+    ['chatHeader','messagesContainer','inputArea','mailReader'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
+    var es=document.getElementById('emptyState'); if(es) es.style.display='flex';
+}
+
+// ============================== folders ====================================
+function loadFolders(){
+    var url = MAIL_ROUTES.folders + (activeAccountId ? '?account='+activeAccountId : '');
+    return fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+        .then(function(r){ if(!r.ok) throw new Error('folders '+r.status); return r.json(); })
+        .then(function(d){ folderCounts = d.counts || {}; customFolders = d.custom || []; renderFolders(); })
+        .catch(function(e){ console.error(e); });
+}
+function renderFolders(){
+    var el = document.getElementById('mailFoldersList'); if(!el) return;
+    var html = '';
+    Object.keys(FOLDER_META).forEach(function(key){
+        var c = folderCounts[key] || {total:0, unread:0};
+        var badge = key==='inbox' || key==='starred' || key==='drafts' ? (key==='drafts' ? c.total : c.unread) : 0;
+        html += '<div class="mail-nav-item '+(activeFolder===key?'active':'')+'" data-folder="'+key+'" onclick="selectFolder(\''+key+'\')"><i class="fas fa-fw '+FOLDER_META[key][0]+'"></i><span class="label">'+FOLDER_META[key][1]+'</span>'+(badge?'<span class="count">'+badge+'</span>':'')+'</div>';
+    });
+    customFolders.forEach(function(f){
+        var key = 'custom:'+f.id;
+        html += '<div class="mail-nav-item '+(activeFolder===key?'active':'')+'" data-folder="'+key+'" onclick="selectFolder(\''+key+'\')" title="'+esc(f.path)+'"><i class="fas fa-fw fa-folder"></i><span class="label">'+esc(f.name)+'</span>'+(f.unread_count?'<span class="count">'+f.unread_count+'</span>':'')+'</div>';
+    });
+    el.innerHTML = html;
+    var leads = document.querySelector('.mail-nav-item[data-folder="leads"]'); if (leads) leads.classList.toggle('active', activeFolder==='leads');
+}
+
+// ============================ mail list ====================================
+function loadMailList(reset){
+    var container = document.getElementById('chatListContainer'); if(!container) return Promise.resolve();
+    if (reset) { mailPage = 1; mailMessages = []; container.innerHTML = '<div class="chat-list-empty"><i class="fas fa-spinner fa-spin"></i> Loading mail…</div>'; }
+    if (mailListController) { try{ mailListController.abort(); }catch(e){} }
+    mailListController = new AbortController(); var controller = mailListController;
+    var params = new URLSearchParams();
+    if (activeAccountId) params.set('account', activeAccountId);
+    if (activeFolder.indexOf('custom:')===0) params.set('folder', activeFolder.split(':')[1]); else params.set('type', activeFolder);
+    var q = document.getElementById('chatSearch') ? document.getElementById('chatSearch').value.trim() : '';
+    if (q) params.set('q', q);
+    params.set('page', mailPage);
+    return fetch(MAIL_ROUTES.messages+'?'+params.toString(), {signal:controller.signal, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+        .then(function(r){ if(!r.ok) throw new Error('messages '+r.status); return r.json(); })
+        .then(function(d){
+            if (controller !== mailListController) return;
+            var incoming = d.messages || [];
+            if (mailPage === 1) mailMessages = incoming; else incoming.forEach(function(m){ if(!mailMessages.some(function(x){return x.id===m.id;})) mailMessages.push(m); });
+            mailHasMore = !!d.has_more;
+            renderMailList();
+        })
+        .catch(function(e){ if (e.name==='AbortError') return; console.error(e); if (!mailMessages.length) container.innerHTML = '<div class="chat-list-empty"><i class="fas fa-plug"></i>Mail could not be loaded.<br><button type="button" class="reader-btn" style="margin-top:.8rem" onclick="loadMailList(true)">Retry</button></div>'; });
+}
+function loadMoreMail(){ if (!mailHasMore) return; mailPage++; loadMailList(false); }
+function renderMailList(){
+    var container = document.getElementById('chatListContainer'); if(!container) return;
+    if (!mailMessages.length) {
+        var acc = accountsData.length;
+        container.innerHTML = '<div class="chat-list-empty"><i class="fas fa-inbox"></i>'+(acc ? 'No mail here yet.' : 'Connect a mailbox to see your email here.')+(acc ? '' : '<br><button type="button" class="reader-btn primary" style="margin-top:.8rem" onclick="openAccountModal()"><i class="fas fa-plus"></i> Add mailbox</button>')+'</div>';
+        return;
+    }
+    var html = '';
+    mailMessages.forEach(function(m){
+        var who = m.is_outgoing ? ('To: ' + ((m.to && m.to[0]) ? (m.to[0].name || m.to[0].email) : '')) : (m.from_name || m.from_email || 'Unknown');
+        var time = m.received_at ? moment(m.received_at).calendar(null, {sameDay:'h:mm A', lastDay:'[Yesterday]', lastWeek:'ddd', sameElse:'MMM D'}) : '';
+        var acc = accountsData.find(function(a){return a.id===m.account_id;});
+        var accChip = acc && activeAccountId===null && accountsData.length>1 ? '<span class="chat-acc-chip"><span class="mail-acc-dot" style="width:7px;height:7px;flex-basis:7px;background:'+accColor(acc.id)+'"></span>'+esc(acc.display_name||acc.email_address)+'</span>' : '';
+        html += '<div class="chat-item'+(activeMailId===m.id?' active':'')+(!m.is_read && !m.is_outgoing?' unread':'')+'" data-mail="'+m.id+'" onclick="openMail('+m.id+')">'
+            + '<div class="chat-avatar" style="'+(m.is_outgoing?'background:#f1f5f9;color:#64748b':'')+'">'+esc(initialsOf(m.is_outgoing ? ((m.to&&m.to[0])?(m.to[0].name||m.to[0].email):'') : (m.from_name||m.from_email)))+'</div>'
+            + '<div class="chat-info">'
+            +   '<div class="chat-row1"><span class="chat-name">'+esc(who)+'</span><span class="chat-time">'+esc(time)+'</span></div>'
+            +   '<div class="chat-subject">'+esc(m.subject || '(no subject)')+'<span class="row-icons">'+(m.has_attachments?'<i class="fas fa-paperclip"></i>':'')+'<button type="button" class="star-btn '+(m.is_starred?'on':'')+'" onclick="event.stopPropagation();toggleStar('+m.id+')" title="Star"><i class="'+(m.is_starred?'fas':'far')+' fa-star"></i></button></span></div>'
+            +   '<div class="chat-snippet">'+accChip+'<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(m.snippet||'')+'</span></div>'
+            + '</div></div>';
+    });
+    if (mailHasMore) html += '<button type="button" class="list-loadmore" onclick="loadMoreMail()">Load more</button>';
+    container.innerHTML = html;
+}
+function toggleStar(id){
+    fetch(MAIL_ROUTES.messages+'/'+id+'/star', {method:'POST', headers:jsonHeaders(), body:'{}'})
+        .then(function(r){ return r.json(); })
+        .then(function(d){ var m = mailMessages.find(function(x){return x.id===id;}); if (m) m.is_starred = d.is_starred; if (activeMail && activeMail.id===id) { activeMail.is_starred = d.is_starred; paintStar(); } renderMailList(); loadFolders(); })
+        .catch(function(){ toast('Could not update star','error'); });
+}
+function toggleStarActive(){ if (activeMail) toggleStar(activeMail.id); }
+function paintStar(){ var b=document.getElementById('readerStarBtn'); if(!b) return; b.innerHTML = '<i class="'+(activeMail && activeMail.is_starred?'fas':'far')+' fa-star"></i>'; b.classList.toggle('on', !!(activeMail && activeMail.is_starred)); }
+function markActiveUnread(){
+    if (!activeMail) return;
+    fetch(MAIL_ROUTES.messages+'/'+activeMail.id+'/read', {method:'POST', headers:jsonHeaders(), body:JSON.stringify({read:false})})
+        .then(function(){ var m = mailMessages.find(function(x){return x.id===activeMail.id;}); if (m) m.is_read=false; closeReader(); renderMailList(); loadFolders(); toast('Marked as unread'); })
+        .catch(function(){ toast('Could not update','error'); });
+}
+function fmtBytes(n){ if(!n) return ''; var u=['B','KB','MB','GB'], i=0; while(n>=1024 && i<u.length-1){ n/=1024; i++; } return (i?n.toFixed(1):n)+' '+u[i]; }
+function openMail(id){
+    activeMailId = id; activeChatId = null;
+    if (window.__chatMsgPoll){ clearInterval(window.__chatMsgPoll); window.__chatMsgPoll=null; }
+    toggleMobileView(true);
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('chatHeader').style.display='flex';
+    document.getElementById('messagesContainer').style.display='none';
+    document.getElementById('inputArea').style.display='none';
+    var reader = document.getElementById('mailReader'); reader.style.display='flex'; reader.innerHTML = '<div class="chat-list-empty"><i class="fas fa-spinner fa-spin"></i></div>';
+    renderMailList();
+    fetch(MAIL_ROUTES.messages+'/'+id, {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+        .then(function(r){ if(!r.ok) throw new Error('message '+r.status); return r.json(); })
+        .then(function(d){
+            if (activeMailId !== id) return;
+            activeMail = d.message; activeMail.attachments = d.attachments || []; activeMail.thread = d.thread || [];
+            var row = mailMessages.find(function(x){return x.id===id;}); if (row) row.is_read = true;
+            renderMailList(); loadFolders(); renderMailReader();
+        })
+        .catch(function(e){ console.error(e); reader.innerHTML = '<div class="chat-list-empty"><i class="fas fa-exclamation-triangle"></i>Could not load this message.</div>'; });
+}
+function renderMailReader(){
+    var m = activeMail; if (!m) return;
+    var who = m.is_outgoing ? ((m.to&&m.to[0]) ? (m.to[0].name || m.to[0].email) : 'Recipient') : (m.from_name || m.from_email || 'Unknown');
+    document.getElementById('activeName').innerText = who;
+    document.getElementById('activeEmailHeader').innerText = m.is_outgoing ? ('via ' + (m.account_email||'')) : (m.from_email || '');
+    document.getElementById('activeSubject').innerText = '';
+    document.getElementById('activeAvatar').innerText = initialsOf(who);
+    var lead = document.getElementById('viewLeadBtn'); lead.style.display = m.crm_email_id ? '' : 'none'; if (m.crm_email_id) lead.href = '/crm/email/'+m.crm_email_id;
+    document.getElementById('readerStarBtn').style.display=''; paintStar();
+    document.getElementById('readerUnreadBtn').style.display='';
+    var replyBtn = document.getElementById('readerReplyBtn'); replyBtn.style.display = m.crm_email_id ? '' : 'none';
+
+    var toList = (m.to||[]).map(function(a){ return esc(a.name ? a.name+' <'+a.email+'>' : a.email); }).join(', ');
+    var ccList = (m.cc||[]).map(function(a){ return esc(a.name ? a.name+' <'+a.email+'>' : a.email); }).join(', ');
+    var when = m.received_at ? moment(m.received_at).format('ddd, MMM D, YYYY · h:mm A') : '';
+    var html = '<div class="mail-reader-head">'
+        + '<h2><span>'+esc(m.subject||'(no subject)')+'</span></h2>'
+        + '<div class="mail-meta-row"><div class="chat-avatar">'+esc(initialsOf(m.from_name||m.from_email))+'</div><div class="lines"><div><b>'+esc(m.from_name||m.from_email||'')+'</b> <span class="addr">'+(m.from_name?'&lt;'+esc(m.from_email||'')+'&gt;':'')+'</span></div>'
+        + (toList?'<small><b>To:</b> '+toList+'</small>':'') + (ccList?'<small><b>Cc:</b> '+ccList+'</small>':'') + '</div><div class="when">'+esc(when)+'</div></div>'
+        + '</div>';
+    html += '<div class="mail-body-card">';
+    if (m.html) {
+        var doc = '<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px 20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1e293b;word-wrap:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}blockquote{border-left:3px solid #e2e8f0;margin:8px 0;padding-left:12px;color:#64748b}table{max-width:100%}pre{white-space:pre-wrap}</style></head><body>'+m.html+'</body></html>';
+        html += '<iframe class="mail-html" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" srcdoc="'+doc.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" onload="fitMailFrame(this)"></iframe>';
+    } else {
+        html += '<pre>'+esc(m.text||'(empty message)')+'</pre>';
+    }
+    if (m.attachments && m.attachments.length) {
+        html += '<div class="mail-atts">' + m.attachments.map(function(a){ return '<a class="mail-att" href="'+a.url+'" target="_blank" rel="noopener" data-no-ajax-nav title="'+esc(a.name)+'"><i class="fas '+(/^image\//.test(a.mime||'')?'fa-image':(a.mime==='application/pdf'?'fa-file-pdf':'fa-paperclip'))+'"></i><span>'+esc(a.name)+'</span><small>'+fmtBytes(a.size)+'</small></a>'; }).join('') + '</div>';
+    }
+    html += '</div>';
+    if (m.thread && m.thread.length) {
+        html += '<div class="thread-strip"><h5>'+m.thread.length+' more in this conversation</h5>' + m.thread.map(function(t){ return '<div class="thread-item" onclick="openMail('+t.id+')"><span class="who">'+(t.is_outgoing?'You':esc(t.from_name||t.from_email||''))+'</span><span class="snip">'+esc(t.snippet||t.subject||'')+'</span>'+(t.has_attachments?'<i class="fas fa-paperclip" style="color:#94a3b8;font-size:.7rem"></i>':'')+'<span class="when">'+(t.received_at?moment(t.received_at).format('MMM D, h:mm A'):'')+'</span></div>'; }).join('') + '</div>';
+    }
+    if (m.crm_email_id) {
+        html += '<div class="mail-reply-note"><i class="fas fa-link"></i> Linked to lead <a href="/crm/email/'+m.crm_email_id+'">#'+m.crm_email_id+'</a> — reply from the lead conversation, or use Reply above.</div>';
+    } else if (!m.is_outgoing) {
+        html += '<div class="mail-reply-note"><i class="fas fa-info-circle"></i> Replying directly from this mailbox arrives with the next update (per-account sending).</div>';
+    }
+    document.getElementById('mailReader').innerHTML = html;
+    document.getElementById('mailReader').scrollTop = 0;
+}
+function fitMailFrame(f){ try { var h = f.contentDocument.documentElement.scrollHeight || f.contentDocument.body.scrollHeight; f.style.height = Math.min(Math.max(h + 24, 160), 4000) + 'px'; } catch(e) { f.style.height = '600px'; } }
 function accountAction(id, action){
     fetch(MAIL_ROUTES.accounts+'/'+id+'/'+action, {method:'POST', headers:jsonHeaders(), body: action==='toggle' ? JSON.stringify({field:'sync_enabled'}) : '{}'})
         .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
@@ -532,13 +740,19 @@ function saveAccount(){
 function manualSync(){
     if (inboxSyncRunning) return; inboxSyncRunning = true;
     var st=document.getElementById('mailSyncStatus'); if(st) st.textContent='Syncing…';
-    fetch(MAIL_ROUTES.sync, {headers:{'X-Requested-With':'XMLHttpRequest'}})
-        .then(function(r){ return r.json(); })
-        .then(function(){ loadChatList(true); if(activeChatId) fetchMessages(); if(st) st.textContent='Synced '+moment().format('h:mm A'); })
-        .catch(function(){ if(st) st.textContent='Sync failed'; })
-        .then(function(){ inboxSyncRunning=false; });
+    var own = accountsData.filter(function(a){ return a.is_own && a.is_active && a.sync_enabled && (activeAccountId===null || a.id===activeAccountId); });
+    var jobs = own.map(function(a){ return fetch(MAIL_ROUTES.mailSync, {method:'POST', headers:jsonHeaders(), body:JSON.stringify({account:a.id})}).then(function(r){ return r.json(); }).catch(function(){ return null; }); });
+    // legacy lead-reply import (uses the user's single legacy mailbox) stays available
+    jobs.push(fetch(MAIL_ROUTES.sync, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){ return r.json(); }).catch(function(){ return null; }));
+    Promise.all(jobs).then(function(results){
+        var imported = results.reduce(function(n,r){ return n + ((r && r.imported) ? r.imported : 0); }, 0);
+        loadFolders(); loadAccounts();
+        if (isMailMode()) loadMailList(true); else loadChatList(true);
+        if (activeChatId) fetchMessages();
+        if (st) st.textContent = 'Synced ' + moment().format('h:mm A') + (imported ? ' · +' + imported + ' new' : '');
+    }).catch(function(){ if(st) st.textContent='Sync failed'; }).then(function(){ inboxSyncRunning=false; });
 }
-function filterChats(){ renderChatList(document.getElementById('chatSearch').value.toLowerCase()); }
+function filterChats(){ if (isMailMode()) { clearTimeout(window.__mailSearchTimer); window.__mailSearchTimer = setTimeout(function(){ loadMailList(true); }, 350); } else { renderChatList(document.getElementById('chatSearch').value.toLowerCase()); } }
 function loadChatList(force){
     if (!document.getElementById('chatListContainer')) { if (window.__chatsListPoll){ clearInterval(window.__chatsListPoll); window.__chatsListPoll=null; } return Promise.resolve(); }
     if (chatListLoading && !force) return Promise.resolve();
@@ -576,7 +790,8 @@ function renderChatList(filter){
         return hay.indexOf(filter) !== -1;
     });
     var unreadTotal = chatsData.reduce(function(n,c){ return n + (c.unread_count>0?1:0); }, 0);
-    var cnt = document.getElementById('folderInboxCount'); if(cnt){ cnt.textContent = unreadTotal; cnt.style.display = unreadTotal?'':'none'; }
+    var cnt = document.getElementById('folderLeadsCount'); if(cnt){ cnt.textContent = unreadTotal; cnt.style.display = unreadTotal?'':'none'; }
+    if (isMailMode()) return; // list pane is showing mail right now
     if (!filtered.length) { container.innerHTML = '<div class="chat-list-empty"><i class="fas fa-inbox"></i>'+(chatsData.length?'No conversations match your search.':'No conversations in this mailbox yet.')+'</div>'; return; }
     container.innerHTML = '';
     filtered.forEach(function(chat){
@@ -602,11 +817,14 @@ function renderChatList(filter){
 function selectChat(id){
     activeChatId = id;
     var chat = chatsData.find(function(c){ return c.id==id; }); if(!chat) return;
+    activeMailId = null; activeMail = null;
     toggleMobileView(true);
     document.getElementById('emptyState').style.display='none';
     document.getElementById('chatHeader').style.display='flex';
     document.getElementById('messagesContainer').style.display='flex';
     document.getElementById('inputArea').style.display='block';
+    document.getElementById('mailReader').style.display='none';
+    document.getElementById('readerStarBtn').style.display='none'; document.getElementById('readerUnreadBtn').style.display='none'; document.getElementById('readerReplyBtn').style.display=''; document.getElementById('viewLeadBtn').style.display='';
     document.getElementById('activeName').innerText = chat.client_name || 'Anonymous User';
     document.getElementById('activeEmailHeader').innerText = chat.client_email || '';
     document.getElementById('activeSubject').innerText = chat.subject ? '· '+chat.subject : (chat.product_name ? '· '+chat.product_name : '');
@@ -791,10 +1009,31 @@ function submitEmailMeta(){
 }
 
 // ================================ boot =====================================
-loadAccounts().then(function(){ loadChatList(true); });
+loadAccounts().then(function(){
+    // Default view: real mail when a mailbox is connected (or shared), otherwise lead conversations.
+    activeFolder = accountsData.length ? 'inbox' : 'leads';
+    document.querySelectorAll('.mail-nav-item[data-folder]').forEach(function(el){ el.classList.toggle('active', el.dataset.folder===activeFolder); });
+    var t = document.getElementById('listTitle'); if (t) t.textContent = activeFolder==='leads' ? 'Lead conversations' : 'Inbox';
+    var search = document.getElementById('chatSearch'); if (search) search.placeholder = isMailMode() ? 'Search mail…' : 'Search conversations…';
+    loadFolders();
+    loadChatList(true);           // keeps the Leads badge current even in mail mode
+    if (isMailMode()) loadMailList(true);
+});
 bootComposerEditor();
 if (window.__chatsListPoll) clearInterval(window.__chatsListPoll);
 window.__chatsListPoll = setInterval(function(){ loadChatList(false); }, 10000);
+if (window.__mailListPoll) clearInterval(window.__mailListPoll);
+window.__mailListPoll = setInterval(function(){
+    if (!document.getElementById('chatListContainer')) { clearInterval(window.__mailListPoll); window.__mailListPoll=null; return; }
+    if (document.hidden) return;
+    loadFolders();
+    if (isMailMode() && mailPage === 1 && !(document.getElementById('chatSearch')||{}).value) {
+        // quiet refresh of page 1; renderMailList keeps the active row
+        var before = JSON.stringify(mailMessages.map(function(m){ return [m.id, m.is_read, m.is_starred]; }));
+        fetch(MAIL_ROUTES.messages+'?'+new URLSearchParams(Object.assign({page:1}, activeAccountId?{account:activeAccountId}:{}, activeFolder.indexOf('custom:')===0?{folder:activeFolder.split(':')[1]}:{type:activeFolder})).toString(), {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+            .then(function(r){ return r.json(); }).then(function(d){ var inc = d.messages||[]; var after = JSON.stringify(inc.map(function(m){ return [m.id, m.is_read, m.is_starred]; })); if (after !== before) { mailMessages = inc; mailHasMore = !!d.has_more; renderMailList(); } }).catch(function(){});
+    }
+}, 20000);
 if (!window.__chatsListenersBound) {
     window.__chatsListenersBound = true;
     document.addEventListener('visibilitychange', function(){ if (!document.hidden && typeof resumeChatList==='function') resumeChatList(); });

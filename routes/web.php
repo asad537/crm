@@ -207,6 +207,17 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
             Route::delete('{id}', 'MailAccountController@destroy')->name('destroy')->where('id', '[0-9]+');
         });
 
+        // Mailbox read side (folders, messages, attachments) — scoped to mailboxes the caller may view.
+        Route::group(['prefix' => 'mail', 'as' => 'crm.mail.'], function () {
+            Route::get('folders', 'MailboxController@folders')->name('folders');
+            Route::get('messages', 'MailboxController@messages')->name('messages');
+            Route::get('messages/{id}', 'MailboxController@show')->name('messages.show')->where('id', '[0-9]+');
+            Route::post('messages/{id}/star', 'MailboxController@star')->name('messages.star')->where('id', '[0-9]+');
+            Route::post('messages/{id}/read', 'MailboxController@read')->name('messages.read')->where('id', '[0-9]+');
+            Route::post('sync', 'MailboxController@sync')->name('sync')->middleware('throttle:6,1');
+            Route::get('attachments/{id}', 'MailboxController@attachment')->name('attachments.show')->where('id', '[0-9]+');
+        });
+
         // User Management (Admin Only)
         Route::post('email/{id}/status', 'EmailController@updateStatus')->name('crm.emails.status');
         Route::post('email/{id}/update-product-name', 'EmailController@updateProductName')->name('crm.emails.update_product_name');
