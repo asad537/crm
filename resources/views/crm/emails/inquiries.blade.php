@@ -386,8 +386,8 @@ document.addEventListener('click',function(event){
     }
     search.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(function(){updateResults(false)},300)});
     workflow.addEventListener('change',function(){updateResults(false)});
-    // Auto-refresh statuses every 15s without reloading the page.
-    setInterval(function(){if(!document.hidden&&!isBusy())updateResults(true)},15000);
+    // Auto-refresh statuses every 5s without reloading the page.
+    setInterval(function(){if(!document.hidden&&!isBusy())updateResults(true)},5000);
 })();
 </script>
 @endsection
