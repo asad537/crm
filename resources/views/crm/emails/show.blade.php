@@ -3746,7 +3746,7 @@
 @endsection
 
 @section('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.4/tinymce.min.js"></script>
+    <script src="{{ URL::asset('tinymce/tinymce.min.js') }}"></script>
     <script>
         // Returns the live TinyMCE reply editor, or null if it never loaded
         // (in which case the plain #message_body textarea is used as a fallback).
