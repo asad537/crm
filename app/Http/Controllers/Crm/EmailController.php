@@ -425,6 +425,18 @@ class EmailController extends Controller
         return view('crm.emails.show', compact('email', 'productDetails', 'estimators', 'assignableUsers', 'latestOrderEstimate', 'inquiryNotes'));
     }
 
+    /** The connected mailbox a lead reply should go out from, or null for the legacy global mailer. */
+    private function sendingAccountFor($user, CrmEmail $inquiry): ?\App\CrmMailAccount
+    {
+        if (!$user) return null;
+        $q = \App\CrmMailAccount::withoutGlobalScopes()->whereNull('deleted_at')->where('crm_user_id', $user->id)->where('is_active', true);
+        if ($inquiry->mail_account_id) {
+            $linked = (clone $q)->find($inquiry->mail_account_id);
+            if ($linked) return $linked;
+        }
+        return (clone $q)->orderByDesc('is_default')->orderBy('id')->first();
+    }
+
     /**
      * Who may read / act on a lead: admins & sales managers, the sales owner (creator or
      * assignee), the assigned estimator, and a team-lead reviewer. Single source of truth
@@ -916,7 +928,54 @@ class EmailController extends Controller
             }
         }
 
-        // 1. Create message record
+        // Follow Up: the composer was opened from the inquiry list with ?followup=1,
+        // so bump the inquiry's follow-up counter (shown as "Follow Up N" in the list).
+        if ($request->boolean('is_follow_up') && \Schema::hasColumn('crm_emails', 'follow_up_count')) {
+            $inquiry->increment('follow_up_count');
+        }
+
+        // Preferred path: send FROM the agent's connected mailbox (the lead's linked mailbox if the
+        // agent owns it, else their default). The client's reply then comes back to that mailbox,
+        // where the sync links it to this lead. Falls back to the legacy global mailer below.
+        $account = $this->sendingAccountFor($user, $inquiry);
+        if ($account) {
+            try {
+                $ccList = $request->filled('cc') ? array_filter(array_map('trim', explode(',', $request->cc))) : [];
+                $bccList = $request->filled('bcc') ? array_filter(array_map('trim', explode(',', $request->bcc))) : [];
+                $recipientEmail = trim((string) $inquiry->client_email);
+                if ($recipientEmail === '') {
+                    throw new \RuntimeException('Client email address is missing or invalid.');
+                }
+                $signatureHtml = (new ClientMessage($inquiry, $request->message_body, [], $user))->resolveSignatureHtml();
+                $html = view('email.crm_client_message', ['inquiry' => $inquiry, 'messageBody' => $request->message_body, 'agentUser' => $user, 'signatureHtml' => $signatureHtml])->render();
+                $subject = $request->email_subject ?: ('Re: ' . ($inquiry->subject ?: 'Your Inquiry'));
+                $replyTo = \App\CrmMailMessage::withoutGlobalScopes()->where('account_id', $account->id)->where('crm_email_id', $inquiry->id)
+                    ->where('is_outgoing', false)->orderByDesc('received_at')->first();
+
+                $sent = app(\App\Services\Mail\OutgoingMailService::class)->send($account, [
+                    'to' => [$recipientEmail], 'cc' => $ccList, 'bcc' => $bccList,
+                    'subject' => $subject, 'html' => $html,
+                    'attachments' => $absolutePaths,
+                    'reply_to_message' => $replyTo,
+                    'crm_email_id' => $inquiry->id,
+                    'sent_by' => $user,
+                    'mirror_body' => $request->message_body,
+                    'mirror_attachments' => $storedAttachments,
+                ]);
+                $message = CrmMessage::where('message_id', $sent->message_id)->where('crm_email_id', $inquiry->id)->first();
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => true, 'message' => 'Message sent to client successfully.', 'data' => $message ? $message->load('user') : null, 'via' => $account->email_address]);
+                }
+                return redirect()->back()->with('success', 'Message sent from ' . $account->email_address . '.');
+            } catch (\RuntimeException $e) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+                }
+                return redirect()->back()->with('error', $e->getMessage());
+            }
+        }
+
+        // 1. Create message record (legacy global-mailer path)
         $message = CrmMessage::create([
             'crm_email_id' => $inquiry->id,
             'sender_type' => 'admin',
@@ -925,12 +984,6 @@ class EmailController extends Controller
             'attachments' => $storedAttachments,
             'is_read' => true,
         ]);
-
-        // Follow Up: the composer was opened from the inquiry list with ?followup=1,
-        // so bump the inquiry's follow-up counter (shown as "Follow Up N" in the list).
-        if ($request->boolean('is_follow_up') && \Schema::hasColumn('crm_emails', 'follow_up_count')) {
-            $inquiry->increment('follow_up_count');
-        }
 
         // 2. Send email to client
         try {

@@ -99,6 +99,10 @@ class OutgoingMailService
             if ($file instanceof UploadedFile && $file->isValid()) {
                 $email->attachFromPath($file->getRealPath(), $file->getClientOriginalName(), $file->getMimeType() ?: 'application/octet-stream');
                 $files[] = ['name' => $file->getClientOriginalName(), 'mime' => $file->getMimeType() ?: 'application/octet-stream', 'size' => (int) $file->getSize(), 'tmp' => $file->getRealPath()];
+            } elseif (is_string($file) && is_file($file)) { // already-stored file (e.g. lead attachments)
+                $mime = @mime_content_type($file) ?: 'application/octet-stream';
+                $email->attachFromPath($file, basename($file), $mime);
+                $files[] = ['name' => basename($file), 'mime' => $mime, 'size' => (int) filesize($file), 'tmp' => $file];
             }
         }
         // Forward: carry the original (non-inline) attachments along.
@@ -123,8 +127,12 @@ class OutgoingMailService
         // ---- record (Sent folder) + attachments + lead link ---------------------------------
         $leadId = $draft['crm_email_id'] ?? $replyTo?->crm_email_id ?? null;
         $sentBy = $draft['sent_by'] ?? null;
+        // What the legacy lead thread (crm_messages) should show: by default the full HTML; callers
+        // may pass the bare body and the lead-attachment paths they stored themselves.
+        $mirrorBody = $draft['mirror_body'] ?? $fullHtml;
+        $mirrorAttachments = $draft['mirror_attachments'] ?? [];
 
-        $message = DB::transaction(function () use ($account, $replyTo, $to, $cc, $bcc, $subject, $fullHtml, $text, $messageId, $inReplyTo, $references, $files, $leadId, $sentBy) {
+        $message = DB::transaction(function () use ($account, $replyTo, $to, $cc, $bcc, $subject, $fullHtml, $text, $messageId, $inReplyTo, $references, $files, $leadId, $sentBy, $mirrorBody, $mirrorAttachments) {
             $sentFolder = CrmMailFolder::withoutGlobalScopes()->where('account_id', $account->id)->where('type', 'sent')->first()
                 ?: CrmMailFolder::withoutGlobalScopes()->firstOrCreate(['account_id' => $account->id, 'path' => 'INBOX.Sent'], ['name' => 'Sent', 'type' => 'sent']);
 
@@ -186,7 +194,8 @@ class OutgoingMailService
                     'crm_email_id' => $lead->id,
                     'sender_type' => 'admin',
                     'crm_user_id' => $sentBy?->id ?? $account->crm_user_id,
-                    'message_body' => $fullHtml,
+                    'message_body' => $mirrorBody,
+                    'attachments' => $mirrorAttachments ?: null,
                     'message_id' => $messageId,
                     'is_read' => true,
                 ]);

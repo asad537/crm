@@ -74,7 +74,12 @@ class ClientMessage extends Mailable
         $fromName    = ($this->agentUser->name ?? null) ?: config('mail.from.name', 'My Box Printing');
         $mail = $this
             ->from($fromAddress, $fromName)
-            ->subject($mailSubject)
+            ->subject($mailSubject);
+        // Legacy path (agent has no connected mailbox): make sure client replies still reach the agent.
+        if (!empty($this->agentUser->email_user) && filter_var($this->agentUser->email_user, FILTER_VALIDATE_EMAIL)) {
+            $mail->replyTo($this->agentUser->email_user, $fromName);
+        }
+        $mail = $mail
             ->view('email.crm_client_message')
             ->withSymfonyMessage(function ($message) use ($messageId, $inReplyTo, $references) {
                 try {
@@ -111,7 +116,7 @@ class ClientMessage extends Mailable
     /**
      * Build a safe fallback signature block for outgoing CRM replies.
      */
-    protected function resolveSignatureHtml()
+    public function resolveSignatureHtml()
     {
         $workspace = $this->inquiry->workspace;
         $isAlMassa = $workspace && $workspace->slug === 'mybox-packaging-app';
