@@ -425,25 +425,39 @@ class EmailController extends Controller
         return view('crm.emails.show', compact('email', 'productDetails', 'estimators', 'assignableUsers', 'latestOrderEstimate', 'inquiryNotes'));
     }
 
+    /**
+     * Who may read / act on a lead: admins & sales managers, the sales owner (creator or
+     * assignee), the assigned estimator, and a team-lead reviewer. Single source of truth
+     * for show(), attachment(), getMessages() and sendMessage().
+     */
+    private function canAccessInquiry($user, CrmEmail $inquiry): bool
+    {
+        if (!$user) return false;
+        if ($user->isAdmin() || $user->isSalesManager()) return true;
+        $isSalesOwner = $user->isSales()
+            && ((int) $inquiry->created_by === (int) $user->id || (int) $inquiry->assigned_to === (int) $user->id);
+        $isAssignedEstimator = (int) $inquiry->estimator_id === (int) $user->id;
+        $isTeamLeadReviewer = $this->teamLeadCanAccessInquiry($user, $inquiry);
+        return $isSalesOwner || $isAssignedEstimator || $isTeamLeadReviewer;
+    }
+
     public function attachment($inquiryId, $filename)
     {
         $currentUser = Auth::guard('crm')->user();
         $inquiry = CrmEmail::findOrFail($inquiryId);
-        $isAssignedEstimator = ((int) $inquiry->estimator_id === (int) $currentUser->id);
-        $isTeamLeadReviewer = $this->teamLeadCanAccessInquiry($currentUser, $inquiry);
-        $isSalesOwner = $currentUser->isSales()
-            && ((int) $inquiry->created_by === (int) $currentUser->id
-                || (int) $inquiry->assigned_to === (int) $currentUser->id);
-        if (!$currentUser->isAdmin() && !$currentUser->isSalesManager()
-            && !$isSalesOwner && !$isAssignedEstimator && !$isTeamLeadReviewer) {
+        if (!$this->canAccessInquiry($currentUser, $inquiry)) {
             abort(403);
         }
 
         $relativePath = 'crm_attachments/'.$inquiry->id.'/'.basename($filename);
         foreach ($this->attachmentPathCandidates($relativePath) as $path) {
             if (is_file($path) && is_readable($path)) {
+                $mime = @mime_content_type($path) ?: 'application/octet-stream';
+                $inline = str_starts_with($mime, 'image/') || $mime === 'application/pdf';
                 return response()->file($path, [
-                    'Content-Disposition' => 'inline; filename="'.basename($filename).'"',
+                    'Content-Type' => $inline ? $mime : 'application/octet-stream',
+                    'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="'.basename($filename).'"',
+                    'X-Content-Type-Options' => 'nosniff',
                     'Cache-Control' => 'private, max-age=3600',
                 ]);
             }
@@ -875,15 +889,23 @@ class EmailController extends Controller
 
         $inquiry = CrmEmail::findOrFail($id);
         $user = \Auth::guard('crm')->user();
+        if (!$this->canAccessInquiry($user, $inquiry)) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Access denied. This email is not assigned to you.'], 403);
+            }
+            abort(403, 'Access denied. This email is not assigned to you.');
+        }
 
         $storedAttachments = [];
         $absolutePaths = [];
 
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
-                $filename = time() . '_' . $file->getClientOriginalName();
+                $filename = time() . '_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $file->getClientOriginalName());
                 $path = 'crm_attachments/' . $inquiry->id;
-                $absoluteDirectory = $this->webDocumentPath($path);
+                // Private storage (outside the web root). The same relative URL still works because
+                // /crm_attachments/{id}/{file} falls through to the authenticated crm.attachments.show route.
+                $absoluteDirectory = storage_path('app/' . $path);
                 if (!is_dir($absoluteDirectory)) {
                     mkdir($absoluteDirectory, 0755, true);
                 }
@@ -1014,6 +1036,9 @@ class EmailController extends Controller
     public function getMessages(Request $request, $id)
     {
         $inquiry = CrmEmail::findOrFail($id);
+        if (!$this->canAccessInquiry(Auth::guard('crm')->user(), $inquiry)) {
+            return response()->json(['message' => 'Access denied. This email is not assigned to you.'], 403);
+        }
 
         $messages = $inquiry->messages()
             ->with('user')
@@ -2052,6 +2077,7 @@ class EmailController extends Controller
         $documentRoot = request()->server('DOCUMENT_ROOT');
 
         return array_unique(array_filter([
+            storage_path('app/'.$relativePath),
             $documentRoot ? rtrim($documentRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$relativePath : null,
             public_path($relativePath),
             base_path('public/'.$relativePath),

@@ -132,6 +132,19 @@ class UserManagementController extends Controller
         return redirect()->route('crm.users.index')->with('success', 'User created successfully.');
     }
 
+    /**
+     * Managers may only touch users who belong to the workspace they are working in.
+     * Prevents an admin of workspace A from reading/editing accounts (and mail credentials)
+     * that exist only in workspace B.
+     */
+    private function assertTargetInCurrentWorkspace(CrmUser $target): void
+    {
+        $workspaceId = (int) session('crm_workspace_id');
+        if (!$workspaceId || !$target->workspaces()->where('crm_workspaces.id', $workspaceId)->exists()) {
+            abort(403, 'This user does not belong to your workspace.');
+        }
+    }
+
     public function edit($id)
     {
         $currentUser = Auth::guard('crm')->user();
@@ -139,6 +152,7 @@ class UserManagementController extends Controller
             return redirect()->route('crm.dashboard')->with('error', 'Unauthorized');
         }
         $user = CrmUser::findOrFail($id);
+        $this->assertTargetInCurrentWorkspace($user);
         $workspaceRole = $user->roleForWorkspace(session('crm_workspace_id')) ?: $user->role;
 
         if ($user->isSuperAdmin() && !$currentUser->isSuperAdmin()) {
@@ -161,6 +175,7 @@ class UserManagementController extends Controller
         }
         
         $user = CrmUser::findOrFail($id);
+        $this->assertTargetInCurrentWorkspace($user);
         $workspaceRole = $user->roleForWorkspace(session('crm_workspace_id')) ?: $user->role;
 
         if ($user->isSuperAdmin() && !$currentUser->isSuperAdmin()) {
@@ -239,6 +254,12 @@ class UserManagementController extends Controller
         if (!$user || !$pass) {
             return response()->json(['success' => false, 'message' => 'Email and Password are required for verification.']);
         }
+        // Only real mail hosts on IMAP ports — no private/loopback targets (SSRF / port probing).
+        try {
+            (new \App\Services\Mail\MailConnectionTester())->assertSafeHost((string) $host, (int) $port, \App\Services\Mail\MailConnectionTester::IMAP_PORTS);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
 
         // Hostinger usually uses /ssl
         // Add /novalidate-cert to bypass self-signed certificate errors common with Hostinger
@@ -254,8 +275,8 @@ class UserManagementController extends Controller
             imap_close($connection);
             return response()->json(['success' => true, 'message' => 'Hostinger connection verified successfully!']);
         } else {
-            $error = imap_last_error();
-            return response()->json(['success' => false, 'message' => 'Verification failed: ' . ($error ?: 'Unknown error')]);
+            imap_errors(); // drain; raw server text is not returned to the browser
+            return response()->json(['success' => false, 'message' => 'Verification failed: the mail server rejected the email or password.']);
         }
     }
 
@@ -267,12 +288,14 @@ class UserManagementController extends Controller
         }
         
         $user = CrmUser::findOrFail($id);
+        $this->assertTargetInCurrentWorkspace($user);
+        $workspaceRole = $user->roleForWorkspace(session('crm_workspace_id')) ?: $user->role;
 
         if ($user->isSuperAdmin() && !$currentUser->isSuperAdmin()) {
             return redirect()->route('crm.users.index')->with('error', 'Only an Owner can remove this account.');
         }
         
-        if ($currentUser->isSalesManager() && $user->role !== 'sales') {
+        if ($currentUser->isSalesManager() && $workspaceRole !== 'sales') {
             return redirect()->route('crm.users.index')->with('error', 'Unauthorized to delete this user.');
         }
         
