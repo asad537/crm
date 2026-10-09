@@ -50,7 +50,7 @@
     .mail-list-title small i { font-size: .6rem; margin-left: 3px; }
     .mail-list-title small.acc-switch { cursor: pointer; user-select: none; border-radius: 6px; padding: 1px 4px; margin-left: -4px; }
     .mail-list-title small.acc-switch:hover { background: #f1f5f9; color: var(--primary-purple); }
-    .acc-menu { left: 0; right: auto; top: calc(100% + 6px); bottom: auto; min-width: 260px; max-height: 50vh; overflow-y: auto; }
+    .acc-menu { position: fixed; left: 0; right: auto; top: 0; bottom: auto; min-width: 260px; max-width: 360px; max-height: 50vh; overflow-y: auto; z-index: 100000; }
     .acc-menu button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .acc-menu button.on { background: var(--primary-soft); color: var(--primary-purple); }
     .acc-menu button small { display: block; font-size: .68rem; color: #94a3b8; font-weight: 500; }
@@ -630,6 +630,9 @@ function toggleAccountMenu(force){
             html += '<button type="button" class="'+(activeAccountId===a.id?'on':'')+'" onclick="selectAccount('+a.id+');toggleAccountMenu(false)"><span class="mail-acc-dot" style="width:8px;height:8px;flex:0 0 8px;background:'+accColor(a.id)+'"></span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(a.owner_name || a.display_name || a.email_address)+'<small>'+esc(a.email_address)+(a.is_own?'':' · read-only')+'</small></span></button>';
         });
         m.innerHTML = html;
+        // Fixed positioning right under the trigger so no card overflow/stacking can clip it.
+        var trig = document.querySelector('.mail-list-title .acc-switch');
+        if (trig) { var r = trig.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.max(8, r.left) + 'px'; }
     }
     m.classList.toggle('open', open);
 }
@@ -1317,6 +1320,7 @@ if (!window.__chatsListenersBound) {
     document.addEventListener('visibilitychange', function(){ if (!document.hidden && typeof resumeChatList==='function') resumeChatList(); });
     window.addEventListener('pageshow', function(){ if (typeof resumeChatList==='function') resumeChatList(); });
     document.addEventListener('click', function(e){ if (!e.target.closest('.more-wrap')) toggleMoreMenu(false); if (!e.target.closest('.acc-menu') && !e.target.closest('.acc-switch')) toggleAccountMenu(false); });
+    window.addEventListener('resize', function(){ toggleAccountMenu(false); });
     document.addEventListener('keydown', function(e){ if (e.key==='Escape'){ var m=document.getElementById('accountModal'); if(m) m.classList.remove('open'); var em=document.getElementById('emailMetaModal'); if(em) em.classList.remove('open'); } });
 }
 </script>
