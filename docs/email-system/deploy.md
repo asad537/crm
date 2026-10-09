@@ -60,10 +60,21 @@ by the new sync; running both is harmless but doubles IMAP traffic).
 - `php artisan migrate:rollback --path=database/migrations/2026_10_09_000001_create_crm_mail_tables.php`
   drops the new tables/column (synced mail is lost — prefer disabling sync + hiding the UI instead).
 
-## 7. Still pending (next phases)
-- Login step B: remove IMAP-only login for sales roles in `AuthController::verifyImap` once every active sales
-  user has logged in once after step A (bcrypt is now kept in sync; plaintext is no longer copied).
+## 7. Login step B (local authentication) — how to roll it out safely
+Code (commit after `dc74bdf`): local bcrypt is checked **first** for everyone; for sales-only accounts a legacy
+mailbox (IMAP) check remains as a **guarded fallback** that re-hashes the password locally on success and records
+`crm_users.imap_login_fallback_at`. Self-service **Forgot password?** (email link, `crm` password broker) and
+`php artisan crm:user-password <email> [--generate]` cover recovery; admins can also set a password in Edit User.
+
+1. `php artisan migrate --force --path=database/migrations/2026_10_09_000002_add_login_audit_columns_to_crm_users.php`
+2. Make sure the global mailer works (reset links are sent with it) and `APP_URL` is correct (links in the email).
+3. Deploy with the fallback **enabled** (default `CRM_IMAP_LOGIN_FALLBACK=true`). Nobody is locked out.
+4. After a few weeks run `php artisan crm:auth-audit --days=30`. When it reports "Safe to complete step B"
+   (every sales user has a local password and nobody needed the fallback), set `CRM_IMAP_LOGIN_FALLBACK=false`,
+   `php artisan config:cache`. From then on CRM login never touches a mailbox.
+5. Legacy `crm_users.email_pass` is no longer written anywhere; it can be nulled/dropped in a later cleanup once
+   `crm:imap-daemon` / `crm:fetch-emails` are retired (they still read it).
+
+## 8. Still pending (next phases)
 - Phase 6: server-side folder actions (archive/trash/move, flag sync to IMAP).
-- Phase 7 hardening: `EmailController::getMessages` has no ownership check (pre-existing), lead attachments
-  under the web root linked with `asset()`, throttle on auth.
 - Phase 8: broader automated tests (sync idempotency with a mocked IMAP, threading, send routing).

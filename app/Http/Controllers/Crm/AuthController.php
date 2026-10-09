@@ -24,105 +24,113 @@ class AuthController extends Controller
         $email = strtolower(trim($request->email));
         $password = $request->password;
 
-        // 1. Find the user in our system first
         $user = \App\CrmUser::where('email', $email)->first();
-
         if (!$user) {
             return back()->with('error', 'User not found in CRM system.');
         }
 
-        // 2. MANDATORY Hostinger/IMAP Check
-        // This ensures the CRM password MUST be the same as the Email password
-        if ($this->verifyImap($email, $password, $user)) {
-
-            // Keep the local bcrypt hash in sync so the CRM login can be decoupled from the
-            // mailbox (step B). Mailbox credentials now live in crm_mail_accounts — the plaintext
-            // password is NO LONGER copied into crm_users.email_pass on login.
-            $user->password = Hash::make($password);
-            $user->save();
-
-            // Log them in
-            Auth::guard('crm')->login($user);
-            $request->session()->regenerate();
-
-            $workspaces = $user->workspaces()->where('is_active', true)->orderBy('crm_workspaces.id')->get();
-            if ($workspaces->isEmpty()) {
-                Auth::guard('crm')->logout();
-                return back()->with('error', 'No active CRM workspace is assigned to this account.');
-            }
-
-            $preferredWorkspace = $workspaces->firstWhere('id', (int) session('crm_workspace_id')) ?: $workspaces->first();
-            session(['crm_workspace_id' => $preferredWorkspace->id]);
-            \App\Support\CrmWorkspaceContext::set($preferredWorkspace->id);
-
-            if ($user->isProductionManager()) {
-                return redirect()->route('crm.production_jobs.index');
-            }
-            if ($user->isPressOperator()) {
-                return redirect()->route('crm.press_tickets.index');
-            }
-            if ($user->isQC()) {
-                return redirect()->route('crm.qc_tickets.index');
-            }
-
-            if ($user->isWarehouse()) {
-                return redirect()->route('crm.warehouse_tickets.index');
-            }
-            if ($user->isAccounts()) {
-                return redirect()->route('crm.accounts_tickets.index');
-            }
-            if ($user->isShipping()) {
-                return redirect()->route('crm.shipping_tickets.index');
-            }
-            if ($user->isRetention()) {
-                return redirect()->route('crm.retention_tickets.index');
-            }
-
-            return redirect()->route('crm.dashboard');
+        // Login step B: LOCAL password first for everyone. The legacy mailbox (IMAP) check is
+        // only a guarded fallback for sales-only accounts (see config/crm.php) so nobody is
+        // locked out while their local hash catches up; a successful fallback re-hashes locally.
+        $authenticated = $this->verifyLocal($password, $user);
+        $usedFallback = false;
+        if (!$authenticated && $this->mailboxFallbackApplies($email, $user)) {
+            $authenticated = app(\App\Services\Auth\MailboxPasswordVerifier::class)->verify($user, $email, $password);
+            $usedFallback = $authenticated;
         }
 
-        // 3. If IMAP fails, they cannot login at all
-        return back()->with('error', 'Incorrect password. Your CRM password must match your Hostinger email password.');
+        if (!$authenticated) {
+            \Log::info('CRM login failed', ['user_id' => $user->id]);
+            return back()->with('error', 'Incorrect password. Use "Forgot password?" to reset it.');
+        }
+
+        $updates = ['last_login_at' => now()];
+        if ($usedFallback) {
+            // Self-heal: the mailbox password is now also the local password.
+            $updates['password'] = Hash::make($password);
+            $updates['imap_login_fallback_at'] = now();
+            \Log::notice('CRM login used mailbox fallback', ['user_id' => $user->id]);
+        }
+        $user->forceFill($updates)->save();
+
+        Auth::guard('crm')->login($user);
+        $request->session()->regenerate();
+
+        $workspaces = $user->workspaces()->where('is_active', true)->orderBy('crm_workspaces.id')->get();
+        if ($workspaces->isEmpty()) {
+            Auth::guard('crm')->logout();
+            return back()->with('error', 'No active CRM workspace is assigned to this account.');
+        }
+
+        $preferredWorkspace = $workspaces->firstWhere('id', (int) session('crm_workspace_id')) ?: $workspaces->first();
+        session(['crm_workspace_id' => $preferredWorkspace->id]);
+        \App\Support\CrmWorkspaceContext::set($preferredWorkspace->id);
+
+        if ($user->isProductionManager()) return redirect()->route('crm.production_jobs.index');
+        if ($user->isPressOperator())     return redirect()->route('crm.press_tickets.index');
+        if ($user->isQC())                return redirect()->route('crm.qc_tickets.index');
+        if ($user->isWarehouse())         return redirect()->route('crm.warehouse_tickets.index');
+        if ($user->isAccounts())          return redirect()->route('crm.accounts_tickets.index');
+        if ($user->isShipping())          return redirect()->route('crm.shipping_tickets.index');
+        if ($user->isRetention())         return redirect()->route('crm.retention_tickets.index');
+
+        return redirect()->route('crm.dashboard');
     }
 
-    /**
-     * Helper to verify password against Hostinger/IMAP
-     */
-    private function verifyImap($email, $password, $user)
+    private function verifyLocal(string $password, \App\CrmUser $user): bool
     {
-        // Bypass IMAP check for local test/seed accounts ending in @example.com
-        if (strpos($email, '@example.com') !== false) {
-            return \Hash::check($password, $user->password);
+        return !empty($user->password) && Hash::check($password, $user->password);
+    }
+
+    /** Sales-only accounts (every workspace role is sales/sales_manager) may fall back to the mailbox check while enabled. */
+    private function mailboxFallbackApplies(string $email, \App\CrmUser $user): bool
+    {
+        if (!config('crm.auth.imap_login_fallback', true)) return false;
+        if (str_ends_with($email, '@example.com')) return false; // local/test accounts never hit IMAP
+        $roles = $user->workspaces()->pluck('crm_user_workspace.role')->all();
+        return !empty($roles) && empty(array_diff($roles, ['sales', 'sales_manager']));
+    }
+
+    // ---- self-service password reset (crm broker) ---------------------------------------
+
+    public function showForgotForm()
+    {
+        return view('crm.auth.forgot_password');
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+        $status = \Illuminate\Support\Facades\Password::broker('crm')->sendResetLink(['email' => strtolower(trim($request->email))]);
+        // Always the same message — do not reveal whether the address exists.
+        \Log::info('CRM password reset requested', ['status' => $status]);
+        return back()->with('status', 'If that email belongs to a CRM account, a reset link has been sent.');
+    }
+
+    public function showResetForm(Request $request, string $token)
+    {
+        return view('crm.auth.reset_password', ['token' => $token, 'email' => (string) $request->query('email', '')]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => ['required', 'confirmed', 'min:8', 'regex:/[a-z]/', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[@$!%*#?&^()_\-+=\[\]{}|;:,.<>?\/\\\\~`]/'],
+        ], ['password.regex' => 'Password must include uppercase, lowercase, number, and special character.']);
+
+        $status = \Illuminate\Support\Facades\Password::broker('crm')->reset(
+            ['email' => strtolower(trim($request->email)), 'password' => $request->password, 'password_confirmation' => $request->password_confirmation, 'token' => $request->token],
+            function (\App\CrmUser $user, string $password) {
+                $user->forceFill(['password' => Hash::make($password), 'password_changed_at' => now(), 'remember_token' => \Illuminate\Support\Str::random(60)])->save();
+            }
+        );
+
+        if ($status === \Illuminate\Support\Facades\Password::PASSWORD_RESET) {
+            return redirect()->route('crm.login')->with('status', 'Your password has been reset. Please sign in.');
         }
-
-        // Bypass IMAP check for non-sales roles
-        // Login happens before a workspace is selected, so consult every pivot.
-        // Any privileged/non-sales workspace uses the locally managed CRM password.
-        $workspaceRoles = $user->workspaces()->pluck('crm_user_workspace.role')->all();
-        $requiresMailboxPassword = !empty($workspaceRoles)
-            && empty(array_diff($workspaceRoles, ['sales', 'sales_manager']));
-        if (!$requiresMailboxPassword) {
-            return \Hash::check($password, $user->password);
-        }
-
-        $host = $user->imap_host ?: 'imap.hostinger.com';
-        $port = $user->imap_port ?: 993;
-        $enc = $user->imap_encryption ?: 'ssl';
-
-        // Build IMAP connection string
-        // novalidate-cert is often needed for shared hosting
-        $mailbox = "{" . $host . ":" . $port . "/imap/" . $enc . "/novalidate-cert}INBOX";
-
-        // Attempt connection with 1 attempt limit to avoid hanging
-        // OP_HALFOPEN is faster as it just checks auth
-        $conn = @imap_open($mailbox, $email, $password, OP_HALFOPEN, 1);
-
-        if ($conn) {
-            imap_close($conn);
-            return true;
-        }
-
-        return false;
+        return back()->withInput($request->only('email'))->with('error', __($status));
     }
 
     public function logout()
@@ -170,6 +178,7 @@ class AuthController extends Controller
             }
 
             $user->password = Hash::make($request->password);
+            $user->password_changed_at = now();
         }
 
         $user->signature = $request->input('signature');

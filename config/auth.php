@@ -21,6 +21,11 @@ return [
             'provider' => 'users', 'table' => 'password_reset_tokens',
             'expire' => 60, 'throttle' => 60,
         ],
+        // CRM users (crm guard) — self-service reset, used by AuthController forgot/reset flow.
+        'crm' => [
+            'provider' => 'crm_users', 'table' => 'password_reset_tokens',
+            'expire' => 60, 'throttle' => 60,
+        ],
     ],
     'password_timeout' => 10800,
 ];

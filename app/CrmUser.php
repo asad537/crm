@@ -23,6 +23,18 @@ class CrmUser extends Authenticatable
         'email_pass', // legacy plaintext mailbox password — never serialize
     ];
 
+    protected $casts = [
+        'last_login_at' => 'datetime',
+        'imap_login_fallback_at' => 'datetime',
+        'password_changed_at' => 'datetime',
+    ];
+
+    /** Use the CRM reset route (not the default web one). */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\CrmResetPassword($token));
+    }
+
     public function isAdmin()
     {
         return in_array($this->activeWorkspaceRole(), ['admin', 'super_admin'], true);

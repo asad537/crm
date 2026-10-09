@@ -54,6 +54,11 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
     // Auth
     Route::get('login', 'AuthController@showLoginForm')->name('crm.login');
     Route::post('login', 'AuthController@login');
+    // Self-service password reset for CRM users (login step B recovery path)
+    Route::get('forgot-password', 'AuthController@showForgotForm')->name('crm.password.request');
+    Route::post('forgot-password', 'AuthController@sendResetLink')->name('crm.password.email')->middleware('throttle:5,1');
+    Route::get('reset-password/{token}', 'AuthController@showResetForm')->name('crm.password.reset');
+    Route::post('reset-password', 'AuthController@resetPassword')->name('crm.password.update')->middleware('throttle:5,1');
     Route::post('logout', 'AuthController@logout')->name('crm.logout');
 
     Route::group(['middleware' => ['auth:crm', 'crm.ip']], function () {

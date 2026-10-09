@@ -507,6 +507,9 @@
         </div>
 
         <!-- Dynamic error message from backend / frontend preview demo (works with session/old errors) -->
+        @if(session('status'))
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:12px 14px; border-radius:12px; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; font-size:.9rem;"><i class="fas fa-check-circle"></i> <span>{{ session('status') }}</span></div>
+        @endif
         <div id="dynamicErrorContainer" @if(session('error')) style="display: flex;" @else style="display: none;" @endif class="alert-error">
             <i class="fa-solid fa-circle-exclamation"></i>
             <span id="errorMsgSpan">@if(session('error')) {{ session('error') }} @endif</span>
@@ -551,6 +554,7 @@
             </label>
 
             <!-- Login Button -->
+            <div style="display:flex; justify-content:flex-end; margin:-6px 0 14px;"><a href="{{ route('crm.password.request') }}" style="font-size:.85rem; font-weight:600; color:#6366f1; text-decoration:none;">Forgot password?</a></div>
             <button type="submit" class="btn-login" id="loginBtn">
                 <span>Sign In →</span>
             </button>
