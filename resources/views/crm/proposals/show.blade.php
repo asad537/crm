@@ -45,8 +45,19 @@
 .pr-change-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.85rem}
 .pr-change-title{margin:0;color:#172033;font-size:.95rem;font-weight:850}
 .pr-change-copy{margin:.2rem 0 0;color:#7a879b;font-size:.76rem}
+.pr-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55);backdrop-filter:blur(4px)}
+.pr-modal.open{display:flex}
+.pr-modal-card{width:min(440px,100%);background:#fff;border:1px solid rgba(255,255,255,.7);border-radius:20px;box-shadow:0 28px 70px rgba(15,23,42,.28);overflow:hidden;animation:prModalIn .18s ease-out}
+.pr-modal-body{padding:1.45rem 1.45rem 1.15rem;text-align:center}
+.pr-modal-icon{width:56px;height:56px;margin:0 auto .9rem;border-radius:17px;display:grid;place-items:center;background:linear-gradient(135deg,#eeeaff,#ddd6fe);color:var(--primary-purple);font-size:1.35rem}
+.pr-modal-title{margin:0 0 .4rem;color:#172033;font-size:1.08rem;font-weight:850}
+.pr-modal-copy{margin:0 auto;color:#64748b;font-size:.84rem;line-height:1.6;max-width:340px}
+.pr-modal-actions{display:flex;justify-content:flex-end;gap:.65rem;padding:1rem 1.25rem;background:#f8fafc;border-top:1px solid #e7edf4}
+.pr-modal-actions .pr-btn{justify-content:center;min-width:118px}
+body.pr-modal-lock{overflow:hidden}
+@keyframes prModalIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 @media(max-width:1100px){.pr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pr-field.span-3{grid-column:span 2}}
-@media(max-width:640px){.pr-form-body,.pr-head,.pr-change{padding:1rem}.pr-grid{grid-template-columns:1fr}.pr-field.span-2,.pr-field.span-3,.pr-field.full{grid-column:1}.pr-title{font-size:1rem}.pr-actions{justify-content:stretch}.pr-btn{justify-content:center;flex:1}.pr-change-head{display:block}}
+@media(max-width:640px){.pr-form-body,.pr-head,.pr-change{padding:1rem}.pr-grid{grid-template-columns:1fr}.pr-field.span-2,.pr-field.span-3,.pr-field.full{grid-column:1}.pr-title{font-size:1rem}.pr-actions{justify-content:stretch}.pr-btn{justify-content:center;flex:1}.pr-change-head{display:block}.pr-modal-actions{flex-direction:column-reverse}.pr-modal-actions .pr-btn{width:100%}}
 </style>
 
 <div class="pr-wrap">
@@ -144,7 +155,7 @@
             @if($isAdmin)
                 <button class="pr-btn primary" type="submit"><i class="fas fa-save"></i> Save Proposal</button>
             @else
-                <button class="pr-btn primary" type="submit" onclick="return confirm('Submit this proposal as completed? It will move to History.')"><i class="fas fa-check-circle"></i> Submit &amp; Complete</button>
+                <button class="pr-btn primary" type="button" id="prCompleteTrigger"><i class="fas fa-check-circle"></i> Submit &amp; Complete</button>
             @endif
         </div>
         </div>
@@ -183,4 +194,56 @@
         </form>
     @endif
 </div>
+
+@if(!$isAdmin)
+<div class="pr-modal" id="prCompleteModal" role="dialog" aria-modal="true" aria-labelledby="prCompleteTitle" aria-hidden="true">
+    <div class="pr-modal-card">
+        <div class="pr-modal-body">
+            <div class="pr-modal-icon"><i class="fas fa-check-double"></i></div>
+            <h2 class="pr-modal-title" id="prCompleteTitle">Complete this proposal?</h2>
+            <p class="pr-modal-copy">This proposal will be marked as completed and moved to Proposal History.</p>
+        </div>
+        <div class="pr-modal-actions">
+            <button class="pr-btn" type="button" id="prCompleteCancel">Cancel</button>
+            <button class="pr-btn primary" type="button" id="prCompleteConfirm"><i class="fas fa-check-circle"></i> Complete Proposal</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var trigger = document.getElementById('prCompleteTrigger');
+    var modal = document.getElementById('prCompleteModal');
+    var cancel = document.getElementById('prCompleteCancel');
+    var confirmButton = document.getElementById('prCompleteConfirm');
+    if (!trigger || !modal) return;
+
+    function closeModal() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('pr-modal-lock');
+        trigger.focus();
+    }
+
+    trigger.addEventListener('click', function () {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('pr-modal-lock');
+        cancel.focus();
+    });
+    cancel.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+    confirmButton.addEventListener('click', function () {
+        confirmButton.disabled = true;
+        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Completing...';
+        trigger.closest('form').submit();
+    });
+});
+</script>
+@endif
 @endsection
