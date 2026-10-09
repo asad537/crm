@@ -224,7 +224,15 @@ class ImapSyncService
         $folder->last_uid = $maxUid;
         $this->reconcileFolder($account, $folder, $client);
         $this->refreshFolderCounts($folder);
-        Cache::put($sigKey, ['sig' => $sig, 'at' => time()], 3600);
+        // Only remember this STATUS as "handled" when we really caught up with the server. If the
+        // server already has UIDs beyond what SEARCH returned (stale session / race), leave the
+        // signature out so the next round retries instead of skipping the new mail.
+        if ((int) $status['uidnext'] - 1 <= $maxUid) {
+            Cache::put($sigKey, ['sig' => $sig, 'at' => time()], 3600);
+        } else {
+            Cache::forget($sigKey);
+            Log::info('Mail sync: server ahead of cursor, will retry', ['account_id' => $account->id, 'folder' => $folder->path, 'uidnext' => $status['uidnext'], 'max_uid' => $maxUid]);
+        }
         return $r;
     }
 

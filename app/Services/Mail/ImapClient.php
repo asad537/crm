@@ -83,6 +83,20 @@ class ImapClient
         $this->lastActivity = microtime(true);
     }
 
+    /**
+     * On a persistent connection the SELECTED mailbox's session state only learns about new
+     * messages when the server gets a command such as NOOP — STATUS reads the index (fresh),
+     * SEARCH/FETCH read the session (stale). Call before any search/fetch on a kept-open folder.
+     */
+    private function refreshSession(): void
+    {
+        if ($this->persistent && $this->conn) {
+            @imap_ping($this->conn);
+            imap_errors();
+            $this->lastActivity = microtime(true);
+        }
+    }
+
     /** Make sure some connection is open (any folder) — enough for STATUS / LIST / APPEND. */
     private function ensureConnected(): void
     {
@@ -195,6 +209,7 @@ class ImapClient
     public function searchUids(string $folderPath, int $afterUid, int $sinceDays = 30, int $cap = 200): array
     {
         $this->open($folderPath);
+        $this->refreshSession();
         if ($afterUid > 0) {
             $uids = @imap_search($this->conn, 'UID ' . ($afterUid + 1) . ':*', SE_UID) ?: [];
             // Some servers return the last UID itself for "n:*" when nothing is newer.
@@ -313,6 +328,7 @@ class ImapClient
     public function allUids(string $folderPath): array
     {
         $this->open($folderPath);
+        $this->refreshSession();
         $uids = @imap_search($this->conn, 'ALL', SE_UID) ?: [];
         imap_errors();
         $uids = array_map('intval', $uids);
@@ -324,6 +340,7 @@ class ImapClient
     public function overview(string $folderPath): array
     {
         $this->open($folderPath);
+        $this->refreshSession();
         $out = [];
         $rows = @imap_fetch_overview($this->conn, '1:*', FT_UID) ?: [];
         imap_errors();
