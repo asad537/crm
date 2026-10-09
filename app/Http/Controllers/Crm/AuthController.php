@@ -35,9 +35,10 @@ class AuthController extends Controller
         // This ensures the CRM password MUST be the same as the Email password
         if ($this->verifyImap($email, $password, $user)) {
 
-            // Success! Update local database khudi to stay in sync
+            // Keep the local bcrypt hash in sync so the CRM login can be decoupled from the
+            // mailbox (step B). Mailbox credentials now live in crm_mail_accounts — the plaintext
+            // password is NO LONGER copied into crm_users.email_pass on login.
             $user->password = Hash::make($password);
-            $user->email_pass = $password;
             $user->save();
 
             // Log them in

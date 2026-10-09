@@ -194,6 +194,19 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('chat-list', 'ChatController@chatList')->name('crm.chats.list');
         Route::get('chat-sync', 'ChatController@syncInbox')->name('crm.chats.sync');
 
+        // Mail accounts — Outlook-style client (Phase 2 JSON API). Owner-only writes via CrmMailAccountPolicy.
+        Route::group(['prefix' => 'mail/accounts', 'as' => 'crm.mail.accounts.'], function () {
+            Route::get('/', 'MailAccountController@index')->name('index');
+            Route::get('presets', 'MailAccountController@presets')->name('presets');
+            Route::post('/', 'MailAccountController@store')->name('store')->middleware('throttle:10,1');
+            Route::post('test', 'MailAccountController@test')->name('test')->middleware('throttle:10,1');
+            Route::post('{id}/test', 'MailAccountController@test')->name('test_existing')->where('id', '[0-9]+')->middleware('throttle:10,1');
+            Route::put('{id}', 'MailAccountController@update')->name('update')->where('id', '[0-9]+');
+            Route::post('{id}/default', 'MailAccountController@setDefault')->name('default')->where('id', '[0-9]+');
+            Route::post('{id}/toggle', 'MailAccountController@toggle')->name('toggle')->where('id', '[0-9]+');
+            Route::delete('{id}', 'MailAccountController@destroy')->name('destroy')->where('id', '[0-9]+');
+        });
+
         // User Management (Admin Only)
         Route::post('email/{id}/status', 'EmailController@updateStatus')->name('crm.emails.status');
         Route::post('email/{id}/update-product-name', 'EmailController@updateProductName')->name('crm.emails.update_product_name');

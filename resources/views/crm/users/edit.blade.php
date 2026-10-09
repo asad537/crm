@@ -313,8 +313,8 @@
                         <label class="form-label">App Password <span class="optional">(Optional)</span></label>
                         <div class="input-icon-wrapper">
                             <i class="fas fa-asterisk"></i>
-                            <input type="password" name="email_pass" class="form-control" value="{{ $user->email_pass }}"
-                                placeholder="••••••••">
+                            <input type="password" name="email_pass" class="form-control" value="" autocomplete="new-password"
+                                placeholder="Leave blank to keep the current password">
                         </div>
                     </div>
                 </div>
