@@ -27,7 +27,10 @@ use Illuminate\Support\Str;
 class ImapSyncService
 {
     public const DISK = 'local';
-    public const LOCK_SECONDS = 180; // a capped per-account pass is well under this; a killed worker frees it quickly
+    /** Heartbeat lock TTL: refreshed after every folder and every 25 messages, so a killed worker blocks an account for at most this long. */
+    public const LOCK_SECONDS = 60;
+    private ?string $lockKey = null;
+    private ?string $lockToken = null;
 
     public function __construct(
         private HtmlSanitizerService $sanitizer,
@@ -48,8 +51,9 @@ class ImapSyncService
             $stats['status'] = 'backoff';
             return $stats;
         }
-        $lock = Cache::lock('mail:sync:' . $account->id, self::LOCK_SECONDS);
-        if (!$lock->get()) {
+        $this->lockKey = 'mail:sync:' . $account->id;
+        $this->lockToken = Str::random(16);
+        if (!Cache::add($this->lockKey, $this->lockToken, self::LOCK_SECONDS)) {
             $stats['status'] = 'locked';
             return $stats;
         }
@@ -63,6 +67,7 @@ class ImapSyncService
                 if (!$this->shouldSyncFolder($folder, $opts)) {
                     continue;
                 }
+                $this->touchLock();
                 try {
                     $r = $this->syncFolder($account, $folder, $client, $opts);
                     $stats['imported'] += $r['imported'];
@@ -93,10 +98,26 @@ class ImapSyncService
             Cache::put(self::backoffKey($account->id), now()->toIso8601String(), $auth ? 600 : 120);
         } finally {
             $client->close();
-            $lock->release();
+            $this->releaseLock();
         }
 
         return $stats;
+    }
+
+    /** Extend the per-account lock while long work is in progress. */
+    private function touchLock(): void
+    {
+        if ($this->lockKey && Cache::get($this->lockKey) === $this->lockToken) {
+            Cache::put($this->lockKey, $this->lockToken, self::LOCK_SECONDS);
+        }
+    }
+
+    private function releaseLock(): void
+    {
+        if ($this->lockKey && Cache::get($this->lockKey) === $this->lockToken) {
+            Cache::forget($this->lockKey);
+        }
+        $this->lockKey = $this->lockToken = null;
     }
 
     /** @return CrmMailFolder[] */
@@ -160,8 +181,10 @@ class ImapSyncService
         $uids = $client->searchUids($folder->path, (int) $folder->last_uid, $sinceDays, $cap);
 
         $maxUid = (int) $folder->last_uid;
+        $n = 0;
         foreach ($uids as $uid) {
             $maxUid = max($maxUid, $uid);
+            if (++$n % 25 === 0) $this->touchLock();
             try {
                 $exists = CrmMailMessage::withTrashed()->withoutGlobalScopes()
                     ->where('account_id', $account->id)->where('folder_id', $folder->id)->where('uid', $uid)->exists();

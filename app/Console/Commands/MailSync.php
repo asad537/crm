@@ -52,7 +52,7 @@ class MailSync extends Command
 
         while (true) {
             $started = microtime(true);
-            $imported = 0; $errors = 0;
+            $imported = 0; $errors = 0; $locked = 0; $queued = 0;
             try {
                 $accounts = $this->shard(CrmMailAccount::withoutGlobalScopes()->syncable())->orderBy('id')->get();
                 foreach ($accounts as $account) {
@@ -61,12 +61,14 @@ class MailSync extends Command
                     }
                     if ($this->option('queue') || $account->last_synced_at === null) {
                         SyncMailAccountJob::dispatch($account->id, $opts); // unique per account
+                        $queued++;
                         continue;
                     }
                     $t = microtime(true);
                     $r = $sync->syncAccount($account, $opts);
                     $dt = microtime(true) - $t;
                     $imported += $r['imported'];
+                    if ($r['status'] === 'locked') $locked++;
                     if ($dt > 5) {
                         $this->line(sprintf('%s slow: #%d %s %.1fs status=%s', now()->format('H:i:s'), $account->id, $account->email_address, $dt, $r['status']));
                     }
@@ -80,8 +82,8 @@ class MailSync extends Command
             }
             $secs = microtime(true) - $started;
             $round = ($round ?? 0) + 1;
-            if ($imported || $errors || $secs > $interval || $round % 20 === 0) {
-                $this->line(sprintf('%s round #%d: accounts=%d imported=%d errors=%d (%.1fs)', now()->format('H:i:s'), $round, isset($accounts) ? $accounts->count() : 0, $imported, $errors, $secs));
+            if ($imported || $errors || $locked || $secs > $interval || $round % 20 === 0) {
+                $this->line(sprintf('%s [%s] round #%d: accounts=%d imported=%d locked=%d queued=%d errors=%d (%.1fs)', now()->format('H:i:s'), $this->option('shard') ?: 'all', $round, isset($accounts) ? $accounts->count() : 0, $imported, $locked, $queued, $errors, $secs));
             }
             $sleep = max(1, $interval - (int) $secs);
             sleep($sleep);
