@@ -211,9 +211,14 @@ class ImapClient
         $this->open($folderPath);
         $this->refreshSession();
         if ($afterUid > 0) {
-            $uids = @imap_search($this->conn, 'UID ' . ($afterUid + 1) . ':*', SE_UID) ?: [];
-            // Some servers return the last UID itself for "n:*" when nothing is newer.
-            $uids = array_values(array_filter($uids, fn ($u) => (int) $u > $afterUid));
+            // NOTE: c-client's imap_search() does not support the "UID" search key, so an
+            // incremental search must use a UID *range fetch* instead. "n:*" returns the last
+            // message when nothing is newer, hence the > $afterUid filter.
+            $rows = @imap_fetch_overview($this->conn, ($afterUid + 1) . ':*', FT_UID) ?: [];
+            $uids = [];
+            foreach ($rows as $row) {
+                if (!empty($row->uid) && (int) $row->uid > $afterUid) $uids[] = (int) $row->uid;
+            }
         } else {
             $since = date('d-M-Y', strtotime('-' . max(1, $sinceDays) . ' days'));
             $uids = @imap_search($this->conn, 'SINCE "' . $since . '"', SE_UID) ?: [];
