@@ -21,7 +21,8 @@ class MailSync extends Command
                             {--cap=200 : Max messages per folder per run}
                             {--types= : Comma-separated folder types to sync (inbox,sent,drafts,archive,junk,trash,custom)}
                             {--watch : Keep running: sync all accounts, sleep --interval seconds, repeat (near real-time receive)}
-                            {--interval=15 : Seconds between rounds in --watch mode}';
+                            {--interval=15 : Seconds between rounds in --watch mode}
+                            {--shard= : i/n — only accounts with id % n == i (run n watchers in parallel)}';
 
     protected $description = 'Sync connected mailboxes (IMAP) into the CRM mail client';
 
@@ -47,13 +48,13 @@ class MailSync extends Command
         /** @var ImapSyncService $sync */
         $sync = app()->make(ImapSyncService::class);
         $opts = $this->opts();
-        $this->info("Watching mailboxes every {$interval}s — persistent connections, backfills queued (Ctrl+C to stop)…");
+        $this->info("Watching mailboxes every {$interval}s" . ($this->option('shard') ? " [shard {$this->option('shard')}]" : '') . " — persistent connections, backfills queued (Ctrl+C to stop)…");
 
         while (true) {
             $started = microtime(true);
             $imported = 0; $errors = 0;
             try {
-                $accounts = CrmMailAccount::withoutGlobalScopes()->syncable()->orderBy('id')->get();
+                $accounts = $this->shard(CrmMailAccount::withoutGlobalScopes()->syncable())->orderBy('id')->get();
                 foreach ($accounts as $account) {
                     if (ImapSyncService::inBackoff($account->id)) {
                         continue; // paused after a failed login / error
@@ -62,8 +63,13 @@ class MailSync extends Command
                         SyncMailAccountJob::dispatch($account->id, $opts); // unique per account
                         continue;
                     }
+                    $t = microtime(true);
                     $r = $sync->syncAccount($account, $opts);
+                    $dt = microtime(true) - $t;
                     $imported += $r['imported'];
+                    if ($dt > 5) {
+                        $this->line(sprintf('%s slow: #%d %s %.1fs status=%s', now()->format('H:i:s'), $account->id, $account->email_address, $dt, $r['status']));
+                    }
                     if ($r['status'] === 'error' || $r['errors']) {
                         $errors++;
                         $pool->evict($account->id); // reconnect next round
@@ -73,12 +79,23 @@ class MailSync extends Command
                 $this->error('round failed: ' . $e->getMessage());
             }
             $secs = microtime(true) - $started;
-            if ($imported || $errors) {
-                $this->line(sprintf('%s round: imported=%d errors=%d (%.1fs)', now()->format('H:i:s'), $imported, $errors, $secs));
+            $round = ($round ?? 0) + 1;
+            if ($imported || $errors || $secs > $interval || $round % 20 === 0) {
+                $this->line(sprintf('%s round #%d: accounts=%d imported=%d errors=%d (%.1fs)', now()->format('H:i:s'), $round, isset($accounts) ? $accounts->count() : 0, $imported, $errors, $secs));
             }
             $sleep = max(1, $interval - (int) $secs);
             sleep($sleep);
         }
+    }
+
+    /** Apply --shard=i/n to an accounts query. */
+    private function shard($query)
+    {
+        $shard = (string) $this->option('shard');
+        if ($shard !== '' && preg_match('/^(\d+)\/(\d+)$/', $shard, $m) && (int) $m[2] > 0) {
+            $query->whereRaw('(id % ?) = ?', [(int) $m[2], (int) $m[1] % (int) $m[2]]);
+        }
+        return $query;
     }
 
     private function opts(): array
@@ -93,7 +110,7 @@ class MailSync extends Command
     private function runOnce(ImapSyncService $sync): int
     {
         // Already-synced accounts first (cheap incremental passes), never-synced backfills last.
-        $query = CrmMailAccount::withoutGlobalScopes()->syncable()->orderByRaw('last_synced_at IS NULL')->orderBy('last_synced_at')->orderBy('id');
+        $query = $this->shard(CrmMailAccount::withoutGlobalScopes()->syncable())->orderByRaw('last_synced_at IS NULL')->orderBy('last_synced_at')->orderBy('id');
         if ($this->option('account')) {
             $query->where('id', (int) $this->option('account'));
         }

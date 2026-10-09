@@ -16,7 +16,7 @@ class SyncMailAccountJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 2; // idempotent: a job killed by a worker restart may run once more
     public int $timeout = 300;
     public int $uniqueFor = 300;
 

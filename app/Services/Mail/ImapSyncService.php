@@ -139,11 +139,12 @@ class ImapSyncService
 
         // Cheap idle path: if the server STATUS (uidvalidity/uidnext/messages/unseen) is unchanged
         // since the last pass, nothing arrived, moved or was read — skip the search/overview work.
-        // A full pass still runs at least every 60s so star-only changes are picked up.
+        // A full pass (search + overview) still runs at least every 10 minutes so star-only changes
+        // made in another client are picked up; everything else is caught by STATUS changes.
         $sigKey = 'mail:folder:' . $folder->id . ':status';
         $sig = implode('|', [$status['uidvalidity'], $status['uidnext'], $status['messages'], $status['unseen']]);
         $last = Cache::get($sigKey);
-        if (is_array($last) && $last['sig'] === $sig && (time() - (int) $last['at']) < 60 && (int) $folder->last_uid > 0) {
+        if (is_array($last) && $last['sig'] === $sig && (time() - (int) $last['at']) < 600) {
             return $r;
         }
 

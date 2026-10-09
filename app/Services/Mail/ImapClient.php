@@ -22,6 +22,10 @@ class ImapClient
     private ?string $openPath = null;
     /** When true, close() is a no-op so a long-running watcher can reuse the connection; use shutdown() to really close. */
     private bool $persistent = false;
+    private float $lastActivity = 0;
+    private ?array $folderCache = null;
+    private float $folderCacheAt = 0;
+    public const FOLDER_CACHE_SECONDS = 300;
 
     public function __construct(private CrmMailAccount $account)
     {
@@ -48,7 +52,9 @@ class ImapClient
     public function open(string $folderPath = 'INBOX'): void
     {
         if ($this->conn && $this->openPath === $folderPath) {
-            if (@imap_ping($this->conn)) {
+            // Only probe the connection after it has been idle for a while (NOOP costs a round trip).
+            if (microtime(true) - $this->lastActivity < 30 || @imap_ping($this->conn)) {
+                $this->lastActivity = microtime(true);
                 return;
             }
             $this->shutdown(); // dead connection → reconnect below
@@ -74,6 +80,20 @@ class ImapClient
         }
         $this->conn = $conn;
         $this->openPath = $folderPath;
+        $this->lastActivity = microtime(true);
+    }
+
+    /** Make sure some connection is open (any folder) — enough for STATUS / LIST / APPEND. */
+    private function ensureConnected(): void
+    {
+        if ($this->conn) {
+            if (microtime(true) - $this->lastActivity < 30 || @imap_ping($this->conn)) {
+                $this->lastActivity = microtime(true);
+                return;
+            }
+            $this->shutdown();
+        }
+        $this->open('INBOX');
     }
 
     public function close(): void
@@ -100,9 +120,12 @@ class ImapClient
     /**
      * @return array<int, array{path:string,name:string,type:string,delimiter:string,selectable:bool}>
      */
-    public function listFolders(): array
+    public function listFolders(bool $fresh = false): array
     {
-        $this->open('INBOX');
+        if (!$fresh && $this->folderCache !== null && (microtime(true) - $this->folderCacheAt) < self::FOLDER_CACHE_SECONDS) {
+            return $this->folderCache;
+        }
+        $this->ensureConnected();
         $boxes = @imap_getmailboxes($this->conn, $this->root(), '*') ?: [];
         imap_errors();
         $out = [];
@@ -124,6 +147,8 @@ class ImapClient
                 'selectable' => $selectable,
             ];
         }
+        $this->folderCache = $out;
+        $this->folderCacheAt = microtime(true);
         return $out;
     }
 
@@ -150,8 +175,9 @@ class ImapClient
     /** @return array{uidvalidity:int,uidnext:int,messages:int,unseen:int} */
     public function status(string $folderPath): array
     {
-        $this->open($folderPath);
+        $this->ensureConnected(); // STATUS works for any mailbox on an open connection — no SELECT round trip
         $st = @imap_status($this->conn, $this->root() . $folderPath, SA_UIDVALIDITY | SA_UIDNEXT | SA_MESSAGES | SA_UNSEEN);
+        $this->lastActivity = microtime(true);
         imap_errors();
         return [
             'uidvalidity' => (int) ($st->uidvalidity ?? 0),
@@ -344,7 +370,7 @@ class ImapClient
             return $existing;
         }
         $name = $name ?: ucfirst($type);
-        $folders = $this->listFolders();
+        $folders = $this->listFolders(true);
         $usesInboxPrefix = false; $delim = '.';
         foreach ($folders as $f) {
             if (stripos($f['path'], 'INBOX' . $f['delimiter']) === 0) { $usesInboxPrefix = true; $delim = $f['delimiter']; break; }
@@ -361,6 +387,7 @@ class ImapClient
         }
         @imap_subscribe($this->conn, $full);
         imap_errors();
+        $this->folderCache = null; // new folder must show up on the next list
         return $path;
     }
 

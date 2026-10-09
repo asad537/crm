@@ -19,7 +19,7 @@ class FakeImap extends ImapClient
     public function __destruct() {}
     public function open(string $folderPath = 'INBOX'): void {}
     public function close(): void {}
-    public function listFolders(): array { return $this->folders; }
+    public function listFolders(bool $fresh = false): array { return $this->folders; }
     public function status(string $folderPath): array
     {
         // Derived from the in-memory messages like a real server (uidvalidity may be pinned by the test).
