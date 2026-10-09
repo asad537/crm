@@ -48,6 +48,12 @@
     .mail-list-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: .7rem; }
     .mail-list-title h3 { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-dark); }
     .mail-list-title small i { font-size: .6rem; margin-left: 3px; }
+    .mail-list-title small.acc-switch { cursor: pointer; user-select: none; border-radius: 6px; padding: 1px 4px; margin-left: -4px; }
+    .mail-list-title small.acc-switch:hover { background: #f1f5f9; color: var(--primary-purple); }
+    .acc-menu { left: 0; right: auto; top: calc(100% + 6px); bottom: auto; min-width: 260px; max-height: 50vh; overflow-y: auto; }
+    .acc-menu button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .acc-menu button.on { background: var(--primary-soft); color: var(--primary-purple); }
+    .acc-menu button small { display: block; font-size: .68rem; color: #94a3b8; font-weight: 500; }
     .mail-list-title small { display: block; font-size: .7rem; color: #94a3b8; font-weight: 500; }
     .mail-list-title .icon-btn { width: 36px; height: 36px; border: 1px solid #e5e9f0; border-radius: 11px; background: #fff; color: #64748b; cursor: pointer; }
     .search-row { display: flex; gap: 8px; align-items: center; }
@@ -289,7 +295,10 @@
             <div class="mail-list-title">
                 <div style="display:flex; align-items:center; gap:10px; min-width:0;">
                     <button type="button" class="nav-toggle-btn" onclick="toggleMailNav(true)" title="Mailboxes & folders"><i class="fas fa-bars"></i></button>
-                    <div style="min-width:0;"><h3 id="listTitle">Inbox</h3><small><span id="listSubtitle">All inboxes</span><i class="fas fa-chevron-down"></i></small></div>
+                    <div style="min-width:0; position:relative;"><h3 id="listTitle">Inbox</h3>
+                        <small class="acc-switch" onclick="event.stopPropagation();toggleAccountMenu()" title="Switch mailbox"><span id="listSubtitle">All inboxes</span><i class="fas fa-chevron-down"></i></small>
+                        <div class="more-menu acc-menu" id="accountMenu"></div>
+                    </div>
                 </div>
                 <button type="button" class="icon-btn" onclick="chatListRetries=0;loadChatList()" title="Refresh"><i class="fas fa-redo-alt"></i></button>
             </div>
@@ -612,6 +621,18 @@ function loadMailList(reset){
 }
 function loadMoreMail(){ if (!mailHasMore) return; mailPage++; loadMailList(false); }
 function toggleUnreadFilter(){ mailUnreadOnly = !mailUnreadOnly; var b=document.getElementById('unreadFilterBtn'); if (b) b.classList.toggle('on', mailUnreadOnly); if (isMailMode()) loadMailList(true); }
+function toggleAccountMenu(force){
+    var m = document.getElementById('accountMenu'); if (!m) return;
+    var open = typeof force==='boolean' ? force : !m.classList.contains('open');
+    if (open) {
+        var html = '<button type="button" class="'+(activeAccountId===null?'on':'')+'" onclick="selectAccount(null);toggleAccountMenu(false)"><i class="fas fa-layer-group"></i> All inboxes</button>';
+        accountsData.forEach(function(a){
+            html += '<button type="button" class="'+(activeAccountId===a.id?'on':'')+'" onclick="selectAccount('+a.id+');toggleAccountMenu(false)"><span class="mail-acc-dot" style="width:8px;height:8px;flex:0 0 8px;background:'+accColor(a.id)+'"></span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(a.owner_name || a.display_name || a.email_address)+'<small>'+esc(a.email_address)+(a.is_own?'':' · read-only')+'</small></span></button>';
+        });
+        m.innerHTML = html;
+    }
+    m.classList.toggle('open', open);
+}
 function toggleMoreMenu(force){ var m=document.getElementById('moreMenu'); if (!m) return; m.classList.toggle('open', typeof force==='boolean' ? force : !m.classList.contains('open')); }
 function toggleThreadAll(btn){ var strip = btn.closest('.thread-strip'); strip.classList.toggle('expanded'); btn.innerHTML = strip.classList.contains('expanded') ? 'Show less <i class="fas fa-chevron-up"></i>' : 'Show all <i class="fas fa-chevron-down"></i>'; }
 function renderMailList(){
@@ -1295,7 +1316,7 @@ if (!window.__chatsListenersBound) {
     window.__chatsListenersBound = true;
     document.addEventListener('visibilitychange', function(){ if (!document.hidden && typeof resumeChatList==='function') resumeChatList(); });
     window.addEventListener('pageshow', function(){ if (typeof resumeChatList==='function') resumeChatList(); });
-    document.addEventListener('click', function(e){ if (!e.target.closest('.more-wrap')) toggleMoreMenu(false); });
+    document.addEventListener('click', function(e){ if (!e.target.closest('.more-wrap')) toggleMoreMenu(false); if (!e.target.closest('.acc-menu') && !e.target.closest('.acc-switch')) toggleAccountMenu(false); });
     document.addEventListener('keydown', function(e){ if (e.key==='Escape'){ var m=document.getElementById('accountModal'); if(m) m.classList.remove('open'); var em=document.getElementById('emailMetaModal'); if(em) em.classList.remove('open'); } });
 }
 </script>
