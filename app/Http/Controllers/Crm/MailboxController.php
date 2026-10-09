@@ -103,6 +103,8 @@ class MailboxController extends Controller
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:10|max:100',
             'unread' => 'nullable|boolean',
+            'starred' => 'nullable|boolean',
+            'attachments' => 'nullable|boolean',
         ]);
         $ids = $this->visibleAccountIds($request->filled('account') ? (int) $request->input('account') : null);
         if (!$ids) {
@@ -123,6 +125,12 @@ class MailboxController extends Controller
         }
         if ($request->boolean('unread')) {
             $q->where('crm_mail_messages.is_read', false);
+        }
+        if ($request->boolean('starred')) {
+            $q->where('crm_mail_messages.is_starred', true);
+        }
+        if ($request->boolean('attachments')) {
+            $q->where('crm_mail_messages.has_attachments', true);
         }
         if ($term = trim((string) $request->input('q'))) {
             $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $term) . '%';
