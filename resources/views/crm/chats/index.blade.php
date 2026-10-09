@@ -50,10 +50,10 @@
     .mail-list-title small i { font-size: .6rem; margin-left: 3px; }
     .mail-list-title small.acc-switch { cursor: pointer; user-select: none; border-radius: 6px; padding: 1px 4px; margin-left: -4px; }
     .mail-list-title small.acc-switch:hover { background: #f1f5f9; color: var(--primary-purple); }
-    .acc-menu { position: fixed; left: 0; right: auto; top: 0; bottom: auto; min-width: 260px; max-width: 360px; max-height: 50vh; overflow-y: auto; z-index: 100000; }
-    .acc-menu button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .acc-menu button.on { background: var(--primary-soft); color: var(--primary-purple); }
-    .acc-menu button small { display: block; font-size: .68rem; color: #94a3b8; font-weight: 500; }
+    .more-menu.acc-menu { position: fixed; left: 0; right: auto; top: 0; bottom: auto; min-width: 260px; max-width: 360px; max-height: 50vh; overflow-y: auto; z-index: 100000; }
+    .more-menu.acc-menu button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .more-menu.acc-menu button.on { background: var(--primary-soft); color: var(--primary-purple); }
+    .more-menu.acc-menu button small { display: block; font-size: .68rem; color: #94a3b8; font-weight: 500; }
     .mail-list-title small { display: block; font-size: .7rem; color: #94a3b8; font-weight: 500; }
     .mail-list-title .icon-btn { width: 36px; height: 36px; border: 1px solid #e5e9f0; border-radius: 11px; background: #fff; color: #64748b; cursor: pointer; }
     .search-row { display: flex; gap: 8px; align-items: center; }
