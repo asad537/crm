@@ -71,6 +71,9 @@ class ImapSyncService
                 }
             }
 
+            $this->resolveOrphans($account);
+            foreach ($folders as $folder) { $this->refreshFolderCounts($folder->fresh() ?: $folder); }
+
             $account->forceFill([
                 'last_synced_at' => now(),
                 'last_sync_error' => $stats['errors'] ? Str::limit(implode(' | ', $stats['errors']), 500) : null,
@@ -151,10 +154,14 @@ class ImapSyncService
                     $dupe = CrmMailMessage::withTrashed()->withoutGlobalScopes()
                         ->where('account_id', $account->id)->where('message_id', $parsed['message_id'])->first();
                     if ($dupe) {
-                        // Same message already stored from another folder (e.g. Gmail "All Mail", or a Sent
-                        // copy we recorded when sending). Prefer the more specific folder for the pointer.
-                        if ($dupe->folder_id !== $folder->id && in_array($folder->type, ['inbox', 'sent'], true) && !$dupe->folder()->withoutGlobalScopes()->whereIn('type', ['inbox', 'sent'])->exists()) {
-                            $dupe->forceFill(['folder_id' => $folder->id, 'uid' => $uid])->saveQuietly();
+                        // Same Message-ID already stored: either a copy we recorded locally (sent mail,
+                        // uid null) or the message was MOVED on the server (Outlook/webmail) and now shows up
+                        // here. Re-point the row instead of duplicating it. Gmail's "All Mail" (archive) also
+                        // lists inbox/sent mail — never let it steal the pointer from those.
+                        $dupeFolderType = optional($dupe->folder()->withoutGlobalScopes()->first())->type;
+                        $gmailAllMail = $folder->type === 'archive' && in_array($dupeFolderType, ['inbox', 'sent'], true) && $dupe->uid !== null;
+                        if (!$gmailAllMail && ($dupe->uid === null || (int) $dupe->folder_id !== (int) $folder->id)) {
+                            $dupe->forceFill(['folder_id' => $folder->id, 'uid' => $uid, 'deleted_at' => null])->saveQuietly();
                         }
                         $r['skipped']++;
                         continue;
@@ -173,8 +180,59 @@ class ImapSyncService
         }
 
         $folder->last_uid = $maxUid;
+        $this->reconcileFolder($account, $folder, $client);
         $this->refreshFolderCounts($folder);
         return $r;
+    }
+
+    /**
+     * Server → CRM: refresh read/star flags (server wins) and detect messages that vanished from
+     * this folder (moved or deleted in another mail client). Vanished rows get uid=null; if the
+     * same Message-ID is found in another folder during this run the pointer moves there,
+     * otherwise resolveOrphans() files them under Trash.
+     */
+    private function reconcileFolder(CrmMailAccount $account, CrmMailFolder $folder, ImapClient $client): void
+    {
+        if ((int) $folder->message_count > 5000) {
+            return; // keep the per-minute cost bounded for huge folders
+        }
+        try {
+            $overview = $client->overview($folder->path);
+        } catch (\Throwable $e) {
+            Log::info('Mail reconcile skipped', ['account_id' => $account->id, 'folder' => $folder->path, 'error' => $e->getMessage()]);
+            return;
+        }
+        CrmMailMessage::withoutGlobalScopes()->where('folder_id', $folder->id)->whereNotNull('uid')
+            ->select(['id', 'uid', 'is_read', 'is_starred', 'is_outgoing'])
+            ->chunkById(500, function ($rows) use ($overview) {
+                foreach ($rows as $row) {
+                    $o = $overview[(int) $row->uid] ?? null;
+                    if ($o === null) {
+                        $row->forceFill(['uid' => null])->saveQuietly(); // gone from this folder on the server
+                        continue;
+                    }
+                    $changes = [];
+                    if (!$row->is_outgoing && (bool) $row->is_read !== $o['seen']) $changes['is_read'] = $o['seen'];
+                    if ((bool) $row->is_starred !== $o['flagged']) $changes['is_starred'] = $o['flagged'];
+                    if ($changes) $row->forceFill($changes)->saveQuietly();
+                }
+            });
+    }
+
+    /** Rows that vanished from the server and were not re-found elsewhere → local Trash (never outgoing/draft rows, never very recent ones). */
+    public function resolveOrphans(CrmMailAccount $account): int
+    {
+        $trash = CrmMailFolder::withoutGlobalScopes()->where('account_id', $account->id)->where('type', 'trash')->first();
+        if (!$trash) return 0;
+        $moved = 0;
+        CrmMailMessage::withoutGlobalScopes()->where('account_id', $account->id)->whereNull('uid')
+            ->where('is_outgoing', false)->where('is_draft', false)
+            ->where('folder_id', '!=', $trash->id)
+            ->where('created_at', '<', now()->subHour())
+            ->chunkById(200, function ($rows) use ($trash, &$moved) {
+                foreach ($rows as $row) { $row->forceFill(['folder_id' => $trash->id])->saveQuietly(); $moved++; }
+            });
+        return $moved;
     }
 
     /** @return array{0:CrmMailMessage,1:bool} message + whether it was mirrored into crm_messages */

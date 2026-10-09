@@ -8,6 +8,7 @@ use App\CrmMailFolder;
 use App\CrmMailMessage;
 use App\Http\Controllers\Controller;
 use App\Services\Mail\ImapSyncService;
+use App\Services\Mail\MailActionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -179,10 +180,11 @@ class MailboxController extends Controller
             }
         }
 
-        if (!$message->is_read) {
-            $message->forceFill(['is_read' => true])->saveQuietly();
-            if ($folder = $message->folder()->withoutGlobalScopes()->first()) $sync->refreshFolderCounts($folder);
-            if ($thread = $message->thread()->withoutGlobalScopes()->first()) app(\App\Services\Mail\MailThreader::class)->refresh($thread);
+        // Only the mailbox owner's reading marks the message read (and pushes \Seen to the server);
+        // an admin's read-only view never changes mailbox state.
+        $isOwner = (int) optional($message->account)->crm_user_id === (int) $this->user()->id;
+        if (!$message->is_read && $isOwner) {
+            app(MailActionService::class)->setRead($message, true, true);
         }
 
         $thread = $message->thread_id
@@ -193,6 +195,8 @@ class MailboxController extends Controller
         return response()->json([
             'message' => [
                 'id' => $message->id,
+                'folder_type' => optional($message->folder()->withoutGlobalScopes()->first())->type,
+                'can_act' => $isOwner,
                 'account_id' => $message->account_id,
                 'account_email' => optional($message->account)->email_address,
                 'thread_id' => $message->thread_id,
@@ -205,7 +209,7 @@ class MailboxController extends Controller
                 'reply_to' => $message->reply_to,
                 'html' => $html,
                 'text' => $message->text_body,
-                'is_read' => true,
+                'is_read' => (bool) $message->fresh()->is_read,
                 'is_starred' => (bool) $message->is_starred,
                 'is_outgoing' => (bool) $message->is_outgoing,
                 'received_at' => optional($message->received_at)->toIso8601String(),
@@ -225,21 +229,71 @@ class MailboxController extends Controller
 
     // ---- state ----------------------------------------------------------
 
-    public function star($id)
+    public function star($id, MailActionService $actions)
     {
         $message = $this->messageFor((int) $id, 'update');
-        $message->forceFill(['is_starred' => !$message->is_starred])->saveQuietly();
-        return response()->json(['id' => $message->id, 'is_starred' => (bool) $message->is_starred]);
+        $actions->setStar($message, !$message->is_starred);
+        return response()->json(['id' => $message->id, 'is_starred' => (bool) $message->fresh()->is_starred]);
     }
 
-    public function read(Request $request, $id, ImapSyncService $sync)
+    public function read(Request $request, $id, MailActionService $actions)
     {
         $request->validate(['read' => 'required|boolean']);
         $message = $this->messageFor((int) $id, 'update');
-        $message->forceFill(['is_read' => $request->boolean('read')])->saveQuietly();
-        if ($folder = $message->folder()->withoutGlobalScopes()->first()) $sync->refreshFolderCounts($folder);
-        if ($thread = $message->thread()->withoutGlobalScopes()->first()) app(\App\Services\Mail\MailThreader::class)->refresh($thread);
-        return response()->json(['id' => $message->id, 'is_read' => (bool) $message->is_read]);
+        $actions->setRead($message, $request->boolean('read'));
+        return response()->json(['id' => $message->id, 'is_read' => (bool) $message->fresh()->is_read]);
+    }
+
+    /** Move to inbox|archive|trash|junk|folder:<id> (owner only; pushed to IMAP). */
+    public function move(Request $request, $id, MailActionService $actions)
+    {
+        $request->validate(['to' => ['required', 'string', 'regex:/^(inbox|archive|trash|junk|folder:[0-9]+)$/']]);
+        $message = $this->messageFor((int) $id, 'update');
+        try {
+            $moved = $actions->move($message, $request->input('to'), $this->user());
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+        return response()->json(['success' => true, 'id' => $moved->id, 'folder_id' => $moved->folder_id,
+            'folder_type' => optional($moved->folder()->withoutGlobalScopes()->first())->type]);
+    }
+
+    /** Permanently delete (owner only; expunged on the server). */
+    public function destroy($id, MailActionService $actions)
+    {
+        $message = $this->messageFor((int) $id, 'delete');
+        try {
+            $actions->delete($message, $this->user());
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+        return response()->json(['success' => true]);
+    }
+
+    /** Bulk: ids[] + action (archive|trash|junk|inbox|read|unread|star|unstar|delete|folder:<id>). */
+    public function bulk(Request $request, MailActionService $actions)
+    {
+        $request->validate(['ids' => 'required|array|min:1|max:200', 'ids.*' => 'integer',
+            'action' => ['required', 'string', 'regex:/^(inbox|archive|trash|junk|read|unread|star|unstar|delete|folder:[0-9]+)$/']]);
+        $action = $request->input('action');
+        $done = 0; $errors = [];
+        foreach ($request->input('ids') as $id) {
+            try {
+                $message = $this->messageFor((int) $id, $action === 'delete' ? 'delete' : 'update');
+                match (true) {
+                    $action === 'read' => $actions->setRead($message, true),
+                    $action === 'unread' => $actions->setRead($message, false),
+                    $action === 'star' => $actions->setStar($message, true),
+                    $action === 'unstar' => $actions->setStar($message, false),
+                    $action === 'delete' => $actions->delete($message, $this->user()),
+                    default => $actions->move($message, $action, $this->user()),
+                };
+                $done++;
+            } catch (\Throwable $e) {
+                $errors[] = ['id' => (int) $id, 'message' => $e instanceof \RuntimeException ? $e->getMessage() : 'Not allowed'];
+            }
+        }
+        return response()->json(['success' => empty($errors), 'done' => $done, 'errors' => $errors]);
     }
 
     /** Trigger a sync for one visible account (owner only) — returns stats. */

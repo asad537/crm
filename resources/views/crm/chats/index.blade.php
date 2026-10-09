@@ -286,6 +286,12 @@
             <div class="reader-actions">
                 <button type="button" class="reader-btn" id="readerStarBtn" onclick="toggleStarActive()" title="Star" style="display:none"><i class="far fa-star"></i></button>
                 <button type="button" class="reader-btn" id="readerUnreadBtn" onclick="markActiveUnread()" title="Mark as unread" style="display:none"><i class="fas fa-envelope"></i></button>
+                <button type="button" class="reader-btn" id="readerArchiveBtn" onclick="mailAction('archive')" title="Archive" style="display:none"><i class="fas fa-archive"></i></button>
+                <button type="button" class="reader-btn" id="readerJunkBtn" onclick="mailAction('junk')" title="Mark as junk" style="display:none"><i class="fas fa-exclamation-circle"></i></button>
+                <button type="button" class="reader-btn" id="readerTrashBtn" onclick="mailAction('trash')" title="Move to Trash" style="display:none"><i class="fas fa-trash-alt"></i></button>
+                <button type="button" class="reader-btn" id="readerRestoreBtn" onclick="mailAction('inbox')" title="Move to Inbox" style="display:none"><i class="fas fa-inbox"></i><span class="txt">Inbox</span></button>
+                <button type="button" class="reader-btn" id="readerDeleteBtn" onclick="mailAction('delete')" title="Delete permanently" style="display:none;color:#dc2626"><i class="fas fa-times-circle"></i><span class="txt">Delete</span></button>
+                <select id="readerMoveSel" class="reader-btn" onchange="if(this.value){mailAction(this.value);this.value='';}" title="Move to folder" style="display:none;padding:.45rem .5rem"><option value="">Move to…</option></select>
                 <button type="button" class="reader-btn" id="readerReplyBtn" onclick="replyActive('reply')" title="Reply"><i class="fas fa-reply"></i><span class="txt">Reply</span></button>
                 <button type="button" class="reader-btn" id="readerReplyAllBtn" onclick="replyActive('reply_all')" title="Reply all" style="display:none"><i class="fas fa-reply-all"></i></button>
                 <button type="button" class="reader-btn" id="readerForwardBtn" onclick="replyActive('forward')" title="Forward" style="display:none"><i class="fas fa-share"></i></button>
@@ -564,7 +570,7 @@ function renderMailList(){
             + '<div class="chat-avatar" style="'+(m.is_outgoing?'background:#f1f5f9;color:#64748b':'')+'">'+esc(initialsOf(m.is_outgoing ? ((m.to&&m.to[0])?(m.to[0].name||m.to[0].email):'') : (m.from_name||m.from_email)))+'</div>'
             + '<div class="chat-info">'
             +   '<div class="chat-row1"><span class="chat-name">'+esc(who)+'</span><span class="chat-time">'+esc(time)+'</span></div>'
-            +   '<div class="chat-subject">'+esc(m.subject || '(no subject)')+'<span class="row-icons">'+(m.has_attachments?'<i class="fas fa-paperclip"></i>':'')+'<button type="button" class="star-btn '+(m.is_starred?'on':'')+'" onclick="event.stopPropagation();toggleStar('+m.id+')" title="Star"><i class="'+(m.is_starred?'fas':'far')+' fa-star"></i></button></span></div>'
+            +   '<div class="chat-subject">'+esc(m.subject || '(no subject)')+'<span class="row-icons">'+(m.has_attachments?'<i class="fas fa-paperclip"></i>':'')+(acc && acc.is_own && !MAIL_IS_ADMIN ? '<button type="button" class="star-btn '+(m.is_starred?'on':'')+'" onclick="event.stopPropagation();toggleStar('+m.id+')" title="Star"><i class="'+(m.is_starred?'fas':'far')+' fa-star"></i></button>' : (m.is_starred?'<i class="fas fa-star" style="color:#f59e0b"></i>':''))+'</span></div>'
             +   '<div class="chat-snippet">'+accChip+'<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(m.snippet||'')+'</span></div>'
             + '</div></div>';
     });
@@ -579,6 +585,41 @@ function toggleStar(id){
 }
 function toggleStarActive(){ if (activeMail) toggleStar(activeMail.id); }
 function paintStar(){ var b=document.getElementById('readerStarBtn'); if(!b) return; b.innerHTML = '<i class="'+(activeMail && activeMail.is_starred?'fas':'far')+' fa-star"></i>'; b.classList.toggle('on', !!(activeMail && activeMail.is_starred)); }
+function mailAction(action){
+    if (!activeMail) return;
+    var id = activeMail.id, m = activeMail;
+    var go = function(){
+        var req = action === 'delete'
+            ? fetch(MAIL_ROUTES.messages+'/'+id, {method:'DELETE', headers:jsonHeaders()})
+            : fetch(MAIL_ROUTES.messages+'/'+id+'/move', {method:'POST', headers:jsonHeaders(), body:JSON.stringify({to:action})});
+        req.then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+           .then(function(x){
+               if (!x.ok || x.j.success===false) throw new Error(x.j.message || 'Action failed');
+               mailMessages = mailMessages.filter(function(x){ return x.id!==id; });
+               closeReader(); renderMailList(); loadFolders();
+               toast({archive:'Archived', trash:'Moved to Trash', junk:'Marked as junk', inbox:'Moved to Inbox', delete:'Deleted permanently'}[action] || 'Moved');
+           })
+           .catch(function(e){ toast(e.message, 'error'); });
+    };
+    if (action === 'delete') { if (window.customConfirm) customConfirm('Delete permanently?', 'This removes the email from the mailbox as well. This cannot be undone.', go, 'Yes, Delete', 'btn-confirm'); else if (confirm('Delete permanently?')) go(); }
+    else go();
+}
+function paintReaderActions(m){
+    var acc = accountsData.find(function(a){ return a.id===m.account_id; });
+    var canAct = !!(m.can_act || (acc && acc.is_own && acc.is_active)) && !MAIL_IS_ADMIN;
+    var type = m.folder_type || activeFolder;
+    var show = function(id, on){ var b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none'; };
+    show('readerArchiveBtn', canAct && type !== 'archive' && type !== 'trash');
+    show('readerJunkBtn',    canAct && type !== 'junk' && type !== 'trash');
+    show('readerTrashBtn',   canAct && type !== 'trash');
+    show('readerRestoreBtn', canAct && (type === 'trash' || type === 'junk' || type === 'archive'));
+    show('readerDeleteBtn',  canAct && type === 'trash');
+    var sel = document.getElementById('readerMoveSel');
+    if (sel) {
+        sel.style.display = canAct && customFolders.length ? '' : 'none';
+        sel.innerHTML = '<option value="">Move to…</option>' + customFolders.filter(function(f){ return f.account_id===m.account_id; }).map(function(f){ return '<option value="folder:'+f.id+'">'+esc(f.name)+'</option>'; }).join('');
+    }
+}
 function markActiveUnread(){
     if (!activeMail) return;
     fetch(MAIL_ROUTES.messages+'/'+activeMail.id+'/read', {method:'POST', headers:jsonHeaders(), body:JSON.stringify({read:false})})
@@ -615,7 +656,9 @@ function renderMailReader(){
     document.getElementById('activeAvatar').innerText = initialsOf(who);
     var lead = document.getElementById('viewLeadBtn'); lead.style.display = m.crm_email_id ? '' : 'none'; if (m.crm_email_id) lead.href = '/crm/email/'+m.crm_email_id;
     document.getElementById('readerStarBtn').style.display=''; paintStar();
-    document.getElementById('readerUnreadBtn').style.display='';
+    document.getElementById('readerUnreadBtn').style.display = m.can_act ? '' : 'none';
+    document.getElementById('readerStarBtn').style.display = m.can_act ? '' : 'none';
+    paintReaderActions(m);
     var acc = accountsData.find(function(a){ return a.id===m.account_id; });
     var canSend = !!(acc && acc.is_own && acc.is_active && !MAIL_IS_ADMIN && document.getElementById('composeFields'));
     document.getElementById('readerReplyBtn').style.display = canSend ? '' : 'none';
@@ -854,6 +897,7 @@ function selectChat(id){
     document.getElementById('mailReader').style.display='none';
     document.getElementById('readerStarBtn').style.display='none'; document.getElementById('readerUnreadBtn').style.display='none'; document.getElementById('readerReplyBtn').style.display=''; document.getElementById('viewLeadBtn').style.display='';
     document.getElementById('readerReplyAllBtn').style.display='none'; document.getElementById('readerForwardBtn').style.display='none';
+    ['readerArchiveBtn','readerJunkBtn','readerTrashBtn','readerRestoreBtn','readerDeleteBtn','readerMoveSel'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display='none'; });
     setComposerMode('lead');
     document.getElementById('activeName').innerText = chat.client_name || 'Anonymous User';
     document.getElementById('activeEmailHeader').innerText = chat.client_email || '';
@@ -1053,7 +1097,7 @@ function startCompose(){
     document.getElementById('activeEmailHeader').innerText = '';
     document.getElementById('activeSubject').innerText = '';
     document.getElementById('activeAvatar').innerHTML = '<i class="fas fa-pen"></i>';
-    ['readerStarBtn','readerUnreadBtn','readerReplyBtn','readerReplyAllBtn','readerForwardBtn','viewLeadBtn'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display='none'; });
+    ['readerStarBtn','readerUnreadBtn','readerReplyBtn','readerReplyAllBtn','readerForwardBtn','viewLeadBtn','readerArchiveBtn','readerJunkBtn','readerTrashBtn','readerRestoreBtn','readerDeleteBtn','readerMoveSel'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display='none'; });
     var def = own.find(function(a){ return a.is_default; }) || own[0];
     setComposerMode('mail-compose', { accountId: def.id, to: '', subject: '' });
     setTimeout(function(){ var f=document.getElementById('cfTo'); if(f) f.focus(); }, 50);

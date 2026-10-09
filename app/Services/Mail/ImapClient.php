@@ -261,6 +261,89 @@ class ImapClient
         return null;
     }
 
+    // ---- reconcile / actions (Phase 6) ---------------------------------------
+
+    /** Every UID currently in the folder (ascending). */
+    public function allUids(string $folderPath): array
+    {
+        $this->open($folderPath);
+        $uids = @imap_search($this->conn, 'ALL', SE_UID) ?: [];
+        imap_errors();
+        $uids = array_map('intval', $uids);
+        sort($uids);
+        return $uids;
+    }
+
+    /** uid => ['seen' => bool, 'flagged' => bool] for every message in the folder. */
+    public function overview(string $folderPath): array
+    {
+        $this->open($folderPath);
+        $out = [];
+        $rows = @imap_fetch_overview($this->conn, '1:*', FT_UID) ?: [];
+        imap_errors();
+        foreach ($rows as $r) {
+            if (!empty($r->uid)) {
+                $out[(int) $r->uid] = ['seen' => !empty($r->seen), 'flagged' => !empty($r->flagged)];
+            }
+        }
+        return $out;
+    }
+
+    /** Move a message to another folder (by UID). Returns true on success. */
+    public function moveMessage(string $fromFolder, int $uid, string $toFolder): bool
+    {
+        $this->open($fromFolder);
+        $ok = @imap_mail_move($this->conn, (string) $uid, $toFolder, CP_UID);
+        if ($ok) {
+            @imap_expunge($this->conn);
+        }
+        imap_errors();
+        return (bool) $ok;
+    }
+
+    /** Permanently delete a message (by UID). */
+    public function deleteMessage(string $folderPath, int $uid): bool
+    {
+        $this->open($folderPath);
+        $ok = @imap_delete($this->conn, (string) $uid, FT_UID);
+        if ($ok) {
+            @imap_expunge($this->conn);
+        }
+        imap_errors();
+        return (bool) $ok;
+    }
+
+    /**
+     * Path of the folder of the given type, creating it on the server when it does not exist
+     * (e.g. Hostinger has no Archive). Follows the server's INBOX.* layout when present.
+     */
+    public function ensureFolder(string $type, ?string $name = null): string
+    {
+        $existing = $this->findFolderPathByType($type);
+        if ($existing) {
+            return $existing;
+        }
+        $name = $name ?: ucfirst($type);
+        $folders = $this->listFolders();
+        $usesInboxPrefix = false; $delim = '.';
+        foreach ($folders as $f) {
+            if (stripos($f['path'], 'INBOX' . $f['delimiter']) === 0) { $usesInboxPrefix = true; $delim = $f['delimiter']; break; }
+        }
+        $path = $usesInboxPrefix ? 'INBOX' . $delim . $name : $name;
+        $this->open('INBOX');
+        $full = $this->root() . imap_utf7_encode($path);
+        if (!@imap_createmailbox($this->conn, $full)) {
+            $errs = imap_errors() ?: [];
+            // "already exists" is fine (race with another client)
+            if (!preg_match('/exist/i', implode(' ', $errs))) {
+                throw new \RuntimeException('Could not create the "' . $name . '" folder on the mail server.');
+            }
+        }
+        @imap_subscribe($this->conn, $full);
+        imap_errors();
+        return $path;
+    }
+
     // ---- MIME walking -------------------------------------------------------
 
     private function walkParts(int $uid, object $part, string $prefix, array &$out): void

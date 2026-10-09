@@ -82,5 +82,15 @@ header threading, lead linking + legacy mirror once, send failure stores nothing
 `LegacyMailboxMigrationTest` (dry-run, encryption at rest, idempotency, safe rollback). Known pre-existing failure:
 `ExampleTest` expects 200 on `/` (it redirects).
 
-## 9. Still pending
-- Phase 6: server-side folder actions (archive/trash/move, flag sync to IMAP).
+## 9. Phase 6 — folder actions & two-way consistency
+Owner actions (archive / junk / trash / move to folder / restore / delete permanently, read/unread, star) update the DB
+**and** the mailbox over IMAP (`imap_mail_move` + expunge, `\\Seen`/`\\Flagged`). A move must succeed on the server before the DB
+changes; flag pushes are best-effort. "Archive" is created on the server on demand (`INBOX.Archive`) when the provider
+has none. Every sync also **reconciles** each folder: server flags win (read/star), messages moved in Outlook/webmail
+are re-pointed by Message-ID (no duplicates), and messages deleted elsewhere are filed under Trash locally after a
+1-hour grace period. Admins' read-only views never change mailbox state. Folders above 5000 messages skip the
+per-minute reconcile to bound cost.
+
+## 10. Still pending
+- Live send test from a real mailbox (needs an agreed recipient).
+- Optional: cleanup job for attachments of permanently deleted mail; retention policy.

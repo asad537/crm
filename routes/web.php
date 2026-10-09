@@ -219,6 +219,9 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
             Route::get('messages/{id}', 'MailboxController@show')->name('messages.show')->where('id', '[0-9]+');
             Route::post('messages/{id}/star', 'MailboxController@star')->name('messages.star')->where('id', '[0-9]+');
             Route::post('messages/{id}/read', 'MailboxController@read')->name('messages.read')->where('id', '[0-9]+');
+            Route::post('messages/{id}/move', 'MailboxController@move')->name('messages.move')->where('id', '[0-9]+');
+            Route::delete('messages/{id}', 'MailboxController@destroy')->name('messages.destroy')->where('id', '[0-9]+');
+            Route::post('messages/bulk', 'MailboxController@bulk')->name('messages.bulk')->middleware('throttle:30,1');
             Route::post('sync', 'MailboxController@sync')->name('sync')->middleware('throttle:6,1');
             Route::get('attachments/{id}', 'MailboxController@attachment')->name('attachments.show')->where('id', '[0-9]+');
             // Sending from a mailbox (owner only): new message, reply / reply-all / forward.

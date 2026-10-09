@@ -197,31 +197,3 @@ class MailSyncAndSendTest extends TestCase
         $this->assertCount(1, $this->imap->appended, 'a Sent copy was appended to IMAP');
     }
 }
-
-/** In-memory IMAP double. */
-class FakeImap extends ImapClient
-{
-    public array $folders = [];
-    public array $status = [];
-    /** @var array<string, array<int, array>> folder path => uid => parsed message */
-    public array $messages = [];
-    public array $appended = [];
-
-    public function __construct() { /* no account, no connection */ }
-    public function bind(CrmMailAccount $account): void {}
-    public function __destruct() {}
-    public function open(string $folderPath = 'INBOX'): void {}
-    public function close(): void {}
-    public function listFolders(): array { return $this->folders; }
-    public function status(string $folderPath): array { return $this->status[$folderPath] ?? ['uidvalidity' => 1, 'uidnext' => 1, 'messages' => 0, 'unseen' => 0]; }
-    public function searchUids(string $folderPath, int $afterUid, int $sinceDays = 30, int $cap = 200): array
-    {
-        $uids = array_keys($this->messages[$folderPath] ?? []);
-        sort($uids);
-        return array_values(array_filter($uids, fn ($u) => $u > $afterUid));
-    }
-    public function fetchMessage(string $folderPath, int $uid): array { return $this->messages[$folderPath][$uid]; }
-    public function setFlag(string $folderPath, int $uid, string $flag, bool $on = true): bool { return true; }
-    public function findFolderPathByType(string $type): ?string { foreach ($this->folders as $f) if ($f['type'] === $type) return $f['path']; return null; }
-    public function appendMessage(string $mime, ?string $folderPath = null, string $flags = '\\Seen'): ?string { $this->appended[] = $mime; return $folderPath ?: 'INBOX.Sent'; }
-}
