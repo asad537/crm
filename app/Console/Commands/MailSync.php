@@ -19,11 +19,32 @@ class MailSync extends Command
                             {--queue : Dispatch SyncMailAccountJob per account instead of running inline}
                             {--since=30 : On a first sync, how many days back to pull}
                             {--cap=200 : Max messages per folder per run}
-                            {--types= : Comma-separated folder types to sync (inbox,sent,drafts,archive,junk,trash,custom)}';
+                            {--types= : Comma-separated folder types to sync (inbox,sent,drafts,archive,junk,trash,custom)}
+                            {--watch : Keep running: sync all accounts, sleep --interval seconds, repeat (near real-time receive)}
+                            {--interval=15 : Seconds between rounds in --watch mode}';
 
     protected $description = 'Sync connected mailboxes (IMAP) into the CRM mail client';
 
     public function handle(ImapSyncService $sync): int
+    {
+        if ($this->option('watch')) {
+            $interval = max(3, (int) $this->option('interval'));
+            $this->info("Watching mailboxes every {$interval}s (Ctrl+C to stop)…");
+            while (true) {
+                $started = microtime(true);
+                try {
+                    $this->runOnce($sync);
+                } catch (\Throwable $e) {
+                    $this->error('round failed: ' . $e->getMessage());
+                }
+                $sleep = max(1, $interval - (int) (microtime(true) - $started));
+                sleep($sleep);
+            }
+        }
+        return $this->runOnce($sync);
+    }
+
+    private function runOnce(ImapSyncService $sync): int
     {
         $query = CrmMailAccount::withoutGlobalScopes()->syncable()->orderBy('id');
         if ($this->option('account')) {

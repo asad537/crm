@@ -32,7 +32,8 @@ services:
     image: crm_l10_php:8.2-fpm
     container_name: crm_l10_worker
     working_dir: /var/www
-    command: sh -c "php artisan schedule:work & exec php artisan queue:work redis --sleep=3 --tries=1 --timeout=300"
+    # Mail: continuous watch loop (every 3s; idle folders cost one STATUS call) instead of the 1-minute scheduler, plus the queue worker.
+    command: sh -c "php artisan crm:mail-sync --watch --interval=3 & exec php artisan queue:work redis --sleep=3 --tries=1 --timeout=300"
     volumes:
       - .:/var/www:delegated
     depends_on:

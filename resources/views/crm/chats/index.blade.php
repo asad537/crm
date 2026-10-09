@@ -9,11 +9,13 @@
     .mail-app { display: grid; grid-template-columns: 250px 380px minmax(0, 1fr); height: 100vh; width: 100%; background: #fff; }
 
     /* ---- Left: accounts + folders ---- */
-    .mail-nav { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #eef1f6; background: #fafbfd; }
+    .mail-nav { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-right: 1px solid #eef1f6; background: #fafbfd; }
+    .mail-list, .chat-main { min-height: 0; }
+    #mailAccountsList { max-height: 38vh; overflow-y: auto; padding-right: 2px; }
     .mail-nav-head { display: flex; align-items: center; gap: 10px; padding: 1.1rem 1rem .8rem; }
     .mail-nav-head h2 { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
     .mail-nav-head h2 i { color: var(--primary-purple); }
-    .mail-nav-scroll { flex: 1; overflow-y: auto; padding: 0 .6rem 1rem; }
+    .mail-nav-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 .6rem 1rem; }
     .mail-section-title { display: flex; align-items: center; justify-content: space-between; padding: .9rem .5rem .35rem; font-size: .66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #8a94a6; }
     .mail-section-title button { border: 0; background: transparent; color: var(--primary-purple); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
     .mail-section-title button:hover { background: var(--primary-soft); }
@@ -811,7 +813,7 @@ function saveAccount(){
 function manualSync(){
     if (inboxSyncRunning) return; inboxSyncRunning = true;
     var st=document.getElementById('mailSyncStatus'); if(st) st.textContent='Syncing…';
-    var own = accountsData.filter(function(a){ return a.is_own && a.is_active && a.sync_enabled && (activeAccountId===null || a.id===activeAccountId); });
+    var own = accountsData.filter(function(a){ return a.is_active && a.sync_enabled && (activeAccountId===null || a.id===activeAccountId); }); // every visible mailbox (read-only op)
     var jobs = own.map(function(a){ return fetch(MAIL_ROUTES.mailSync, {method:'POST', headers:jsonHeaders(), body:JSON.stringify({account:a.id})}).then(function(r){ return r.json(); }).catch(function(){ return null; }); });
     // legacy lead-reply import (uses the user's single legacy mailbox) stays available
     jobs.push(fetch(MAIL_ROUTES.sync, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){ return r.json(); }).catch(function(){ return null; }));
@@ -1192,7 +1194,7 @@ loadAccounts().then(function(){
 });
 bootComposerEditor();
 if (window.__chatsListPoll) clearInterval(window.__chatsListPoll);
-window.__chatsListPoll = setInterval(function(){ loadChatList(false); }, 10000);
+window.__chatsListPoll = setInterval(function(){ loadChatList(false); }, 3000);
 if (window.__mailListPoll) clearInterval(window.__mailListPoll);
 window.__mailListPoll = setInterval(function(){
     if (!document.getElementById('chatListContainer')) { clearInterval(window.__mailListPoll); window.__mailListPoll=null; return; }
@@ -1204,7 +1206,7 @@ window.__mailListPoll = setInterval(function(){
         fetch(MAIL_ROUTES.messages+'?'+new URLSearchParams(Object.assign({page:1}, activeAccountId?{account:activeAccountId}:{}, activeFolder.indexOf('custom:')===0?{folder:activeFolder.split(':')[1]}:{type:activeFolder})).toString(), {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
             .then(function(r){ return r.json(); }).then(function(d){ var inc = d.messages||[]; var after = JSON.stringify(inc.map(function(m){ return [m.id, m.is_read, m.is_starred]; })); if (after !== before) { mailMessages = inc; mailHasMore = !!d.has_more; renderMailList(); } }).catch(function(){});
     }
-}, 20000);
+}, 10000);
 if (!window.__chatsListenersBound) {
     window.__chatsListenersBound = true;
     document.addEventListener('visibilitychange', function(){ if (!document.hidden && typeof resumeChatList==='function') resumeChatList(); });

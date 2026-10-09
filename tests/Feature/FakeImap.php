@@ -20,7 +20,17 @@ class FakeImap extends ImapClient
     public function open(string $folderPath = 'INBOX'): void {}
     public function close(): void {}
     public function listFolders(): array { return $this->folders; }
-    public function status(string $folderPath): array { return $this->status[$folderPath] ?? ['uidvalidity' => 1, 'uidnext' => 1, 'messages' => 0, 'unseen' => 0]; }
+    public function status(string $folderPath): array
+    {
+        // Derived from the in-memory messages like a real server (uidvalidity may be pinned by the test).
+        $msgs = $this->messages[$folderPath] ?? [];
+        return [
+            'uidvalidity' => (int) ($this->status[$folderPath]['uidvalidity'] ?? 1),
+            'uidnext' => ($msgs ? max(array_keys($msgs)) : 0) + 1,
+            'messages' => count($msgs),
+            'unseen' => count(array_filter($msgs, fn ($m) => empty($m['seen']))),
+        ];
+    }
     public function searchUids(string $folderPath, int $afterUid, int $sinceDays = 30, int $cap = 200): array
     {
         $uids = array_keys($this->messages[$folderPath] ?? []);

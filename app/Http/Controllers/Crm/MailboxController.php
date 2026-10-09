@@ -296,11 +296,11 @@ class MailboxController extends Controller
         return response()->json(['success' => empty($errors), 'done' => $done, 'errors' => $errors]);
     }
 
-    /** Trigger a sync for one visible account (owner only) — returns stats. */
+    /** Trigger a sync for one visible account (read-only operation; anyone who may view it) — returns stats. */
     public function sync(Request $request, ImapSyncService $sync)
     {
         $account = CrmMailAccount::withoutGlobalScopes()->findOrFail((int) $request->input('account'));
-        Gate::forUser($this->user())->authorize('update', $account);
+        Gate::forUser($this->user())->authorize('view', $account);
         $stats = $sync->syncAccount($account, ['cap' => 100]);
         return response()->json($stats);
     }

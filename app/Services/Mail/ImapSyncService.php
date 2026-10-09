@@ -27,7 +27,7 @@ use Illuminate\Support\Str;
 class ImapSyncService
 {
     public const DISK = 'local';
-    public const LOCK_SECONDS = 600;
+    public const LOCK_SECONDS = 180; // a capped per-account pass is well under this; a killed worker frees it quickly
 
     public function __construct(
         private HtmlSanitizerService $sanitizer,
@@ -129,6 +129,16 @@ class ImapSyncService
         $r = ['imported' => 0, 'skipped' => 0, 'linked' => 0, 'mirrored' => 0];
         $status = $client->status($folder->path);
 
+        // Cheap idle path: if the server STATUS (uidvalidity/uidnext/messages/unseen) is unchanged
+        // since the last pass, nothing arrived, moved or was read — skip the search/overview work.
+        // A full pass still runs at least every 60s so star-only changes are picked up.
+        $sigKey = 'mail:folder:' . $folder->id . ':status';
+        $sig = implode('|', [$status['uidvalidity'], $status['uidnext'], $status['messages'], $status['unseen']]);
+        $last = Cache::get($sigKey);
+        if (is_array($last) && $last['sig'] === $sig && (time() - (int) $last['at']) < 60 && (int) $folder->last_uid > 0) {
+            return $r;
+        }
+
         // UIDVALIDITY changed → UIDs are meaningless now; restart the cursor (message_id dedupe prevents dupes).
         if ($status['uidvalidity'] && $folder->uidvalidity && $status['uidvalidity'] !== (int) $folder->uidvalidity) {
             Log::info('Mail sync: UIDVALIDITY changed, resetting cursor', ['account_id' => $account->id, 'folder' => $folder->path]);
@@ -182,6 +192,7 @@ class ImapSyncService
         $folder->last_uid = $maxUid;
         $this->reconcileFolder($account, $folder, $client);
         $this->refreshFolderCounts($folder);
+        Cache::put($sigKey, ['sig' => $sig, 'at' => time()], 3600);
         return $r;
     }
 
