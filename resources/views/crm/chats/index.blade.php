@@ -6,20 +6,21 @@
     .main-area { padding: 0 !important; overflow: hidden !important; background: #fff; display: flex; flex-direction: column; }
     .top-bar { display: none !important; }
 
-    .mail-app { display: grid; grid-template-columns: 250px 380px minmax(0, 1fr); height: 100vh; width: 100%; background: #fff; }
+    .mail-app { display: grid; grid-template-columns: 250px 380px minmax(0, 1fr); gap: 12px; padding: 12px; height: 100vh; width: 100%; background: var(--bg-body, #F4F5F9); box-sizing: border-box; }
+    .mail-nav, .mail-list, .chat-main { background: #fff; border: 1px solid #eceff5; border-radius: 16px; box-shadow: 0 1px 3px rgba(16,24,40,.04); min-height: 0; overflow: hidden; }
 
     /* ---- Left: accounts + folders ---- */
-    .mail-nav { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-right: 1px solid #eef1f6; background: #fafbfd; }
+    .mail-nav { display: flex; flex-direction: column; min-width: 0; }
     .mail-list, .chat-main { min-height: 0; }
     #mailAccountsList { max-height: 38vh; overflow-y: auto; padding-right: 2px; }
     .mail-nav-head { display: flex; align-items: center; gap: 10px; padding: 1.1rem 1rem .8rem; }
-    .mail-nav-head h2 { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
+    .mail-nav-head h2 { margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 10px; }
     .mail-nav-head h2 i { color: var(--primary-purple); }
     .mail-nav-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 .6rem 1rem; }
     .mail-section-title { display: flex; align-items: center; justify-content: space-between; padding: .9rem .5rem .35rem; font-size: .66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #8a94a6; }
     .mail-section-title button { border: 0; background: transparent; color: var(--primary-purple); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
     .mail-section-title button:hover { background: var(--primary-soft); }
-    .mail-nav-item { display: flex; align-items: center; gap: 10px; padding: .55rem .6rem; border-radius: 9px; cursor: pointer; color: #334155; font-size: .84rem; font-weight: 600; user-select: none; position: relative; }
+    .mail-nav-item { display: flex; align-items: center; gap: 10px; padding: .6rem .7rem; border-radius: 11px; cursor: pointer; color: #334155; font-size: .84rem; font-weight: 600; user-select: none; position: relative; }
     .mail-nav-item:hover { background: #eef1f7; }
     .mail-nav-item.active { background: var(--primary-soft); color: var(--primary-purple); }
     .mail-nav-item i.fa-fw { width: 18px; text-align: center; color: #94a3b8; font-size: .85rem; }
@@ -38,31 +39,39 @@
     .mail-acc-err { position: absolute; right: 8px; top: 8px; color: #dc2626; font-size: .7rem; }
     .mail-add-btn { width: 100%; margin-top: .35rem; display: flex; align-items: center; justify-content: center; gap: 8px; padding: .6rem; border: 1.5px dashed #cbd5e1; border-radius: 10px; background: #fff; color: #475569; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
     .mail-add-btn:hover { border-color: var(--primary-purple); color: var(--primary-purple); }
-    .mail-nav-foot { padding: .6rem .8rem; border-top: 1px solid #eef1f6; display: flex; align-items: center; justify-content: space-between; font-size: .72rem; color: #94a3b8; }
+    .mail-nav-foot { padding: .7rem 1rem; border-top: 1px solid #f1f4f9; display: flex; align-items: center; justify-content: space-between; font-size: .72rem; color: #94a3b8; }
     .mail-nav-foot button { border: 0; background: transparent; color: var(--primary-purple); font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer; }
 
     /* ---- Middle: conversation list ---- */
-    .mail-list { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #eef1f6; background: #fff; }
-    .mail-list-head { padding: 1rem 1rem .7rem; border-bottom: 1px solid #f1f5f9; }
+    .mail-list { display: flex; flex-direction: column; min-width: 0; }
+    .mail-list-head { padding: 1.1rem 1rem .6rem; }
     .mail-list-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: .7rem; }
-    .mail-list-title h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-dark); }
+    .mail-list-title h3 { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-dark); }
+    .mail-list-title small i { font-size: .6rem; margin-left: 3px; }
     .mail-list-title small { display: block; font-size: .7rem; color: #94a3b8; font-weight: 500; }
-    .mail-list-title .icon-btn { width: 32px; height: 32px; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; color: #64748b; cursor: pointer; }
+    .mail-list-title .icon-btn { width: 36px; height: 36px; border: 1px solid #e5e9f0; border-radius: 11px; background: #fff; color: #64748b; cursor: pointer; }
+    .search-row { display: flex; gap: 8px; align-items: center; }
+    .search-row .search-chat { flex: 1; }
+    .filter-btn { width: 40px; height: 40px; flex: 0 0 40px; border: 1px solid #e5e9f0; border-radius: 11px; background: #fff; color: #64748b; cursor: pointer; }
+    .filter-btn.on { background: var(--primary-soft); color: var(--primary-purple); border-color: var(--primary-purple); }
     .mail-list-title .icon-btn:hover { color: var(--primary-purple); border-color: var(--primary-purple); }
-    .search-chat { background: #f1f5f9; border-radius: 10px; padding: .55rem .9rem; display: flex; align-items: center; gap: .5rem; }
+    .search-chat { background: #f1f5f9; border-radius: 12px; padding: .65rem .9rem; display: flex; align-items: center; gap: .5rem; }
     .search-chat input { border: none; background: none; outline: none; width: 100%; font-size: .86rem; }
-    .chat-list-items { flex: 1; overflow-y: auto; }
-    .chat-item { padding: .85rem 1rem; border-bottom: 1px solid #f3f5f9; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: background .15s; position: relative; }
+    .chat-list-items { flex: 1; overflow-y: auto; padding: .25rem .5rem .75rem; }
+    .chat-item { padding: .85rem .9rem; margin: 2px 0; border-radius: 12px; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: background .15s; position: relative; }
     .chat-item:hover { background: #f8fafc; }
     .chat-item.active { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary-purple); }
+    .chat-item .chat-avatar { position: relative; }
+    .chat-item.unread .chat-avatar::after { content: ""; position: absolute; top: 0; right: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--primary-purple); border: 2px solid #fff; }
     .chat-item.unread .chat-name, .chat-item.unread .chat-subject { font-weight: 800; color: #0f172a; }
-    .chat-item.unread::before { content: ""; position: absolute; left: 6px; top: 1.25rem; width: 7px; height: 7px; border-radius: 50%; background: var(--primary-purple); }
-    .chat-avatar { width: 40px; height: 40px; border-radius: 11px; background: #ecf0ff; color: var(--primary-purple); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; font-size: .9rem; }
+
+    .chat-avatar { width: 42px; height: 42px; border-radius: 50%; background: #ecf0ff; color: var(--primary-purple); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; font-size: .9rem; }
     .chat-info { flex: 1; min-width: 0; }
     .chat-row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .chat-name { font-weight: 600; color: #1e293b; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chat-time { font-size: .68rem; color: #94a3b8; white-space: nowrap; }
-    .chat-subject { font-size: .78rem; color: #334155; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-subject { font-size: .8rem; color: #334155; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .chat-subject .row-icons { margin-left: auto; }
     .chat-snippet { font-size: .74rem; color: #8a94a6; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
     .chat-acc-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 140px; font-size: .62rem; font-weight: 700; color: #64748b; background: #f1f5f9; border-radius: 99px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chat-badge { background: var(--primary-purple); color: #fff; border-radius: 99px; font-size: .64rem; padding: 1px 7px; font-weight: 800; margin-left: 6px; }
@@ -70,18 +79,18 @@
     .chat-list-empty i { display: block; font-size: 2rem; opacity: .35; margin-bottom: .6rem; }
 
     /* ---- Right: reading pane ---- */
-    .chat-main { display: flex; flex-direction: column; min-width: 0; background: #f8fafc; position: relative; }
+    .chat-main { display: flex; flex-direction: column; min-width: 0; background: #fff; position: relative; }
     .chat-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #94a3b8; padding: 2rem; text-align: center; }
     .chat-empty i { font-size: 4rem; opacity: .25; margin-bottom: 1.2rem; }
     .chat-empty h3 { margin: 0 0 .4rem; color: #64748b; }
-    .chat-header { padding: .8rem 1.4rem; background: #fff; border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: space-between; gap: 1rem; z-index: 10; }
+    .chat-header { padding: .9rem 1.4rem; background: #fff; border-bottom: 1px solid #f1f4f9; display: flex; align-items: center; justify-content: space-between; gap: 1rem; z-index: 10; }
     .chat-header .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .chat-header .who .chat-avatar { width: 42px; height: 42px; }
+    .chat-header .who .chat-avatar { width: 46px; height: 46px; border-radius: 50%; }
     .chat-header .meta { min-width: 0; }
-    .chat-header .meta .chat-name { font-size: .95rem; font-weight: 800; }
+    .chat-header .meta .chat-name { font-size: 1.1rem; font-weight: 800; }
     .chat-header .meta .sub { font-size: .74rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .reader-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .reader-btn { display: inline-flex; align-items: center; gap: 6px; padding: .5rem .8rem; border: 1px solid #e5e9f0; border-radius: 9px; background: #fff; color: #475569; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; }
+    .reader-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 38px; padding: .5rem .7rem; border: 1px solid #e5e9f0; border-radius: 11px; background: #fff; color: #475569; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; }
     .reader-btn:hover { border-color: var(--primary-purple); color: var(--primary-purple); }
     .reader-btn.primary { background: var(--primary-purple); border-color: var(--primary-purple); color: #fff; }
     .reader-btn.primary:hover { background: var(--primary-hover); color: #fff; }
@@ -96,12 +105,18 @@
     .msg-time { font-size: .68rem; margin-top: 4px; color: #94a3b8; }
 
     /* composer */
-    .chat-input-area { padding: .9rem 1.4rem 1rem; background: #fff; border-top: 1px solid #eef1f6; position: relative; max-height: 52vh; overflow-y: auto; flex-shrink: 0; }
+    .chat-input-area { padding: .9rem 1.2rem 1rem; background: #fff; border-top: 1px solid #f1f4f9; position: relative; max-height: 52vh; overflow-y: auto; flex-shrink: 0; }
     .chat-input-area.collapsed { padding: .6rem 1.4rem; max-height: none; overflow: visible; }
     .chat-input-area.collapsed .composer-box { display: none; }
     .reply-bar { display: none; align-items: center; gap: 8px; }
     .chat-input-area.collapsed .reply-bar { display: flex; }
-    .reply-bar .reader-btn { padding: .55rem .95rem; }
+    .reply-bar .reader-btn { padding: .6rem 1rem; border-radius: 12px; font-size: .84rem; }
+    .reply-bar .more-wrap { margin-left: auto; position: relative; }
+    .more-menu { position: absolute; right: 0; bottom: calc(100% + 6px); min-width: 190px; background: #fff; border: 1px solid #e5e9f0; border-radius: 12px; box-shadow: 0 14px 34px rgba(15,23,42,.15); padding: .35rem; display: none; z-index: 60; }
+    .more-menu.open { display: block; }
+    .more-menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: .55rem .7rem; border: 0; border-radius: 8px; background: none; font: inherit; font-size: .8rem; font-weight: 700; color: #334155; cursor: pointer; text-align: left; }
+    .more-menu button:hover { background: var(--primary-soft); color: var(--primary-purple); }
+    .more-menu button.danger { color: #dc2626; }
     .reply-bar .hint { margin-left: auto; font-size: .74rem; color: #94a3b8; }
     .cf-close { margin-left: 6px; border: 0; background: #eef1f7; color: #64748b; width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: .75rem; }
     .cf-close:hover { background: #fee2e2; color: #dc2626; }
@@ -165,18 +180,18 @@
     .chat-item .row-icons { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; color: #94a3b8; font-size: .7rem; }
     .chat-item .star-btn { border: 0; background: none; padding: 0 2px; cursor: pointer; color: #cbd5e1; font-size: .78rem; line-height: 1; }
     .chat-item .star-btn.on, .mail-reader-head .star-btn.on { color: #f59e0b; }
-    .mail-reader { flex: 1; overflow-y: auto; padding: 1.2rem 1.6rem 1.4rem; display: none; flex-direction: column; gap: .9rem; }
-    .mail-reader-head { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; padding: 1rem 1.2rem; }
-    .mail-reader-head h2 { margin: 0 0 .6rem; font-size: 1.05rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .mail-reader { flex: 1; overflow-y: auto; padding: 1rem 1.2rem 1.2rem; display: none; flex-direction: column; gap: .8rem; background: #f7f8fc; }
+    .mail-reader-head { background: #fff; border: 1px solid #eceff5; border-radius: 16px; padding: 1rem 1.2rem; }
+    .mail-reader-head h2 { margin: 0 0 .7rem; font-size: 1.2rem; font-weight: 800; color: var(--text-dark); display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .mail-reader-head .star-btn { border: 0; background: none; cursor: pointer; color: #cbd5e1; font-size: 1rem; }
     .mail-meta-row { display: flex; align-items: flex-start; gap: 10px; font-size: .8rem; color: #475569; }
-    .mail-meta-row .chat-avatar { width: 38px; height: 38px; font-size: .8rem; }
+    .mail-meta-row .chat-avatar { width: 40px; height: 40px; font-size: .8rem; border-radius: 50%; }
     .mail-meta-row .lines { flex: 1; min-width: 0; }
     .mail-meta-row .lines b { color: #0f172a; }
     .mail-meta-row .lines .addr { color: #64748b; }
     .mail-meta-row .lines small { display: block; color: #8a94a6; font-size: .72rem; margin-top: 2px; overflow-wrap: anywhere; }
     .mail-meta-row .when { font-size: .72rem; color: #94a3b8; white-space: nowrap; }
-    .mail-body-card { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; overflow: hidden; }
+    .mail-body-card { background: #fff; border: 1px solid #eceff5; border-radius: 16px; overflow: hidden; }
     .mail-body-card iframe { width: 100%; border: 0; display: block; min-height: 240px; background: #fff; }
     .mail-body-card pre { margin: 0; padding: 1rem 1.2rem; white-space: pre-wrap; font: inherit; font-size: .9rem; color: #1e293b; }
     .mail-atts { display: flex; flex-wrap: wrap; gap: 8px; padding: .8rem 1.2rem; border-top: 1px solid #f1f5f9; background: #fbfcfe; }
@@ -184,14 +199,20 @@
     .mail-att i { color: var(--primary-purple); }
     .mail-att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mail-att small { color: #94a3b8; font-weight: 500; }
-    .thread-strip { background: #fff; border: 1px solid #eef1f6; border-radius: 14px; padding: .6rem .8rem; }
+    .thread-strip { background: #fff; border: 1px solid #eceff5; border-radius: 16px; padding: .8rem 1rem; }
+    .thread-strip .ts-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .4rem; }
+    .thread-strip .ts-head h5 { margin: 0; }
+    .thread-strip .ts-toggle { border: 0; background: none; color: var(--primary-purple); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+    .thread-item .ta { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; background: #ecf0ff; color: var(--primary-purple); display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 800; }
+    .thread-item.hidden-extra { display: none; }
+    .thread-strip.expanded .thread-item.hidden-extra { display: flex; }
     .thread-strip h5 { margin: 0 0 .4rem .3rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: #8a94a6; }
     .thread-item { display: flex; align-items: center; gap: 10px; padding: .5rem .6rem; border-radius: 9px; cursor: pointer; font-size: .78rem; color: #334155; }
     .thread-item:hover { background: #f5f7fb; }
     .thread-item .who { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
     .thread-item .snip { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a94a6; }
     .thread-item .when { font-size: .68rem; color: #94a3b8; white-space: nowrap; }
-    .mail-reply-note { background: #fff; border: 1px dashed #d8deea; border-radius: 12px; padding: .7rem 1rem; font-size: .8rem; color: #64748b; display: flex; align-items: center; gap: 8px; }
+    .mail-reply-note { background: #fff; border: 1px dashed #d8deea; border-radius: 14px; padding: .7rem 1rem; font-size: .8rem; color: #64748b; display: flex; align-items: center; gap: 8px; }
     .mail-reply-note a { color: var(--primary-purple); font-weight: 700; text-decoration: none; }
     .list-loadmore { display: block; width: calc(100% - 2rem); margin: .6rem 1rem 1rem; padding: .55rem; border: 1px solid #e5e9f0; border-radius: 9px; background: #fff; color: var(--primary-purple); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
 
@@ -203,11 +224,11 @@
     .compose-fields input, .compose-fields select { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: .86rem; color: #1e293b; padding: .15rem 0; }
     .compose-fields .cf-link { border: 0; background: none; color: var(--primary-purple); font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; padding: 0 4px; }
     .compose-fields .cf-mode { font-size: .72rem; color: #64748b; font-weight: 700; }
-    .nav-compose-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: .45rem .7rem; border: 0; border-radius: 9px; background: var(--primary-purple); color: #fff; font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 14px var(--primary-shadow); }
+    .nav-compose-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: .55rem .9rem; border: 0; border-radius: 12px; background: var(--primary-purple); color: #fff; font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 14px var(--primary-shadow); }
     .nav-compose-btn:hover { background: var(--primary-hover); }
 
     /* ---- Responsive ---- */
-    @media (max-width: 1200px) { .mail-app { grid-template-columns: 220px 330px minmax(0,1fr); } }
+    @media (max-width: 1200px) { .mail-app { grid-template-columns: 220px 330px minmax(0,1fr); gap: 8px; padding: 8px; } }
     @media (max-width: 1024px) {
         .mail-app { grid-template-columns: 320px minmax(0,1fr); }
         .mail-nav { position: fixed; top: 0; left: 0; bottom: 0; width: 270px; z-index: 1200; transform: translateX(-100%); transition: transform .2s; box-shadow: 0 0 40px rgba(15,23,42,.2); }
@@ -217,7 +238,7 @@
         .nav-toggle-btn { display: inline-flex !important; }
     }
     @media (max-width: 768px) {
-        .mail-app { grid-template-columns: 1fr; height: 100vh; }
+        .mail-app { grid-template-columns: 1fr; height: 100vh; padding: 0; gap: 0; } .mail-list, .chat-main { border-radius: 0; border: 0; }
         .chat-main { position: fixed; inset: 0; z-index: 1000; display: none; }
         .mail-app.chat-active .mail-list { display: none; }
         .mail-app.chat-active .chat-main { display: flex; }
@@ -267,13 +288,16 @@
             <div class="mail-list-title">
                 <div style="display:flex; align-items:center; gap:10px; min-width:0;">
                     <button type="button" class="nav-toggle-btn" onclick="toggleMailNav(true)" title="Mailboxes & folders"><i class="fas fa-bars"></i></button>
-                    <div style="min-width:0;"><h3 id="listTitle">Inbox</h3><small id="listSubtitle">All inboxes</small></div>
+                    <div style="min-width:0;"><h3 id="listTitle">Inbox</h3><small><span id="listSubtitle">All inboxes</span><i class="fas fa-chevron-down"></i></small></div>
                 </div>
                 <button type="button" class="icon-btn" onclick="chatListRetries=0;loadChatList()" title="Refresh"><i class="fas fa-redo-alt"></i></button>
             </div>
-            <div class="search-chat">
-                <i class="fas fa-search" style="color:#94a3b8"></i>
-                <input type="text" id="chatSearch" placeholder="Search conversations…" onkeyup="filterChats()">
+            <div class="search-row">
+                <div class="search-chat">
+                    <i class="fas fa-search" style="color:#94a3b8"></i>
+                    <input type="text" id="chatSearch" placeholder="Search conversations…" onkeyup="filterChats()">
+                </div>
+                <button type="button" class="filter-btn" id="unreadFilterBtn" onclick="toggleUnreadFilter()" title="Unread only"><i class="fas fa-sliders-h"></i></button>
             </div>
         </div>
         <div class="chat-list-items" id="chatListContainer">
@@ -326,6 +350,17 @@
                     <button type="button" class="reader-btn" onclick="replyActive('reply_all')"><i class="fas fa-reply-all"></i> Reply all</button>
                     <button type="button" class="reader-btn" onclick="replyActive('forward')"><i class="fas fa-share"></i> Forward</button>
                     <span class="hint" id="replyBarHint"></span>
+                    <div class="more-wrap">
+                        <button type="button" class="reader-btn" onclick="toggleMoreMenu()" title="More"><i class="fas fa-ellipsis-h"></i></button>
+                        <div class="more-menu" id="moreMenu">
+                            <button type="button" onclick="markActiveUnread()"><i class="fas fa-envelope"></i> Mark as unread</button>
+                            <button type="button" onclick="toggleStarActive()"><i class="fas fa-star"></i> Star / unstar</button>
+                            <button type="button" onclick="mailAction('archive')"><i class="fas fa-archive"></i> Archive</button>
+                            <button type="button" onclick="mailAction('junk')"><i class="fas fa-exclamation-circle"></i> Junk</button>
+                            <button type="button" onclick="mailAction('trash')"><i class="fas fa-trash-alt"></i> Move to Trash</button>
+                            <button type="button" class="danger" onclick="mailAction('delete')"><i class="fas fa-times-circle"></i> Delete permanently</button>
+                        </div>
+                    </div>
                 </div>
                 <form id="chatForm" enctype="multipart/form-data">
                     {{ csrf_field() }}
@@ -448,7 +483,7 @@ var MAIL_TINYMCE_SRC = "{{ URL::asset('tinymce/tinymce.min.js') }}";
 
 var activeChatId = null, activeAccountId = null, activeFolder = 'inbox';
 var chatsData = [], accountsData = [], presetsData = {};
-var folderCounts = {}, customFolders = [], mailMessages = [], mailPage = 1, mailHasMore = false, activeMailId = null, activeMail = null, mailListLoading = false, mailListController = null;
+var folderCounts = {}, customFolders = [], mailMessages = [], mailPage = 1, mailHasMore = false, activeMailId = null, activeMail = null, mailListLoading = false, mailListController = null, mailUnreadOnly = false;
 var FOLDER_META = { inbox:['fa-inbox','Inbox'], starred:['fa-star','Starred'], sent:['fa-paper-plane','Sent'], drafts:['fa-file-alt','Drafts'], archive:['fa-archive','Archive'], junk:['fa-exclamation-circle','Junk'], trash:['fa-trash-alt','Trash'] };
 function isMailMode(){ return activeFolder !== 'leads'; }
 var lastMsgId = 0, lastDisplayedDateStr = null, pendingChatForm = null;
@@ -561,6 +596,7 @@ function loadMailList(reset){
     if (activeFolder.indexOf('custom:')===0) params.set('folder', activeFolder.split(':')[1]); else params.set('type', activeFolder);
     var q = document.getElementById('chatSearch') ? document.getElementById('chatSearch').value.trim() : '';
     if (q) params.set('q', q);
+    if (mailUnreadOnly) params.set('unread', '1');
     params.set('page', mailPage);
     return fetch(MAIL_ROUTES.messages+'?'+params.toString(), {signal:controller.signal, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
         .then(function(r){ if(!r.ok) throw new Error('messages '+r.status); return r.json(); })
@@ -574,6 +610,9 @@ function loadMailList(reset){
         .catch(function(e){ if (e.name==='AbortError') return; console.error(e); if (!mailMessages.length) container.innerHTML = '<div class="chat-list-empty"><i class="fas fa-plug"></i>Mail could not be loaded.<br><button type="button" class="reader-btn" style="margin-top:.8rem" onclick="loadMailList(true)">Retry</button></div>'; });
 }
 function loadMoreMail(){ if (!mailHasMore) return; mailPage++; loadMailList(false); }
+function toggleUnreadFilter(){ mailUnreadOnly = !mailUnreadOnly; var b=document.getElementById('unreadFilterBtn'); if (b) b.classList.toggle('on', mailUnreadOnly); if (isMailMode()) loadMailList(true); }
+function toggleMoreMenu(force){ var m=document.getElementById('moreMenu'); if (!m) return; m.classList.toggle('open', typeof force==='boolean' ? force : !m.classList.contains('open')); }
+function toggleThreadAll(btn){ var strip = btn.closest('.thread-strip'); strip.classList.toggle('expanded'); btn.innerHTML = strip.classList.contains('expanded') ? 'Show less <i class="fas fa-chevron-up"></i>' : 'Show all <i class="fas fa-chevron-down"></i>'; }
 function renderMailList(){
     var container = document.getElementById('chatListContainer'); if(!container) return;
     if (!mailMessages.length) {
@@ -698,7 +737,7 @@ function renderMailReader(){
         + '</div>';
     html += '<div class="mail-body-card">';
     if (m.html) {
-        var doc = '<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px 20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1e293b;word-wrap:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}blockquote{border-left:3px solid #e2e8f0;margin:8px 0;padding-left:12px;color:#64748b}table{max-width:100%}pre{white-space:pre-wrap}</style></head><body>'+m.html+'</body></html>';
+        var doc = '<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px 20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1e293b;word-wrap:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}blockquote{border-left:3px solid #6c5ce7;margin:10px 0;padding:10px 14px;color:#334155;background:#f7f8fc;border-radius:0 10px 10px 0}table{max-width:100%}pre{white-space:pre-wrap}</style></head><body>'+m.html+'</body></html>';
         html += '<iframe class="mail-html" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" srcdoc="'+doc.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" onload="fitMailFrame(this)"></iframe>';
     } else {
         html += '<pre>'+esc(m.text||'(empty message)')+'</pre>';
@@ -708,7 +747,9 @@ function renderMailReader(){
     }
     html += '</div>';
     if (m.thread && m.thread.length) {
-        html += '<div class="thread-strip"><h5>'+m.thread.length+' more in this conversation</h5>' + m.thread.map(function(t){ return '<div class="thread-item" onclick="openMail('+t.id+')"><span class="who">'+(t.is_outgoing?'You':esc(t.from_name||t.from_email||''))+'</span><span class="snip">'+esc(t.snippet||t.subject||'')+'</span>'+(t.has_attachments?'<i class="fas fa-paperclip" style="color:#94a3b8;font-size:.7rem"></i>':'')+'<span class="when">'+(t.received_at?moment(t.received_at).format('MMM D, h:mm A'):'')+'</span></div>'; }).join('') + '</div>';
+        var limit = 3;
+        html += '<div class="thread-strip"><div class="ts-head"><h5>'+m.thread.length+' more in this conversation</h5>' + (m.thread.length > limit ? '<button type="button" class="ts-toggle" onclick="toggleThreadAll(this)">Show all <i class="fas fa-chevron-down"></i></button>' : '') + '</div>'
+            + m.thread.map(function(t, i){ var who = t.is_outgoing ? 'You' : (t.from_name||t.from_email||''); return '<div class="thread-item'+(i>=limit?' hidden-extra':'')+'" onclick="openMail('+t.id+')"><span class="ta">'+esc(t.is_outgoing ? initialsOf(m.account_email||'Me').charAt(0) : initialsOf(who))+'</span><span class="who">'+esc(who)+'</span><span class="snip">'+esc(t.snippet||t.subject||'')+'</span>'+(t.has_attachments?'<i class="fas fa-paperclip" style="color:#94a3b8;font-size:.7rem"></i>':'')+'<span class="when">'+(t.received_at?moment(t.received_at).format('MMM D, h:mm A'):'')+'</span></div>'; }).join('') + '</div>';
     }
     if (m.crm_email_id) {
         html += '<div class="mail-reply-note"><i class="fas fa-link"></i> Linked to lead <a href="/crm/email/'+m.crm_email_id+'">#'+m.crm_email_id+'</a>' + (canSend ? ' — replies from here are also recorded on the lead.' : '') + '</div>';
@@ -1253,6 +1294,7 @@ if (!window.__chatsListenersBound) {
     window.__chatsListenersBound = true;
     document.addEventListener('visibilitychange', function(){ if (!document.hidden && typeof resumeChatList==='function') resumeChatList(); });
     window.addEventListener('pageshow', function(){ if (typeof resumeChatList==='function') resumeChatList(); });
+    document.addEventListener('click', function(e){ if (!e.target.closest('.more-wrap')) toggleMoreMenu(false); });
     document.addEventListener('keydown', function(e){ if (e.key==='Escape'){ var m=document.getElementById('accountModal'); if(m) m.classList.remove('open'); var em=document.getElementById('emailMetaModal'); if(em) em.classList.remove('open'); } });
 }
 </script>
