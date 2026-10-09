@@ -27,6 +27,20 @@ services:
     depends_on:
       - app
 
+  # Scheduler + queue worker (mail sync every minute, queued jobs). Same image as app.
+  worker:
+    image: crm_l10_php:8.2-fpm
+    container_name: crm_l10_worker
+    working_dir: /var/www
+    command: sh -c "php artisan schedule:work & exec php artisan queue:work redis --sleep=3 --tries=1 --timeout=300"
+    volumes:
+      - .:/var/www:delegated
+    depends_on:
+      - app
+      - redis
+      - mysql
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: crm_l10_redis

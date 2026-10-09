@@ -12,7 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Mail client: pull new mail for every connected mailbox. Runs inline (no queue
+        // worker required); each account is protected by its own cache lock.
+        $schedule->command('crm:mail-sync')->everyMinute()->withoutOverlapping(10)->runInBackground();
     }
 
     /**
