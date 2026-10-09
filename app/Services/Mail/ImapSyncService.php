@@ -300,7 +300,7 @@ class ImapSyncService
         }
         $date = $parsed['date'] ?: now();
 
-        return DB::transaction(function () use ($account, $folder, $parsed, $isOutgoing, $html, $text, $date) {
+        [$message, $mirrored, $thread] = DB::transaction(function () use ($account, $folder, $parsed, $isOutgoing, $html, $text, $date) {
             $message = new CrmMailMessage([
                 'account_id' => $account->id,
                 'folder_id' => $folder->id,
@@ -364,9 +364,12 @@ class ImapSyncService
             }
 
             $mirrored = $this->linker->mirrorInbound($account, $message, $parsed);
-            $this->threader->refresh($thread);
-            return [$message, $mirrored];
-        });
+            return [$message, $mirrored, $thread];
+        }, 3); // retry on deadlock (a reply being sent may touch the same thread/folder counters)
+
+        // Counters outside the transaction (short locks, idempotent).
+        try { $this->threader->refresh($thread); } catch (\Throwable $e) { Log::info('Thread refresh skipped', ['error' => $e->getMessage()]); }
+        return [$message, $mirrored];
     }
 
     public static function backoffKey(int $accountId): string

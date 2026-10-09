@@ -132,7 +132,9 @@ class OutgoingMailService
         $mirrorBody = $draft['mirror_body'] ?? $fullHtml;
         $mirrorAttachments = $draft['mirror_attachments'] ?? [];
 
-        $message = DB::transaction(function () use ($account, $replyTo, $to, $cc, $bcc, $subject, $fullHtml, $text, $messageId, $inReplyTo, $references, $files, $leadId, $sentBy, $mirrorBody, $mirrorAttachments) {
+        try {
+        // Retried up to 3× on deadlock (the sync worker updates the same thread/folder counters).
+        [$message, $sentFolder, $thread] = DB::transaction(function () use ($account, $replyTo, $to, $cc, $bcc, $subject, $fullHtml, $text, $messageId, $inReplyTo, $references, $files, $leadId, $sentBy, $mirrorBody, $mirrorAttachments) {
             $sentFolder = CrmMailFolder::withoutGlobalScopes()->where('account_id', $account->id)->where('type', 'sent')->first()
                 ?: CrmMailFolder::withoutGlobalScopes()->firstOrCreate(['account_id' => $account->id, 'path' => 'INBOX.Sent'], ['name' => 'Sent', 'type' => 'sent']);
 
@@ -183,10 +185,7 @@ class OutgoingMailService
                 ]);
             }
 
-            if ($message->thread_id && ($thread = $message->thread()->withoutGlobalScopes()->first())) {
-                $this->threader->refresh($thread);
-            }
-            app(ImapSyncService::class)->refreshFolderCounts($sentFolder);
+            $thread = $message->thread_id ? $message->thread()->withoutGlobalScopes()->first() : null;
 
             // Mirror into the legacy lead thread so the CRM workflow stays in sync.
             if ($leadId && ($lead = CrmEmail::withoutGlobalScopes()->find($leadId))) {
@@ -209,8 +208,21 @@ class OutgoingMailService
                 if (!$lead->mail_account_id) $lead->forceFill(['mail_account_id' => $account->id])->saveQuietly();
                 $lead->touch();
             }
-            return $message;
-        });
+            return [$message, $sentFolder, $thread];
+        }, 3);
+        } catch (\Throwable $e) {
+            // The SMTP server already accepted the message — never let the user resend it blindly.
+            Log::error('Mail sent but could not be recorded', ['account_id' => $account->id, 'message_id' => $messageId, 'error' => $e->getMessage()]);
+            throw new \RuntimeException('Your email was sent, but saving it in the CRM failed. Please refresh the page — do not send it again.');
+        }
+
+        // Counters outside the transaction: short locks, idempotent, safe to race with the sync worker.
+        try {
+            if ($thread) $this->threader->refresh($thread);
+            app(ImapSyncService::class)->refreshFolderCounts($sentFolder);
+        } catch (\Throwable $e) {
+            Log::info('Mail counters refresh skipped', ['error' => $e->getMessage()]);
+        }
 
         // ---- IMAP Sent copy (best effort; the Sent-folder sync dedupes by Message-ID) --------
         try {
