@@ -68,13 +68,18 @@ class DesignJobController extends Controller
         // Keep AMS jobs in their natural numeric order (AMS-0062 before
         // AMS-0061). The ID fallback also gives sensible ordering to legacy
         // job-number formats.
-        // Optional "Due" column sort (?sort=due&dir=asc|desc). Jobs without a due
-        // date always sink to the bottom; ties fall back to newest first.
-        $sort = $request->input('sort') === 'due' ? 'due' : '';
+        // Optional column sort (?sort=due|designer&dir=asc|desc). Jobs without a due
+        // date / designer always sink to the bottom; ties fall back to newest first.
+        $sort = in_array($request->input('sort'), ['due', 'designer'], true) ? $request->input('sort') : '';
         $dir = $request->input('dir') === 'desc' ? 'desc' : 'asc';
         if ($sort === 'due') {
             $query->orderByRaw('due_date IS NULL')
                 ->orderBy('due_date', $dir)
+                ->orderByDesc('id');
+        } elseif ($sort === 'designer') {
+            $designerName = \App\CrmUser::select('name')->whereColumn('crm_users.id', 'design_jobs.designer_id');
+            $query->orderByRaw('designer_id IS NULL')
+                ->orderBy($designerName, $dir)
                 ->orderByDesc('id');
         } else {
             $query->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN 0 ELSE 1 END")

@@ -213,22 +213,9 @@
                 {{-- <th>Estimate</th> --}}
                 <th>Title</th>
                 <th>Current Stage</th>
-                <th>Designer</th>
+                @include('crm.design_jobs._sort_th', ['key' => 'designer', 'label' => 'Designer', 'ascLabel' => 'A to Z', 'descLabel' => 'Z to A'])
                 {{-- <th>Delivery</th> --}}
-                @php
-                    $__dueSorted = ($sort ?? '') === 'due';
-                    $__nextDir = $__dueSorted && ($dir ?? 'asc') === 'asc' ? 'desc' : 'asc';
-                    $__sortParams = array_merge(request()->except(['sort', 'dir', 'page']), ['sort' => 'due', 'dir' => $__nextDir]);
-                @endphp
-                <th class="dj-sortable {{ $__dueSorted ? 'is-sorted' : '' }}">
-                    <a href="{{ route('crm.design_jobs.index', $__sortParams) }}" title="Sort by due date ({{ $__nextDir === 'asc' ? 'earliest first' : 'latest first' }})">
-                        Due
-                        <span class="dj-sort-icons" aria-hidden="true">
-                            <i class="fas fa-caret-up {{ $__dueSorted && $dir === 'asc' ? 'on' : '' }}"></i>
-                            <i class="fas fa-caret-down {{ $__dueSorted && $dir === 'desc' ? 'on' : '' }}"></i>
-                        </span>
-                    </a>
-                </th>
+                @include('crm.design_jobs._sort_th', ['key' => 'due', 'label' => 'Due', 'ascLabel' => 'earliest first', 'descLabel' => 'latest first'])
                 <th>Attachments</th>
                 <th></th>
             </tr></thead>
