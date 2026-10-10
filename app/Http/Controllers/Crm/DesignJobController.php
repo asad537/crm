@@ -68,12 +68,22 @@ class DesignJobController extends Controller
         // Keep AMS jobs in their natural numeric order (AMS-0062 before
         // AMS-0061). The ID fallback also gives sensible ordering to legacy
         // job-number formats.
-        $query->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN 0 ELSE 1 END")
-            ->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN CAST(SUBSTRING(job_number, 5) AS UNSIGNED) END DESC")
-            ->orderByDesc('id');
+        // Optional "Due" column sort (?sort=due&dir=asc|desc). Jobs without a due
+        // date always sink to the bottom; ties fall back to newest first.
+        $sort = $request->input('sort') === 'due' ? 'due' : '';
+        $dir = $request->input('dir') === 'desc' ? 'desc' : 'asc';
+        if ($sort === 'due') {
+            $query->orderByRaw('due_date IS NULL')
+                ->orderBy('due_date', $dir)
+                ->orderByDesc('id');
+        } else {
+            $query->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN 0 ELSE 1 END")
+                ->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN CAST(SUBSTRING(job_number, 5) AS UNSIGNED) END DESC")
+                ->orderByDesc('id');
+        }
         $jobs = $query->paginate(20)->appends($request->all());
 
-        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueFilter', 'customDueDate', 'statusCounts'));
+        return view('crm.design_jobs.index', compact('jobs', 'status', 'stage', 'dueFilter', 'customDueDate', 'statusCounts', 'sort', 'dir'));
     }
 
     /** Show the job card before creating a job or assigning its number. */

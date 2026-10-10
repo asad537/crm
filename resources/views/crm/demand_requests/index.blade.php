@@ -54,7 +54,6 @@
 
     <div class="dr-panel">
         <form method="GET" class="dr-toolbar">
-            <input class="dr-control dr-search" name="search" value="{{ request('search') }}" autocomplete="off" placeholder="Search request no, requested by, item, job…" oninput="drSearchDebounced(this)">
             <select class="dr-control" name="status" onchange="this.form.submit()">
                 <option value="">All statuses</option>
                 @foreach(['Draft','Submitted','Approved','Rejected','Partially Paid','Completed'] as $st)
@@ -67,6 +66,7 @@
                     <option value="{{ $pr }}" {{ request('priority')===$pr?'selected':'' }}>{{ $pr }}</option>
                 @endforeach
             </select>
+            <input class="dr-control dr-search" name="search" value="{{ request('search') }}" autocomplete="off" placeholder="Search request no, date, requested by…" oninput="drSearchDebounced(this)">
             <button class="dr-btn dr-btn-light" type="submit"><i class="fas fa-search"></i> Search</button>
             <a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.export') }}" style="margin-left:auto"><i class="fas fa-file-csv"></i> Export CSV</a>
         </form>

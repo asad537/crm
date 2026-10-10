@@ -50,13 +50,20 @@ class DemandRequestController extends Controller
                 $q->where('priority', $request->priority);
             }
             if ($request->filled('search')) {
-                $s = $request->search;
-                $q->where(function ($qq) use ($s) {
+                // Search only what the list shows: request no ("#024" / "24"), date
+                // ("06 Oct 2026", "Oct 2026", "2026-10-06") and requested by.
+                $s = trim($request->search);
+                $no = ltrim(ltrim($s, '#'), '0');
+                $q->where(function ($qq) use ($s, $no) {
                     $qq->where('requested_by', 'like', "%{$s}%")
-                        ->orWhere('request_no', 'like', "%{$s}%")
-                        ->orWhereHas('items', function ($iq) use ($s) {
-                            $iq->where('description', 'like', "%{$s}%")->orWhere('category', 'like', "%{$s}%")->orWhere('job_no', 'like', "%{$s}%");
-                        });
+                        ->orWhereHas('creator', function ($cq) use ($s) {
+                            $cq->where('name', 'like', "%{$s}%");
+                        })
+                        ->orWhereRaw("DATE_FORMAT(request_date, '%d %b %Y') LIKE ?", ["%{$s}%"])
+                        ->orWhere('request_date', 'like', "%{$s}%");
+                    if ($no !== '' && ctype_digit($no)) {
+                        $qq->orWhere('request_no', (int) $no);
+                    }
                 });
             }
 

@@ -203,6 +203,20 @@
             font-size: 0;
         }
 
+        /* Sidebar section heading (same look as the inline "Production Tickets" heading). */
+        .nav-group-title {
+            flex: 0 0 auto; /* .nav-menu is a flex column: never let the heading shrink to 0 */
+            margin: 1rem 0 0.5rem 0.5rem;
+            color: #111827;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .nav-label {
             display: inline-flex;
             align-items: center;
@@ -1343,18 +1357,11 @@
                         <i class="fas fa-chevron-right arrow"></i>
                     </span>
                 </a>
+                <div class="nav-group-title">Account Department</div>
                 <a href="{{ route('crm.general_ledger.index') }}"
                     class="nav-item {{ request()->routeIs('crm.general_ledger.*') ? 'active' : '' }}">
                     <i class="fas fa-book"></i>
                     <span class="nav-label">Accounts</span>
-                    <span class="nav-right">
-                        <i class="fas fa-chevron-right arrow"></i>
-                    </span>
-                </a>
-                <a href="{{ route('crm.vendor_purchases.index') }}"
-                    class="nav-item {{ request()->routeIs('crm.vendor_purchases.*') ? 'active' : '' }}">
-                    <i class="fas fa-truck-loading"></i>
-                    <span class="nav-label">Vendors</span>
                     <span class="nav-right">
                         <i class="fas fa-chevron-right arrow"></i>
                     </span>
@@ -1371,6 +1378,14 @@
                     class="nav-item {{ request()->routeIs('crm.demand_requests.*') ? 'active' : '' }}">
                     <i class="fas fa-clipboard-list"></i>
                     <span class="nav-label">Demand Requests</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.vendor_purchases.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.vendor_purchases.*') ? 'active' : '' }}">
+                    <i class="fas fa-truck-loading"></i>
+                    <span class="nav-label">Vendors</span>
                     <span class="nav-right">
                         <i class="fas fa-chevron-right arrow"></i>
                     </span>

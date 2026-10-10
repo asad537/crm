@@ -98,6 +98,11 @@
         box-shadow:0 1px 3px rgba(20,23,33,.04), 0 18px 40px -30px rgba(20,23,33,.25); }
     .dj-wrap { overflow-x:auto; }
     .dj-table { width:100%; border-collapse:collapse; min-width:1180px; }
+    .dj-table thead th.dj-sortable a { color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; }
+    .dj-table thead th.dj-sortable a:hover { color:#111827; }
+    .dj-sort-icons { display:inline-flex; flex-direction:column; line-height:.55; font-size:.7rem; color:#c3cbd6; }
+    .dj-sort-icons i.on { color:var(--primary-purple, #f45a24); }
+    .dj-table thead th.dj-sortable.is-sorted a { color:#111827; }
     .dj-table thead th { background:#fafafb; font-size:.66rem; text-transform:uppercase; letter-spacing:.09em;
         font-weight:700; color:#9096a1; text-align:left; padding:.85rem 1.15rem; border-bottom:1px solid var(--line); }
     .dj-table tbody td { padding:1rem 1.15rem; border-bottom:1px solid var(--line); font-size:.88rem; vertical-align:middle; }
@@ -210,7 +215,20 @@
                 <th>Current Stage</th>
                 <th>Designer</th>
                 {{-- <th>Delivery</th> --}}
-                <th>Due</th>
+                @php
+                    $__dueSorted = ($sort ?? '') === 'due';
+                    $__nextDir = $__dueSorted && ($dir ?? 'asc') === 'asc' ? 'desc' : 'asc';
+                    $__sortParams = array_merge(request()->except(['sort', 'dir', 'page']), ['sort' => 'due', 'dir' => $__nextDir]);
+                @endphp
+                <th class="dj-sortable {{ $__dueSorted ? 'is-sorted' : '' }}">
+                    <a href="{{ route('crm.design_jobs.index', $__sortParams) }}" title="Sort by due date ({{ $__nextDir === 'asc' ? 'earliest first' : 'latest first' }})">
+                        Due
+                        <span class="dj-sort-icons" aria-hidden="true">
+                            <i class="fas fa-caret-up {{ $__dueSorted && $dir === 'asc' ? 'on' : '' }}"></i>
+                            <i class="fas fa-caret-down {{ $__dueSorted && $dir === 'desc' ? 'on' : '' }}"></i>
+                        </span>
+                    </a>
+                </th>
                 <th>Attachments</th>
                 <th></th>
             </tr></thead>
