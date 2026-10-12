@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail;
 
+use Carbon\Carbon;
 use App\CrmEmail;
 use App\CrmMailAccount;
 use App\CrmMailMessage;
@@ -97,13 +98,23 @@ class LeadLinker
         }
         $body = self::stripQuotedReply(trim($text)) ?: '(no body)';
 
-        CrmMessage::create([
+        // Keep the real email date on the mirrored lead message. A history backfill imports mail
+        // that is weeks or months old: it must not show up as a brand-new unread reply at "now",
+        // flip the lead to "Client Replied" or bump it to the top of the lead list.
+        $receivedAt = $message->received_at ? Carbon::parse($message->received_at) : now();
+        $historical = $receivedAt->lt(now()->subDays(2));
+        $mirror = new CrmMessage([
             'crm_email_id' => $lead->id,
             'message_id' => $parsed['message_id'] ?? null,
             'sender_type' => 'client',
             'message_body' => $body,
-            'is_read' => false,
+            'is_read' => $historical,
         ]);
+        $mirror->timestamps = false;
+        $mirror->forceFill(['created_at' => $receivedAt, 'updated_at' => $receivedAt])->save();
+        if ($historical) {
+            return true;
+        }
         if (!in_array($lead->status, self::PROTECTED_STATUSES, true)) {
             $lead->forceFill(['status' => 'Client Replied'])->saveQuietly();
         }

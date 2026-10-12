@@ -151,7 +151,7 @@ class MailSyncAndSendTest extends TestCase
 
         $this->imap->folders = [['path' => 'INBOX', 'name' => 'INBOX', 'type' => 'inbox', 'delimiter' => '.', 'selectable' => true]];
         $this->imap->status = ['INBOX' => ['uidvalidity' => 1, 'uidnext' => 2, 'messages' => 1, 'unseen' => 1]];
-        $this->imap->messages['INBOX'] = [5 => $this->msg(5, ['in_reply_to' => '<crm-abc@acme.test>', 'text' => "Thanks, we accept.\n\nOn Mon, Client wrote:\n> our quote"])];
+        $this->imap->messages['INBOX'] = [5 => $this->msg(5, ['in_reply_to' => '<crm-abc@acme.test>', 'date' => new \DateTimeImmutable('-5 minutes'), 'text' => "Thanks, we accept.\n\nOn Mon, Client wrote:\n> our quote"])];
 
         $sync = app(ImapSyncService::class);
         $r = $sync->syncAccount($acc);
@@ -162,10 +162,23 @@ class MailSyncAndSendTest extends TestCase
         $mirror = CrmMessage::where('crm_email_id', $lead->id)->where('sender_type', 'client')->get();
         $this->assertCount(1, $mirror);
         $this->assertSame('Thanks, we accept.', $mirror[0]->message_body, 'quoted history stripped');
+        $this->assertFalse((bool) $mirror[0]->is_read, 'a fresh reply is unread');
         $this->assertSame('Client Replied', $lead->fresh()->status);
 
         $sync->syncAccount($acc); // again → still one mirror
         $this->assertSame(1, CrmMessage::where('crm_email_id', $lead->id)->where('sender_type', 'client')->count());
+
+        // A history backfill importing an OLD reply keeps the email's real date, arrives read and
+        // does not flip the lead status or bump it (it is not news to the agent).
+        CrmEmail::withoutGlobalScopes()->whereKey($lead->id)->update(['status' => 'Responded']);
+        $this->imap->status['INBOX'] = ['uidvalidity' => 1, 'uidnext' => 7, 'messages' => 2, 'unseen' => 1];
+        $this->imap->messages['INBOX'][6] = $this->msg(6, ['message_id' => '<old-reply@client.test>', 'in_reply_to' => '<crm-abc@acme.test>', 'date' => new \DateTimeImmutable('2026-07-15 09:00:00'), 'text' => 'an old reply']);
+        $sync->syncAccount($acc);
+        $old = CrmMessage::where('crm_email_id', $lead->id)->where('message_id', '<old-reply@client.test>')->first();
+        $this->assertNotNull($old);
+        $this->assertTrue((bool) $old->is_read);
+        $this->assertSame('2026-07-15 09:00:00', $old->created_at->format('Y-m-d H:i:s'));
+        $this->assertSame('Responded', $lead->fresh()->status);
     }
 
     public function test_send_failure_stores_nothing_and_surfaces_a_safe_message(): void
