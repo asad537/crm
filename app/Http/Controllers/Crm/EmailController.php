@@ -1172,6 +1172,10 @@ class EmailController extends Controller
         if ($currentUser->isSalesManager() && !$assignee->isSales()) {
             return response()->json(['success' => false, 'message' => 'Sales Manager can only assign to Sales Agents.'], 403);
         }
+        $owner = \App\Services\CustomerOwnership::ownerFor($email->client_email, (int) $email->workspace_id, $email->id);
+        if ($owner && (int) $owner->id !== (int) $assignee->id && !$currentUser->isAdmin() && !$request->boolean('force')) {
+            return response()->json(['success' => false, 'message' => \App\Services\CustomerOwnership::message($owner), 'owner_id' => $owner->id, 'owner_name' => $owner->name], 409);
+        }
 
         // Update assignment on email
         $email->update([
@@ -1380,9 +1384,15 @@ class EmailController extends Controller
             return response()->json(['success' => false, 'message' => 'Sales Manager can only assign to Sales Agents.'], 403);
         }
 
+        $skipped = [];
         foreach ($request->email_ids as $id) {
             $email = CrmEmail::find($id);
             if (!$email) continue;
+            $owner = \App\Services\CustomerOwnership::ownerFor($email->client_email, (int) $email->workspace_id, $email->id);
+            if ($owner && (int) $owner->id !== (int) $assignee->id && !$currentUser->isAdmin() && !$request->boolean('force')) {
+                $skipped[] = ['id' => $email->id, 'owner' => $owner->name];
+                continue;
+            }
 
             $email->update([
                 'assigned_to' => $assignee->id,
@@ -1406,7 +1416,12 @@ class EmailController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true, 'message' => count($request->email_ids) . ' emails assigned successfully.']);
+        $done = count($request->email_ids) - count($skipped);
+        $msg = $done . ' emails assigned successfully.';
+        if ($skipped) {
+            $msg .= ' ' . count($skipped) . ' skipped: customer belongs to ' . implode(', ', array_unique(array_column($skipped, 'owner'))) . '.';
+        }
+        return response()->json(['success' => true, 'message' => $msg, 'skipped' => $skipped]);
     }
 
     public function bulkDestroy(Request $request)
@@ -1737,7 +1752,15 @@ class EmailController extends Controller
             ? $data['route_to'] === 'designer'
             : empty($data['open_size']);
 
-        $inquiry = DB::transaction(function () use ($request, $data, $currentUser, $inquiryDate, $quantities, $toDesign, $allProducts) {
+        // One customer, one CSR: another agent's customer cannot be added by a different agent;
+        // a manager/admin adding them hands the inquiry to the owning agent.
+        $customerOwner = \App\Services\CustomerOwnership::ownerFor($data['client_email'], \App\Support\CrmWorkspaceContext::id());
+        if ($customerOwner && (int) $customerOwner->id !== (int) $currentUser->id && !$currentUser->isAdmin() && !$currentUser->isSalesManager()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['client_email' => \App\Services\CustomerOwnership::message($customerOwner)]);
+        }
+        $assignee = $customerOwner ?: $currentUser;
+
+        $inquiry = DB::transaction(function () use ($request, $data, $currentUser, $assignee, $inquiryDate, $quantities, $toDesign, $allProducts) {
             $attributes = [
                 'source' => $data['source'], 'client_name' => $data['client_name'],
                 'client_email' => $data['client_email'], 'client_phone' => $data['client_phone'] ?? null,
@@ -1755,7 +1778,7 @@ class EmailController extends Controller
                     ? ['Finishing Options' => array_values(array_unique($data['finishing_options']))]
                     : null,
                 'message' => ($data['message'] ?? null) ?: 'Manually created inquiry.', 'status' => 'New',
-                'assigned_to' => $currentUser->id, 'assigned_by' => $currentUser->id, 'assigned_at' => now(),
+                'assigned_to' => $assignee->id, 'assigned_by' => $currentUser->id, 'assigned_at' => now(),
                 'estimate_status' => $toDesign ? 'awaiting_design' : 'pending',
             ];
             if (\Schema::hasColumn('crm_emails', 'created_by')) {
@@ -1793,7 +1816,7 @@ class EmailController extends Controller
 
             DB::table('crm_assignment_logs')->insert([
                 'crm_email_id' => $inquiry->id, 'assigned_by' => $currentUser->id,
-                'assigned_to' => $currentUser->id, 'note' => 'Auto-assigned upon manual creation.',
+                'assigned_to' => $assignee->id, 'note' => $assignee->id === $currentUser->id ? 'Auto-assigned upon manual creation.' : 'Auto-assigned: customer belongs to this agent.',
                 'created_at' => now(), 'updated_at' => now(),
             ]);
             \App\CrmStatusLog::create([

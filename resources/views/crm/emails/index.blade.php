@@ -985,6 +985,9 @@
                         .then(res => res.json())
                         .then(data => {
                             if (data.success) {
+                                if (data.skipped && data.skipped.length) {
+                                    alert(data.message); // some inquiries belong to another agent's customer
+                                }
                                 location.reload();
                             } else {
                                 document.getElementById('refresh-overlay').style.display = 'none';

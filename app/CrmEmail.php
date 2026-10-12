@@ -91,6 +91,9 @@ class CrmEmail extends Model
         'inquiry_quantities',
     ];
 
+    /** @var array<int,bool> inquiries auto-assigned to a customer owner while being created */
+    private static array $autoAssigned = [];
+
     protected static function boot()
     {
         parent::boot();
@@ -104,6 +107,25 @@ class CrmEmail extends Model
         static::creating(function ($email) {
             if (!$email->workspace_id && ($workspaceId = \App\Support\CrmWorkspaceContext::id())) {
                 $email->workspace_id = $workspaceId;
+            }
+            // One customer, one CSR: a new inquiry from a known customer goes straight to the
+            // agent who owns that customer (website/API/mail inquiries arrive unassigned).
+            if (!$email->assigned_to && $email->client_email && empty($email->is_spam)) {
+                $owner = \App\Services\CustomerOwnership::ownerFor($email->client_email, $email->workspace_id ? (int) $email->workspace_id : null);
+                if ($owner) {
+                    $email->assigned_to = $owner->id;
+                    $email->assigned_at = now();
+                    self::$autoAssigned[spl_object_id($email)] = true;
+                }
+            }
+        });
+        static::created(function ($email) {
+            if (!empty(self::$autoAssigned[spl_object_id($email)]) && \Schema::hasTable('crm_assignment_logs')) {
+                unset(self::$autoAssigned[spl_object_id($email)]);
+                \DB::table('crm_assignment_logs')->insert([
+                    'crm_email_id' => $email->id, 'assigned_by' => $email->assigned_to, 'assigned_to' => $email->assigned_to,
+                    'note' => 'Auto-assigned: customer belongs to this agent.', 'created_at' => now(), 'updated_at' => now(),
+                ]);
             }
         });
     }

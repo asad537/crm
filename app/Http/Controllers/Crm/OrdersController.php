@@ -101,7 +101,13 @@ class OrdersController extends Controller
             throw ValidationException::withMessages(['initial_payment_date' => 'Payment date is required when an amount is received.']);
         }
 
-        $order = DB::transaction(function () use ($validated, $currentUser, $orderDate, $products, $subtotal, $totalQty, $firstName, $legacyUnitPrice, $initialAmount) {
+        $customerOwner = \App\Services\CustomerOwnership::ownerFor($validated['client_email'], \App\Support\CrmWorkspaceContext::id());
+        if ($customerOwner && (int) $customerOwner->id !== (int) $currentUser->id && !$currentUser->isAdmin() && !$currentUser->isSalesManager()) {
+            throw ValidationException::withMessages(['client_email' => \App\Services\CustomerOwnership::message($customerOwner)]);
+        }
+        $orderAgent = $customerOwner ?: $currentUser;
+
+        $order = DB::transaction(function () use ($validated, $currentUser, $orderAgent, $orderDate, $products, $subtotal, $totalQty, $firstName, $legacyUnitPrice, $initialAmount) {
             $paymentDetails = $validated;
             unset($validated['order_date'], $validated['products'], $validated['initial_payment_amount'], $validated['initial_payment_date'], $validated['initial_payment_method'], $validated['initial_payment_reference'], $validated['initial_payment_note']);
 
@@ -117,7 +123,7 @@ class OrdersController extends Controller
                 'is_spam'         => false,
                 'order_marked_at' => $orderDate,
                 'order_marked_by' => $currentUser->name,
-                'assigned_to'     => $currentUser->id,
+                'assigned_to'     => $orderAgent->id,
                 'assigned_by'     => $currentUser->id,
                 'assigned_at'     => now(),
             ]));
