@@ -541,6 +541,7 @@ function renderAccounts(){
                 + (a.is_default ? '' : '<button type="button" title="Make default" onclick="event.stopPropagation();accountAction('+a.id+',\'default\')"><i class="fas fa-star"></i></button>')
                 + '<button type="button" title="Edit" onclick="event.stopPropagation();openAccountModal('+a.id+')"><i class="fas fa-pen"></i></button>'
                 + '<button type="button" title="'+(a.sync_enabled?'Pause sync':'Resume sync')+'" onclick="event.stopPropagation();accountAction('+a.id+',\'toggle\')"><i class="fas '+(a.sync_enabled?'fa-pause':'fa-play')+'"></i></button>'
+                + '<button type="button" title="Import older mail" onclick="event.stopPropagation();backfillAccount('+a.id+')"><i class="fas fa-history"></i></button>'
                 + '<button type="button" class="danger" title="Remove" onclick="event.stopPropagation();removeAccount('+a.id+')"><i class="fas fa-trash-alt"></i></button>'
                 + '</span>';
         }
@@ -841,6 +842,17 @@ function accountAction(id, action){
         .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
         .then(function(x){ if(!x.ok) throw new Error(x.j.message||'Failed'); toast(action==='default'?'Default mailbox updated':'Mailbox updated'); loadAccounts(); })
         .catch(function(e){ toast(e.message, 'error'); });
+}
+function backfillAccount(id){
+    var a = accountsData.find(function(x){return x.id===id;}); if(!a) return;
+    var go = function(days){
+        fetch(MAIL_ROUTES.accounts+'/'+id+'/backfill', {method:'POST', headers:jsonHeaders(), body:JSON.stringify({days:days})})
+            .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+            .then(function(x){ if(!x.ok) throw new Error(x.j.message||'Failed'); toast(x.j.message); })
+            .catch(function(e){ toast(e.message,'error'); });
+    };
+    if (window.customConfirm) customConfirm('Import older mail?', 'Bring in older history for '+a.email_address+' (last 12 months). It runs in the background and can take a while.', function(){ go('365'); }, 'Import 12 months', 'btn-primary-confirm');
+    else if (confirm('Import the last 12 months for '+a.email_address+'?')) go('365');
 }
 function removeAccount(id){
     var a = accountsData.find(function(x){return x.id===id;}); if(!a) return;

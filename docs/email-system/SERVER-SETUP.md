@@ -109,6 +109,15 @@ supervisorctl reread && supervisorctl update && supervisorctl status
 ### Purana daemon band karein
 Jahan bhi `crm:imap-daemon` / `crm:fetch-emails` cron/supervisor mein chal raha ho use **disable** kar dein (naya sync lead replies bhi khud link karta hai; dono chalne se IMAP traffic double hota hai).
 
+## 7b. Purani mail (history) import — optional lekin recommended
+Pehla sync sirf **30 din** laata hai. Purani mail ke liye:
+```bash
+php artisan crm:mail-backfill --days=365 --queue     # har mailbox ke pichle 12 mahine, background jobs mein
+php artisan crm:mail-backfill --days=all --queue     # poori history (zyada waqt + disk: attachments bhi store hote hain)
+php artisan crm:mail-backfill --account=<id> --days=all   # ek mailbox, inline (progress line ke saath; dobara chalane par wahin se resume)
+```
+Users khud bhi kar sakte hain: Mail → mailbox par hover → **⟲ (Import older mail)**. Speed ~1–2s/message; worker chalta rehna chahiye.
+
 ## 8. Check karein ke sab chal raha hai
 ```bash
 php artisan crm:mail-sync --account=<id> --since=7 --cap=50 --types=inbox   # ek account ka manual sync, "ok" aana chahiye

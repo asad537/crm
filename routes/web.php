@@ -209,6 +209,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
             Route::put('{id}', 'MailAccountController@update')->name('update')->where('id', '[0-9]+');
             Route::post('{id}/default', 'MailAccountController@setDefault')->name('default')->where('id', '[0-9]+');
             Route::post('{id}/toggle', 'MailAccountController@toggle')->name('toggle')->where('id', '[0-9]+');
+            Route::post('{id}/backfill', 'MailAccountController@backfill')->name('backfill')->where('id', '[0-9]+')->middleware('throttle:6,1');
             Route::delete('{id}', 'MailAccountController@destroy')->name('destroy')->where('id', '[0-9]+');
         });
 

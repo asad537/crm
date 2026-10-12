@@ -268,6 +268,17 @@ class MailAccountController extends Controller
         return response()->json(['account' => $this->present($account->fresh(), $user)]);
     }
 
+    /** Owner: import older history for this mailbox in the background. */
+    public function backfill(Request $request, $id)
+    {
+        $user = $this->user();
+        $account = $this->accountFor('update', (int) $id);
+        $request->validate(['days' => ['nullable', 'string', 'regex:/^(all|[0-9]{1,4})$/']]);
+        $days = $request->input('days', '365');
+        \App\Jobs\BackfillMailAccountJob::dispatch($account->id, $days === 'all' ? null : (int) $days, 2000);
+        return response()->json(['success' => true, 'message' => 'Importing older mail in the background — it will appear as it arrives.']);
+    }
+
     /**
      * Test a connection. With {id}: the caller's own account (stored password unless a new
      * one is posted). Without: the posted settings, for the add-account form. Never sends mail.

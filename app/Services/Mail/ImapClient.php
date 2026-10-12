@@ -232,6 +232,27 @@ class ImapClient
         return $uids;
     }
 
+    /**
+     * Overview rows (uid, udate) for UIDs in [max(1,$beforeUid-$chunk), $beforeUid-1], newest first.
+     * Used by the history backfill to walk a folder backwards in bounded chunks.
+     * @return array<int, array{uid:int, udate:int}>
+     */
+    public function olderUids(string $folderPath, int $beforeUid, int $chunk = 500): array
+    {
+        if ($beforeUid <= 1) return [];
+        $this->open($folderPath);
+        $this->refreshSession();
+        $start = max(1, $beforeUid - $chunk);
+        $rows = @imap_fetch_overview($this->conn, $start . ':' . ($beforeUid - 1), FT_UID) ?: [];
+        imap_errors();
+        $out = [];
+        foreach ($rows as $r) {
+            if (!empty($r->uid) && (int) $r->uid < $beforeUid) $out[] = ['uid' => (int) $r->uid, 'udate' => (int) ($r->udate ?? 0)];
+        }
+        usort($out, fn ($a, $b) => $b['uid'] <=> $a['uid']);
+        return $out;
+    }
+
     // ---- messages -----------------------------------------------------------
 
     /**

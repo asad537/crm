@@ -372,6 +372,94 @@ class ImapSyncService
         return [$message, $mirrored];
     }
 
+    // ---- history backfill (older than what the first sync pulled) ------------------------
+
+    /**
+     * Walk each folder backwards from the oldest UID we hold and import older messages.
+     * $sinceDays null = everything. Bounded by $maxMessages per call; resumable via a cache
+     * cursor per folder. Uses its own lock so the live watcher keeps running (dedupe makes
+     * overlaps safe).
+     * @return array{status:string,imported:int,skipped:int,folders:int,errors:array,done:bool}
+     */
+    public function backfillAccount(CrmMailAccount $account, ?int $sinceDays = 365, int $maxMessages = 5000, array $types = ['inbox', 'sent', 'archive', 'custom', 'drafts']): array
+    {
+        $stats = ['status' => 'ok', 'imported' => 0, 'skipped' => 0, 'folders' => 0, 'errors' => [], 'done' => true];
+        $lockKey = 'mail:backfill:' . $account->id;
+        if (!Cache::add($lockKey, 1, 3600)) {
+            $stats['status'] = 'locked';
+            return $stats;
+        }
+        $sinceTs = $sinceDays ? now()->subDays($sinceDays)->getTimestamp() : null;
+        $client = $this->clients->make($account);
+        try {
+            $folders = CrmMailFolder::withoutGlobalScopes()->where('account_id', $account->id)->whereIn('type', $types)->get();
+            foreach ($folders as $folder) {
+                if ($stats['imported'] + $stats['skipped'] >= $maxMessages) { $stats['done'] = false; break; }
+                $stats['folders']++;
+                try {
+                    $r = $this->backfillFolder($account, $folder, $client, $sinceTs, $maxMessages - $stats['imported'] - $stats['skipped']);
+                    $stats['imported'] += $r['imported'];
+                    $stats['skipped'] += $r['skipped'];
+                    if (!$r['done']) $stats['done'] = false;
+                } catch (\Throwable $e) {
+                    $stats['errors'][] = $folder->path . ': ' . $e->getMessage();
+                    Log::warning('Mail backfill folder failed', ['account_id' => $account->id, 'folder' => $folder->path, 'error' => $e->getMessage()]);
+                }
+                Cache::put($lockKey, 1, 3600); // heartbeat
+            }
+        } catch (\Throwable $e) {
+            $stats['status'] = 'error';
+            $stats['errors'][] = $e->getMessage();
+        } finally {
+            $client->close();
+            Cache::forget($lockKey);
+        }
+        return $stats;
+    }
+
+    private function backfillFolder(CrmMailAccount $account, CrmMailFolder $folder, ImapClient $client, ?int $sinceTs, int $budget): array
+    {
+        $r = ['imported' => 0, 'skipped' => 0, 'done' => true];
+        $cursorKey = 'mail:folder:' . $folder->id . ':backfill_cursor';
+        $cursor = (int) Cache::get($cursorKey, 0);
+        if ($cursor === 1) return $r; // already reached the beginning
+        $oldestKnown = (int) (CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('folder_id', $folder->id)->whereNotNull('uid')->min('uid') ?: 0);
+        $before = $cursor > 0 ? min($cursor, $oldestKnown ?: $cursor) : ($oldestKnown ?: ((int) $folder->last_uid + 1));
+        if ($before <= 1) { Cache::put($cursorKey, 1, 86400 * 30); return $r; }
+
+        while ($before > 1 && $budget > 0) {
+            $rows = $client->olderUids($folder->path, $before, 400);
+            $chunkStart = max(1, $before - 400);
+            if (!$rows) { $before = $chunkStart; Cache::put($cursorKey, $before, 86400 * 30); if ($before <= 1) { Cache::put($cursorKey, 1, 86400 * 30); } continue; }
+            foreach ($rows as $row) {
+                if ($sinceTs && $row['udate'] && $row['udate'] < $sinceTs) { Cache::put($cursorKey, 1, 86400 * 30); return $r; } // older than requested window → stop this folder
+                if ($budget-- <= 0) { $r['done'] = false; Cache::put($cursorKey, $row['uid'] + 1, 86400 * 30); return $r; }
+                $uid = $row['uid'];
+                try {
+                    $exists = CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('account_id', $account->id)->where('folder_id', $folder->id)->where('uid', $uid)->exists();
+                    if ($exists) { $r['skipped']++; continue; }
+                    $parsed = $client->fetchMessage($folder->path, $uid);
+                    if (!empty($parsed['message_id'])) {
+                        $dupe = CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('account_id', $account->id)->where('message_id', $parsed['message_id'])->first();
+                        if ($dupe) { if ($dupe->uid === null) $dupe->forceFill(['folder_id' => $folder->id, 'uid' => $uid, 'deleted_at' => null])->saveQuietly(); $r['skipped']++; continue; }
+                    }
+                    $this->storeMessage($account, $folder, $parsed);
+                    $r['imported']++;
+                } catch (\Throwable $e) {
+                    Log::info('Mail backfill: message skipped', ['account_id' => $account->id, 'folder' => $folder->path, 'uid' => $uid, 'error' => $e->getMessage()]);
+                    $r['skipped']++;
+                }
+            }
+            $before = $chunkStart;
+            Cache::put($cursorKey, $before, 86400 * 30);
+            $this->touchLock();
+        }
+        if ($before <= 1) Cache::put($cursorKey, 1, 86400 * 30);
+        if ($budget <= 0 && $before > 1) $r['done'] = false;
+        $this->refreshFolderCounts($folder);
+        return $r;
+    }
+
     public static function backoffKey(int $accountId): string
     {
         return 'mail:sync:backoff:' . $accountId;
