@@ -53,6 +53,7 @@ php artisan crm:mail-migrate-legacy-accounts             # apply (encrypted acco
 php artisan config:cache
 php artisan route:cache
 php artisan view:clear
+php artisan queue:restart     # HAR deploy ke baad: purane worker processes purana code memory mein rakhte hain
 chown -R www-data:www-data storage bootstrap/cache   # ya jo bhi web user ho
 ```
 > Mail attachments `storage/app/mail/` aur lead attachments `storage/app/crm_attachments/` mein private store hote hain.
@@ -73,6 +74,7 @@ nginx -t && nginx -s reload
 ### Option A — Docker (recommended, project ka compose use karein)
 ```bash
 docker compose up -d --build worker
+# code update ke baad: docker compose restart worker
 docker compose logs -f worker      # "Watching mailboxes every 3s [shard i/7]" dikhna chahiye
 ```
 
