@@ -53,19 +53,22 @@ class ImapClient
     {
         if ($this->conn && $this->openPath === $folderPath) {
             // Only probe the connection after it has been idle for a while (NOOP costs a round trip).
-            if (microtime(true) - $this->lastActivity < 30 || @imap_ping($this->conn)) {
+            if (microtime(true) - $this->lastActivity < 30 || $this->alive()) {
                 $this->lastActivity = microtime(true);
                 return;
             }
             $this->shutdown(); // dead connection → reconnect below
         }
         if ($this->conn) {
-            if (@imap_reopen($this->conn, $this->root() . $folderPath)) {
-                $this->openPath = $folderPath;
-                imap_errors();
-                return;
-            }
-            $this->close();
+            try {
+                if (@imap_reopen($this->conn, $this->root() . $folderPath)) {
+                    $this->openPath = $folderPath;
+                    $this->lastActivity = microtime(true);
+                    imap_errors();
+                    return;
+                }
+            } catch (\Throwable $e) { /* closed handle → reconnect */ }
+            $this->shutdown();
         }
         imap_timeout(IMAP_OPENTIMEOUT, 10);
         imap_timeout(IMAP_READTIMEOUT, 20);
@@ -91,9 +94,20 @@ class ImapClient
     private function refreshSession(): void
     {
         if ($this->persistent && $this->conn) {
-            @imap_ping($this->conn);
+            if (!$this->alive()) { $path = $this->openPath ?: 'INBOX'; $this->shutdown(); $this->open($path); return; }
             imap_errors();
             $this->lastActivity = microtime(true);
+        }
+    }
+
+    /** True when the handle is usable; a server-dropped/closed IMAP\Connection throws on use — treat as dead. */
+    private function alive(): bool
+    {
+        if (!$this->conn) return false;
+        try {
+            return (bool) @imap_ping($this->conn);
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
@@ -101,7 +115,7 @@ class ImapClient
     private function ensureConnected(): void
     {
         if ($this->conn) {
-            if (microtime(true) - $this->lastActivity < 30 || @imap_ping($this->conn)) {
+            if (microtime(true) - $this->lastActivity < 30 || $this->alive()) {
                 $this->lastActivity = microtime(true);
                 return;
             }
@@ -122,7 +136,7 @@ class ImapClient
     public function shutdown(): void
     {
         if ($this->conn) {
-            @imap_close($this->conn);
+            try { @imap_close($this->conn); } catch (\Throwable $e) { /* already closed */ }
             imap_errors();
         }
         $this->conn = null;

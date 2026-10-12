@@ -75,6 +75,18 @@ class ImapSyncService
                     $stats['linked'] += $r['linked'];
                     $stats['mirrored'] += $r['mirrored'];
                 } catch (\Throwable $e) {
+                    // A dropped/closed IMAP connection (server idle timeout, connection limit) is not a
+                    // mailbox problem: reconnect and retry this folder once before counting an error.
+                    if (preg_match('/already closed|connection|broken pipe|stream/i', $e->getMessage())) {
+                        try {
+                            $client->shutdown();
+                            $r = $this->syncFolder($account, $folder, $client, $opts);
+                            $stats['imported'] += $r['imported']; $stats['skipped'] += $r['skipped']; $stats['linked'] += $r['linked']; $stats['mirrored'] += $r['mirrored'];
+                            continue;
+                        } catch (\Throwable $e2) {
+                            $e = $e2;
+                        }
+                    }
                     $stats['errors'][] = $folder->path . ': ' . $e->getMessage();
                     Log::warning('Mail sync folder failed', ['account_id' => $account->id, 'folder' => $folder->path, 'error' => $e->getMessage()]);
                 }
@@ -95,7 +107,8 @@ class ImapSyncService
             // Back off so a dead password / unreachable host is not retried every few seconds
             // (repeated failed logins get the server IP throttled or blocked).
             $auth = stripos($e->getMessage(), 'login') !== false || stripos($e->getMessage(), 'password') !== false;
-            Cache::put(self::backoffKey($account->id), now()->toIso8601String(), $auth ? 600 : 120);
+            $transient = preg_match('/already closed|connection|broken pipe|stream|timed out/i', $e->getMessage());
+            Cache::put(self::backoffKey($account->id), now()->toIso8601String(), $auth ? 600 : ($transient ? 20 : 120));
         } finally {
             $client->close();
             $this->releaseLock();
