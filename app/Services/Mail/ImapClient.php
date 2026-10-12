@@ -228,7 +228,7 @@ class ImapClient
             // NOTE: c-client's imap_search() does not support the "UID" search key, so an
             // incremental search must use a UID *range fetch* instead. "n:*" returns the last
             // message when nothing is newer, hence the > $afterUid filter.
-            $rows = @imap_fetch_overview($this->conn, ($afterUid + 1) . ':*', FT_UID) ?: [];
+            $rows = $this->fetchOverviewOrFail(($afterUid + 1) . ':*');
             $uids = [];
             foreach ($rows as $row) {
                 if (!empty($row->uid) && (int) $row->uid > $afterUid) $uids[] = (int) $row->uid;
@@ -247,6 +247,28 @@ class ImapClient
     }
 
     /**
+     * imap_fetch_overview() returns FALSE both for "nothing in this range" and for a broken
+     * connection / failed command. Treating a failure as an empty range made the history
+     * backfill walk straight to UID 1 and mark a folder "complete" without importing anything,
+     * and would let reconcile think every message vanished. So: FALSE + an IMAP error = throw.
+     *
+     * @return object[]
+     */
+    private function fetchOverviewOrFail(string $sequence): array
+    {
+        $rows = @imap_fetch_overview($this->conn, $sequence, FT_UID);
+        $errors = imap_errors() ?: [];
+        if ($rows === false) {
+            $fatal = array_filter($errors, fn ($e) => !preg_match('/^\s*(No messages|Mailbox is empty)/i', (string) $e));
+            if ($fatal || !$this->alive()) {
+                throw new \RuntimeException('IMAP overview fetch failed for ' . $sequence . ': ' . implode('; ', $fatal ?: ['connection lost']));
+            }
+            return [];
+        }
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
      * Overview rows (uid, udate) for UIDs in [max(1,$beforeUid-$chunk), $beforeUid-1], newest first.
      * Used by the history backfill to walk a folder backwards in bounded chunks.
      * @return array<int, array{uid:int, udate:int}>
@@ -257,8 +279,7 @@ class ImapClient
         $this->open($folderPath);
         $this->refreshSession();
         $start = max(1, $beforeUid - $chunk);
-        $rows = @imap_fetch_overview($this->conn, $start . ':' . ($beforeUid - 1), FT_UID) ?: [];
-        imap_errors();
+        $rows = $this->fetchOverviewOrFail($start . ':' . ($beforeUid - 1));
         $out = [];
         foreach ($rows as $r) {
             if (!empty($r->uid) && (int) $r->uid < $beforeUid) $out[] = ['uid' => (int) $r->uid, 'udate' => (int) ($r->udate ?? 0)];
@@ -382,8 +403,7 @@ class ImapClient
         $this->open($folderPath);
         $this->refreshSession();
         $out = [];
-        $rows = @imap_fetch_overview($this->conn, '1:*', FT_UID) ?: [];
-        imap_errors();
+        $rows = $this->fetchOverviewOrFail('1:*');
         foreach ($rows as $r) {
             if (!empty($r->uid)) {
                 $out[(int) $r->uid] = ['seen' => !empty($r->seen), 'flagged' => !empty($r->flagged)];

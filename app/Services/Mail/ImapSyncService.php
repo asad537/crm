@@ -415,6 +415,7 @@ class ImapSyncService
                     $stats['skipped'] += $r['skipped'];
                     if (!$r['done']) $stats['done'] = false;
                 } catch (\Throwable $e) {
+                    $stats['done'] = false; // cursor untouched → the folder is retried on the next batch
                     $stats['errors'][] = $folder->path . ': ' . $e->getMessage();
                     Log::warning('Mail backfill folder failed', ['account_id' => $account->id, 'folder' => $folder->path, 'error' => $e->getMessage()]);
                 }
