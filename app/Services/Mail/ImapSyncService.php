@@ -439,6 +439,11 @@ class ImapSyncService
         if ($cursor === 1) return $r; // already reached the beginning
         $oldestKnown = (int) (CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('folder_id', $folder->id)->whereNotNull('uid')->min('uid') ?: 0);
         $before = $cursor > 0 ? min($cursor, $oldestKnown ?: $cursor) : ($oldestKnown ?: ((int) $folder->last_uid + 1));
+        if ($before <= 1 && $cursor === 0) {
+            // Nothing imported yet and no watermark (e.g. a mailbox whose recent mail lives elsewhere):
+            // start from the server's UIDNEXT instead of declaring the folder empty.
+            $before = (int) ($client->status($folder->path)['uidnext'] ?? 0);
+        }
         if ($before <= 1) { Cache::put($cursorKey, 1, 86400 * 30); return $r; }
 
         while ($before > 1 && $budget > 0) {
