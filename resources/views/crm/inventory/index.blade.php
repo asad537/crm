@@ -24,7 +24,8 @@
 .inv-qty.low{color:#d97706}
 .inv-badge{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2f7;color:#526176;font-size:.66rem;font-weight:800}
 .inv-badge.lowb{background:#fff3d6;color:#b45309}
-.inv-act{display:inline-flex;gap:.3rem}
+.inv-act{display:inline-flex;gap:.3rem;align-items:center;white-space:nowrap}
+.inv-mini i{margin-right:.15rem}
 .inv-mini{padding:.4rem .6rem;border:0;border-radius:8px;font-weight:800;font-size:.68rem;cursor:pointer;text-decoration:none}
 .inv-mini.in{background:#e1f8ef;color:#047857}.inv-mini.out{background:#eef2ff;color:var(--primary-purple)}.inv-mini.hist{background:#f1f5f9;color:#475569}.inv-mini.del{background:#fff1f2;color:#be123c}
 .inv-modal-bg{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55)}
@@ -81,11 +82,12 @@
                     <td><div class="inv-act">
                         <button class="inv-mini in" onclick='invStockIn(@json($it->id), @json($it->name), @json($it->unit))'><i class="fas fa-arrow-down"></i> In</button>
                         <button class="inv-mini out" onclick='invConsume(@json($it->id), @json($it->name), @json($it->unit), @json((float)$it->quantity))'><i class="fas fa-arrow-up"></i> Use</button>
-                        <a class="inv-mini hist" href="{{ route('crm.inventory.movements',$it->id) }}"><i class="fas fa-clock-rotate-left"></i></a>
+                        <a class="inv-mini hist" href="{{ route('crm.inventory.movements',$it->id) }}" title="Stock history (where it came from / went)"><i class="fas fa-history"></i> History</a>
+                        @if(auth('crm')->user()->isAdmin() || auth('crm')->user()->isSuperAdmin() || auth('crm')->user()->isAccounts())<form method="POST" action="{{ route('crm.inventory.destroy',$it->id) }}" onsubmit="return confirm('Delete {{ addslashes($it->name) }} and its stock history?')" style="display:inline">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="inv-mini del" title="Delete item"><i class="fas fa-trash"></i></button></form>@endif
                     </div></td>
                 </tr>
             @empty
-                <tr><td colspan="8" style="text-align:center;padding:2.4rem;color:#94a3b8"><i class="fas fa-boxes-stacked" style="font-size:1.6rem;display:block;margin-bottom:.5rem"></i>No inventory items yet. Click “Add Item” to record your first stock.</td></tr>
+                <tr><td colspan="8" style="text-align:center;padding:2.4rem;color:#94a3b8"><i class="fas fa-boxes" style="font-size:1.6rem;display:block;margin-bottom:.5rem"></i>No inventory items yet. Click “Add Item” to record your first stock.</td></tr>
             @endforelse
             </tbody>
         </table>
@@ -96,7 +98,7 @@
 {{-- Add Item modal --}}
 <div class="inv-modal-bg" id="invAddModal" onclick="if(event.target===this)invClose('invAddModal')">
     <div class="inv-modal">
-        <div class="inv-modal-head"><h3><i class="fas fa-boxes-stacked"></i> Add Inventory Item</h3><button class="inv-close" onclick="invClose('invAddModal')"><i class="fas fa-times"></i></button></div>
+        <div class="inv-modal-head"><h3><i class="fas fa-boxes"></i> Add Inventory Item</h3><button class="inv-close" onclick="invClose('invAddModal')"><i class="fas fa-times"></i></button></div>
         <form method="POST" action="{{ route('crm.inventory.store') }}">{{ csrf_field() }}
             <div class="inv-modal-body">
                 <div class="full"><label>Item Name *</label><input class="inv-control" name="name" placeholder="e.g. Art Card 300gsm 20x30" required></div>
