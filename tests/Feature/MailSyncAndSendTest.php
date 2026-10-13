@@ -127,13 +127,22 @@ class MailSyncAndSendTest extends TestCase
         $this->imap->folders = [['path' => 'INBOX', 'name' => 'INBOX', 'type' => 'inbox', 'delimiter' => '.', 'selectable' => true]];
         $this->imap->messages['INBOX'] = [7 => $this->msg(7, [
             'html' => '<p>Logo: <img src="cid:logo001@acme" alt="Logo" width="60"> and <img src="https://x.test/r.png" alt="r"></p>',
-            'attachments' => [['name' => 'logo.png', 'mime' => 'image/png', 'content' => 'PNGDATA', 'size' => 7, 'cid' => 'logo001@acme', 'inline' => true]],
+            'attachments' => [['name' => 'logo.png', 'mime' => 'image/png', 'content' => "\x89PNG\r\n\x1a\n\x00\xFF\xFE", 'size' => 11, 'cid' => 'logo001@acme', 'inline' => true]],
         ])];
         app(ImapSyncService::class)->syncAccount($acc);
         $m = CrmMailMessage::withoutGlobalScopes()->where('account_id', $acc->id)->where('uid', 7)->first();
         $this->assertStringContainsString('https://cid.invalid/logo001%40acme', (string) $m->html_body, 'cid kept as placeholder');
         $att = CrmMailAttachment::where('message_id', $m->id)->where('is_inline', true)->first();
         $this->assertNotNull($att);
+        $this->assertSame("\x89PNG\r\n\x1a\n\x00\xFF\xFE", Storage::disk($att->disk)->get($att->path), 'binary attachment bytes are stored untouched');
+
+        // the repair command restores a file that an older build re-encoded as UTF-8, and leaves good files alone
+        Storage::disk($att->disk)->put($att->path, mb_convert_encoding("\x89PNG\r\n\x1a\n\x00\xFF\xFE", 'UTF-8', 'ISO-8859-1'));
+        $this->artisan('crm:mail-repair-attachments')->assertSuccessful();
+        $this->assertSame("\x89PNG\r\n\x1a\n\x00\xFF\xFE", Storage::disk($att->disk)->get($att->path));
+        $this->assertSame(11, (int) $att->fresh()->size);
+        $this->artisan('crm:mail-repair-attachments')->assertSuccessful();
+        $this->assertSame("\x89PNG\r\n\x1a\n\x00\xFF\xFE", Storage::disk($att->disk)->get($att->path), 'idempotent');
 
         $json = $this->actingAs($owner, 'crm')->withSession(['crm_workspace_id' => self::WS])
             ->getJson(route('crm.mail.messages.show', $m->id))->assertOk()->json('message.html');

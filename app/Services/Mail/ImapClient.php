@@ -507,7 +507,7 @@ class ImapClient
             $filename = $filename ?: 'message.eml';
         }
 
-        $content = $this->fetchDecoded($uid, $section, (int) ($part->encoding ?? 0), null);
+        $content = $this->fetchDecoded($uid, $section, (int) ($part->encoding ?? 0), null, false); // binary: no charset work
         $mime = strtolower($this->mimeType($type) . '/' . strtolower($subtype ?: 'octet-stream'));
         $out['attachments'][] = [
             'name' => $filename ? $this->decodeHeader($filename) : ('part-' . $section . '.' . $this->guessExt($mime)),
@@ -519,7 +519,7 @@ class ImapClient
         ];
     }
 
-    private function fetchDecoded(int $uid, string $section, int $encoding, ?string $charset): string
+    private function fetchDecoded(int $uid, string $section, int $encoding, ?string $charset, bool $textual = true): string
     {
         $raw = (string) @imap_fetchbody($this->conn, $uid, $section, FT_UID | FT_PEEK); // PEEK: never mark \Seen
         imap_errors();
@@ -527,6 +527,9 @@ class ImapClient
             case ENCBASE64: $raw = base64_decode($raw) ?: ''; break;
             case ENCQUOTEDPRINTABLE: $raw = quoted_printable_decode($raw); break;
             default: break;
+        }
+        if (!$textual) {
+            return $raw; // attachments are bytes — a UTF-8 "fix-up" here corrupted every PNG/PDF with bytes >= 0x80
         }
         if ($charset) {
             $cs = strtoupper($charset);

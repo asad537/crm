@@ -185,9 +185,21 @@ class MailboxController extends Controller
             foreach ($attachments as $a) {
                 if ($a->content_id) $byCid[strtolower(trim($a->content_id, '<> '))] = route('crm.mail.attachments.show', $a->id);
             }
-            $html = \App\Services\Mail\HtmlSanitizerService::resolveCids($html, function ($cid) use ($byCid) {
-                return $byCid[strtolower(trim($cid, '<> '))] ?? null;
+            $html = \App\Services\Mail\HtmlSanitizerService::resolveCids($html, function ($cid) use (&$byCid, $message) {
+                $key = strtolower(trim($cid, '<> '));
+                if (!isset($byCid[$key])) {
+                    // Quoted history often references inline images that only the ORIGINAL email
+                    // carried (Outlook drops them from replies): look the Content-ID up across this
+                    // mailbox so the picture still shows instead of a broken "cid:" icon.
+                    $other = CrmMailAttachment::whereNotNull('content_id')->whereRaw('LOWER(TRIM(BOTH \'<>\' FROM content_id)) = ?', [$key])
+                        ->whereIn('message_id', CrmMailMessage::withoutGlobalScopes()->where('account_id', $message->account_id)->select('id'))
+                        ->orderByDesc('id')->value('id');
+                    $byCid[$key] = $other ? route('crm.mail.attachments.show', $other) : null;
+                }
+                return $byCid[$key];
             });
+            // still-unresolved inline references → drop the <img> rather than render a broken icon
+            $html = preg_replace('#<img\b[^>]*\bsrc\s*=\s*["\']?(?:https://cid\.invalid/|cid:)[^>]*>#i', '', $html) ?? $html;
         }
 
         // Only the mailbox owner's reading marks the message read (and pushes \Seen to the server);

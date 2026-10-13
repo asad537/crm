@@ -205,7 +205,9 @@
     .mail-meta-row .lines .addr { color: #64748b; }
     .mail-meta-row .lines small { display: block; color: #8a94a6; font-size: .72rem; margin-top: 2px; overflow-wrap: anywhere; }
     .mail-meta-row .when { font-size: .72rem; color: #94a3b8; white-space: nowrap; }
+    .mail-reader > * { flex-shrink: 0; } /* a flex column must not squash the body card (it clipped long emails + their attachments) */
     .mail-body-card { background: #fff; border: 1px solid #eceff5; border-radius: 16px; overflow: hidden; }
+    .mail-atts.top { border-top: 0; border-bottom: 1px solid #f1f5f9; }
     .mail-body-card iframe { width: 100%; border: 0; display: block; min-height: 240px; background: #fff; }
     .mail-body-card pre { margin: 0; padding: 1rem 1.2rem; white-space: pre-wrap; font: inherit; font-size: .9rem; color: #1e293b; }
     .mail-atts { display: flex; flex-wrap: wrap; gap: 8px; padding: .8rem 1.2rem; border-top: 1px solid #f1f5f9; background: #fbfcfe; }
@@ -793,14 +795,14 @@ function renderMailReader(){
         + (toList?'<small><b>To:</b> '+toList+'</small>':'') + (ccList?'<small><b>Cc:</b> '+ccList+'</small>':'') + '</div><div class="when">'+esc(when)+'</div></div>'
         + '</div>';
     html += '<div class="mail-body-card">';
+    if (m.attachments && m.attachments.length) {
+        html += '<div class="mail-atts top">' + m.attachments.map(function(a){ return '<a class="mail-att" href="'+a.url+'" target="_blank" rel="noopener" data-no-ajax-nav title="'+esc(a.name)+'"><i class="fas '+(/^image\//.test(a.mime||'')?'fa-image':(a.mime==='application/pdf'?'fa-file-pdf':'fa-paperclip'))+'"></i><span>'+esc(a.name)+'</span><small>'+fmtBytes(a.size)+'</small></a>'; }).join('') + '</div>';
+    }
     if (m.html) {
         var doc = '<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px 20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1e293b;word-wrap:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}blockquote{border-left:3px solid #6c5ce7;margin:10px 0;padding:10px 14px;color:#334155;background:#f7f8fc;border-radius:0 10px 10px 0}table{max-width:100%}pre{white-space:pre-wrap}</style></head><body>'+m.html+'</body></html>';
         html += '<iframe class="mail-html" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" srcdoc="'+doc.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" onload="fitMailFrame(this)"></iframe>';
     } else {
         html += '<pre>'+esc(m.text||'(empty message)')+'</pre>';
-    }
-    if (m.attachments && m.attachments.length) {
-        html += '<div class="mail-atts">' + m.attachments.map(function(a){ return '<a class="mail-att" href="'+a.url+'" target="_blank" rel="noopener" data-no-ajax-nav title="'+esc(a.name)+'"><i class="fas '+(/^image\//.test(a.mime||'')?'fa-image':(a.mime==='application/pdf'?'fa-file-pdf':'fa-paperclip'))+'"></i><span>'+esc(a.name)+'</span><small>'+fmtBytes(a.size)+'</small></a>'; }).join('') + '</div>';
     }
     html += '</div>';
     if (m.thread && m.thread.length) {
