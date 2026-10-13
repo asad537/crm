@@ -94,6 +94,7 @@ class DesignJobCardController extends Controller
             'materials' => $card->exists ? $card->materials : collect(),
             'attachments' => $card->exists ? $card->attachments : collect(),
             'designers' => $this->jobDesignerOptions(),
+            'inventoryItems' => $this->inventoryOptions(),
         ]);
     }
 
@@ -147,6 +148,7 @@ class DesignJobCardController extends Controller
             'attachments' => $card->exists ? $card->attachments : collect(),
             'readOnly' => true,
             'designers' => $this->jobDesignerOptions(),
+            'inventoryItems' => $this->inventoryOptions(),
         ]);
     }
 
@@ -313,6 +315,7 @@ class DesignJobCardController extends Controller
             'remove_attachments.*' => 'integer|distinct',
             'materials' => 'nullable|array',
             'materials.*.item' => 'nullable|string|max:255',
+            'materials.*.inventory_item_id' => 'nullable|integer',
             'materials.*.specs' => 'nullable|string|max:255',
             'materials.*.qty' => 'nullable|string|max:255',
             'materials.*.needed_by' => 'nullable|date',
@@ -496,10 +499,30 @@ class DesignJobCardController extends Controller
         }
     }
 
+    /** Inventory items for the Procurement List picker (name — available qty). */
+    private function inventoryOptions()
+    {
+        return \App\CrmInventoryItem::orderBy('name')->get(['id', 'name', 'paper_size', 'gsm', 'unit', 'quantity'])->map(fn ($i) => [
+            'id' => $i->id,
+            'label' => trim($i->name . ($i->paper_size ? ' ' . $i->paper_size : '') . ($i->gsm ? ' ' . $i->gsm . 'gsm' : '')),
+            'unit' => $i->unit,
+            'available' => (float) $i->quantity,
+        ])->values();
+    }
+
     private function syncMaterials(DesignJobCard $card, array $rows)
     {
-        $card->materials()->delete();
-        $position = 0;
+        // Stock OUT: materials linked to an inventory item consume stock for this job. Compare what
+        // the card consumed before this save with what it asks for now and move only the difference.
+        $before = [];
+        if ($card->exists) {
+            foreach ($card->materials()->whereNotNull('inventory_item_id')->get() as $m) {
+                $before[(int) $m->inventory_item_id] = ($before[(int) $m->inventory_item_id] ?? 0) + (float) ($m->consumed_qty ?? 0);
+            }
+        }
+        // Parse first, write nothing until the stock check passes.
+        $parsed = [];
+        $after = [];
         foreach ($rows as $row) {
             if (!is_array($row)) {
                 continue;
@@ -508,14 +531,34 @@ class DesignJobCardController extends Controller
             if ($this->rowIsEmpty($row, $keys)) {
                 continue;
             }
+            $invId = (int) ($row['inventory_item_id'] ?? 0) ?: null;
+            $qty = $invId ? \App\Services\InventoryService::numericQty($row['qty'] ?? null) : null;
+            if ($invId && !\App\CrmInventoryItem::whereKey($invId)->exists()) { $invId = null; $qty = null; } // workspace-scoped
+            $parsed[] = [$row, $invId, $qty];
+            if ($invId && $qty) $after[$invId] = ($after[$invId] ?? 0) + $qty;
+        }
+        $inventory = app(\App\Services\InventoryService::class);
+        if ($short = $inventory->shortfalls($before, $after)) {
+            $msg = collect($short)->map(fn ($avail, $name) => $name . ' (only ' . rtrim(rtrim(number_format($avail, 3, '.', ''), '0'), '.') . ' available)')->implode(', ');
+            throw ValidationException::withMessages(['materials' => 'Not enough stock for: ' . $msg . '.']);
+        }
+        $card->materials()->delete();
+        $position = 0;
+        foreach ($parsed as [$row, $invId, $qty]) {
             $card->materials()->create([
                 'position' => $position++,
                 'item' => $this->nullIfBlank($row['item'] ?? null),
+                'inventory_item_id' => $invId,
                 'specs' => $this->nullIfBlank($row['specs'] ?? null),
                 'qty' => $this->nullIfBlank($row['qty'] ?? null),
+                'consumed_qty' => $invId ? ($qty ?: 0) : null,
                 'needed_by' => $this->nullIfBlank($row['needed_by'] ?? null),
                 'remarks' => $this->nullIfBlank($row['remarks'] ?? null),
             ]);
+        }
+        if ($before || $after) {
+            $job = $card->designJob ?: DesignJob::find($card->design_job_id);
+            $inventory->syncJobConsumption($before, $after, $job?->id, $job?->job_number ?: $card->job_no, Auth::guard('crm')->id());
         }
     }
 

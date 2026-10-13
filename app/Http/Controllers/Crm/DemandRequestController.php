@@ -621,6 +621,80 @@ class DemandRequestController extends Controller
     }
 
     /** Status follows the money: paid 0 -> Approved, partial -> Partially Paid, full -> Completed. */
+    // ---- per-item actions on the detail page (inline edit / delete / received → stock in) ----
+
+    /** Toggle "received": stock goes INTO inventory when received, back out when undone. */
+    public function toggleItemReceived(Request $request, $id, $itemId)
+    {
+        $this->authorizeAccess();
+        $dr = DemandRequest::findOrFail($id);
+        $item = $dr->items()->findOrFail($itemId);
+        $inv = app(\App\Services\InventoryService::class);
+        $uid = \Auth::guard('crm')->id();
+        if ($item->received) {
+            $inv->unreceiveDemandLine($item, $uid);
+            $item->forceFill(['received' => false, 'received_at' => null])->save();
+            $msg = 'Item #' . $item->position . ' marked not received; stock reversed.';
+        } else {
+            $item->forceFill(['received' => true, 'received_at' => now()])->save();
+            $mv = $inv->receiveDemandLine($item, $uid);
+            $msg = $mv
+                ? 'Item #' . $item->position . ' received — ' . rtrim(rtrim(number_format($mv->quantity, 3, '.', ''), '0'), '.') . ' added to inventory (' . $mv->item->name . ').'
+                : 'Item #' . $item->position . ' received (no numeric qty, so nothing was added to inventory).';
+        }
+        return $request->expectsJson() ? response()->json(['success' => true, 'message' => $msg, 'received' => (bool) $item->received]) : back()->with('status', $msg);
+    }
+
+    /** Inline edit of one item row. */
+    public function updateItem(Request $request, $id, $itemId)
+    {
+        $this->authorizeAccess();
+        $dr = DemandRequest::findOrFail($id);
+        $item = $dr->items()->findOrFail($itemId);
+        $data = $request->validate([
+            'category' => 'nullable|string|max:120', 'job_no' => 'nullable|string|max:120',
+            'vendor_name' => 'nullable|string|max:190', 'vendor_invoice_no' => 'nullable|string|max:120',
+            'description' => 'nullable|string|max:500', 'specification' => 'nullable|string|max:500', 'gsm' => 'nullable|string|max:60',
+            'qty' => 'nullable|string|max:60', 'estimated_price' => 'nullable|numeric|min:0', 'vat_percentage' => 'nullable|numeric|min:0|max:100',
+            'pay_by' => 'nullable|in:Company,Account',
+        ]);
+        $price = isset($data['estimated_price']) && $data['estimated_price'] !== '' ? round((float) $data['estimated_price'], 2) : null;
+        $vat = isset($data['vat_percentage']) && $data['vat_percentage'] !== '' ? round((float) $data['vat_percentage'], 2) : 0;
+        $total = 0;
+        if ($price !== null && is_numeric(trim((string) ($data['qty'] ?? '')))) {
+            $base = (float) $data['qty'] * $price;
+            $total = round($base + $base * $vat / 100, 2);
+        }
+        $item->update(array_merge($data, ['estimated_price' => $price, 'vat_percentage' => $vat, 'estimated_total' => $total, 'pay_by' => ($data['pay_by'] ?? 'Company') === 'Account' ? 'Account' : 'Company']));
+        if ($item->received) {
+            app(\App\Services\InventoryService::class)->resyncReceivedQty($item, \Auth::guard('crm')->id());
+        }
+        $dr->update(['estimated_total' => $dr->items()->sum('estimated_total')]);
+        $this->recomputeStatus($dr);
+        $msg = 'Item #' . $item->position . ' updated.';
+        return $request->expectsJson() ? response()->json(['success' => true, 'message' => $msg]) : back()->with('status', $msg);
+    }
+
+    /** Delete one item row (reverses its stock if it had been received). */
+    public function destroyItem(Request $request, $id, $itemId)
+    {
+        $this->authorizeAccess();
+        $dr = DemandRequest::findOrFail($id);
+        $item = $dr->items()->findOrFail($itemId);
+        if ($item->received) {
+            app(\App\Services\InventoryService::class)->unreceiveDemandLine($item, \Auth::guard('crm')->id());
+        }
+        \App\DemandRequestItemFile::where('item_id', $item->id)->delete();
+        $dr->payments()->where('item_id', $item->id)->update(['item_id' => null]);
+        $item->delete();
+        $pos = 1;
+        foreach ($dr->items()->orderBy('position')->orderBy('id')->get() as $it) { $it->forceFill(['position' => $pos++])->saveQuietly(); }
+        $dr->update(['estimated_total' => $dr->items()->sum('estimated_total')]);
+        $this->recomputeStatus($dr);
+        $msg = 'Item removed.';
+        return $request->expectsJson() ? response()->json(['success' => true, 'message' => $msg]) : back()->with('status', $msg);
+    }
+
     private function recomputeStatus(DemandRequest $dr): void
     {
         $dr->load(['payments', 'items']);

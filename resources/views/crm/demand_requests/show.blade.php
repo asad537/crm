@@ -26,6 +26,12 @@
 .dr-meta div span{display:block;color:#8a99ae;font-size:.63rem;font-weight:800;text-transform:uppercase}
 .dr-meta div strong{display:block;margin-top:.15rem;color:#27364b;font-size:.86rem}
 .dr-badge{display:inline-flex;padding:.28rem .65rem;border-radius:999px;font-size:.66rem;font-weight:850}
+.dr-icon{border:1px solid #e2e8f0;background:#fff;color:#475569;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:.72rem;margin-right:.25rem}
+.dr-icon:hover{background:#f1f5f9;color:#1e293b}.dr-icon-danger:hover{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
+.dr-recv{border:1px solid #e2e8f0;background:#fff;color:#64748b;padding:.25rem .55rem;border-radius:999px;cursor:pointer;font-size:.66rem;font-weight:800;white-space:nowrap}
+.dr-recv.on{background:#dcfce7;color:#15803d;border-color:#bbf7d0}.dr-recv:hover{filter:brightness(.97)}
+.dr-item-row.editing td{background:#fffbeb}.dr-item-row.editing input,.dr-item-row.editing select{width:100%;min-width:70px;padding:.3rem .4rem;border:1px solid #cbd5e1;border-radius:7px;font-size:.74rem}
+.dr-item-row.editing td.dr-num input{text-align:right}
 .dr-pri-Urgent{background:#fff1f2;color:#e11d48}.dr-pri-Normal{background:#eef2f7;color:#64748b}
 .dr-st-Draft{background:#eef2f7;color:#64748b}.dr-st-Submitted{background:#fff7ed;color:#c2620c}.dr-st-Approved{background:#e0f7fb;color:#0891b2}.dr-st-Rejected{background:#fff1f2;color:#e11d48}.dr-st-Partially-Paid{background:#fef3c7;color:#b45309}.dr-st-Completed{background:#e6f7e9;color:#159447}
 .dr-money{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem;margin-top:.2rem}
@@ -126,28 +132,39 @@
         <div class="dr-secttl"><i class="fas fa-list-ul"></i> Items / Materials</div>
         <div class="dr-table-wrap">
         <table class="dr-table">
-            <thead><tr><th>#</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Pay By</th><th>Proforma Invoice</th></tr></thead>
+            <thead><tr><th>#</th><th style="width:92px">Actions</th><th>Received</th><th>Category</th><th>Job#</th><th>Vendor</th><th>Vendor Inv#</th><th>Description</th><th>Specification</th><th>Qty</th><th class="dr-num">Unit Price</th><th class="dr-num">VAT %</th><th class="dr-num">Requested</th><th class="dr-num">Paid</th><th class="dr-num">Remaining</th><th>Pay By</th><th>Proforma Invoice</th></tr></thead>
             <tbody>
             @foreach($dr->items as $it)
                 @php($ip = $dr->paidForItem($it->id))
                 @php($inet = $dr->itemNet($it->id))
                 @php($__adjOut = $dr->adjustedOutForItem($it->id))
-                <tr>
+                @php($__ix = is_array($it->extra) ? $it->extra : [])
+                <tr class="dr-item-row" data-id="{{ $it->id }}" data-item="{{ json_encode(['category'=>$it->category,'job_no'=>$it->job_no,'vendor_name'=>$it->vendor_name,'vendor_invoice_no'=>$it->vendor_invoice_no,'description'=>$it->description,'specification'=>$it->specification,'gsm'=>$it->gsm,'qty'=>$it->qty,'estimated_price'=>$it->estimated_price,'vat_percentage'=>$it->vat_percentage,'pay_by'=>$it->pay_by ?: 'Company']) }}">
                     <td>{{ $loop->iteration }}</td>
-                    <td>{{ $it->category ?: '—' }}</td>
-                    <td>{{ $it->job_no ?: '—' }}</td>
-                    <td>{{ $it->vendor_name ?: '—' }}</td>
-                    <td>{{ $it->vendor_invoice_no ?: '—' }}</td>
-                    <td>{{ $it->description ?: '—' }}</td>
-                    <td>{{ $it->specification ?: '—' }}</td>
-                    <td>{{ $it->qty ?: '—' }}</td>
-                    <td class="dr-num">{{ $it->estimated_price !== null ? number_format($it->estimated_price,2) : '—' }}</td>
-                    <td class="dr-num">{{ (float)$it->vat_percentage > 0 ? rtrim(rtrim(number_format($it->vat_percentage,2,'.',''),'0'),'.').'%' : '—' }}</td>
+                    <td style="white-space:nowrap">
+                        <button type="button" class="dr-icon" title="Edit this row" onclick="drEditRow(this)"><i class="fas fa-pen"></i></button>
+                        <button type="button" class="dr-icon dr-icon-danger" title="Delete this row" onclick="drDeleteRow(this)"><i class="fas fa-trash"></i></button>
+                    </td>
+                    <td style="white-space:nowrap">
+                        <button type="button" class="dr-recv {{ $it->received ? 'on' : '' }}" title="{{ $it->received ? 'Received '.optional($it->received_at)->format('d M Y').' — click to undo' : 'Mark as received (adds to inventory)' }}" onclick="drToggleReceived(this)">
+                            <i class="fas {{ $it->received ? 'fa-check-circle' : 'fa-circle' }}"></i> {{ $it->received ? 'Received' : 'Receive' }}
+                        </button>
+                        @if($it->received && !empty($__ix['inventory_item_id']))<div style="font-size:.6rem;color:#64748b;margin-top:.15rem"><i class="fas fa-boxes"></i> +{{ rtrim(rtrim(number_format((float)($__ix['inventory_qty'] ?? 0),3,'.',''),'0'),'.') }} in <a href="{{ route('crm.inventory.movements', $__ix['inventory_item_id']) }}" style="color:var(--primary-purple)">inventory</a></div>@endif
+                    </td>
+                    <td data-f="category">{{ $it->category ?: '—' }}</td>
+                    <td data-f="job_no">{{ $it->job_no ?: '—' }}</td>
+                    <td data-f="vendor_name">{{ $it->vendor_name ?: '—' }}</td>
+                    <td data-f="vendor_invoice_no">{{ $it->vendor_invoice_no ?: '—' }}</td>
+                    <td data-f="description">{{ $it->description ?: '—' }}</td>
+                    <td data-f="specification">{{ $it->specification ?: '—' }}</td>
+                    <td data-f="qty">{{ $it->qty ?: '—' }}</td>
+                    <td class="dr-num" data-f="estimated_price">{{ $it->estimated_price !== null ? number_format($it->estimated_price,2) : '—' }}</td>
+                    <td class="dr-num" data-f="vat_percentage">{{ (float)$it->vat_percentage > 0 ? rtrim(rtrim(number_format($it->vat_percentage,2,'.',''),'0'),'.').'%' : '—' }}</td>
                     <td class="dr-num">{{ number_format($it->estimated_total,2) }}</td>
                     <td class="dr-num" style="color:#159447;font-weight:700">{{ $ip ? number_format($ip,2) : '—' }}@if($__adjOut > 0.009)<div style="font-size:.6rem;color:#b45309;font-weight:800">−{{ number_format($__adjOut,2) }} adj out</div>@endif</td>
                     <td class="dr-num" style="font-weight:800;color:{{ $inet < -0.009 ? '#e11d48' : '#159447' }}">{{ $inet < -0.009 ? '− '.number_format(abs($inet),2) : ($inet > 0.009 ? '+ '.number_format($inet,2) : '✔') }}</td>
                     @php($__pb = ($it->pay_by ?? 'Company')==='Account' ? 'Account' : 'Company')
-                    <td><span class="dr-badge" style="{{ $__pb==='Company' ? 'background:#dcfce7;color:#15803d' : 'background:#e0f2fe;color:#0369a1' }}">{{ $__pb }}</span></td>
+                    <td data-f="pay_by"><span class="dr-badge" style="{{ $__pb==='Company' ? 'background:#dcfce7;color:#15803d' : 'background:#e0f2fe;color:#0369a1' }}">{{ $__pb }}</span></td>
                     <td style="vertical-align:middle;white-space:nowrap">@if($it->files->count())@foreach($it->files as $__k => $f)<a href="{{ $f->url }}" target="_blank" title="{{ $f->name }}" style="color:var(--primary-purple);text-decoration:none;margin-right:.4rem"><i class="fas fa-paperclip"></i>{{ $it->files->count()>1 ? ($__k+1) : '' }}</a>@endforeach@else<span style="color:#cbd5e1">—</span>@endif</td>
                 </tr>
             @endforeach
@@ -465,4 +482,42 @@
         @endif
     </div>
 </div>
+<script>
+// Inline per-row actions on the items table (edit / delete / received → inventory).
+var DR_ITEM_BASE = @json(url('/crm/demand-requests/'.$dr->id.'/items'));
+var DR_TOKEN = '{{ csrf_token() }}';
+function drReq(url, method, body){
+    return fetch(url, {method: method, headers: {'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':DR_TOKEN,'X-Requested-With':'XMLHttpRequest'}, body: body ? JSON.stringify(body) : undefined})
+        .then(function(r){ return r.json().then(function(j){ if(!r.ok){ throw new Error(j.message || (j.errors ? Object.values(j.errors).flat().join(' ') : 'Request failed')); } return j; }); });
+}
+function drToggleReceived(btn){
+    var tr = btn.closest('tr'); btn.disabled = true;
+    drReq(DR_ITEM_BASE+'/'+tr.dataset.id+'/receive', 'POST').then(function(){ location.reload(); }).catch(function(e){ alert(e.message); btn.disabled = false; });
+}
+function drDeleteRow(btn){
+    var tr = btn.closest('tr');
+    if (!confirm('Delete this item? If it was received, its stock is reversed.')) return;
+    drReq(DR_ITEM_BASE+'/'+tr.dataset.id, 'DELETE').then(function(){ location.reload(); }).catch(function(e){ alert(e.message); });
+}
+function drEditRow(btn){
+    var tr = btn.closest('tr'); if (tr.classList.contains('editing')) return;
+    var data = JSON.parse(tr.dataset.item || '{}'); tr.classList.add('editing');
+    tr.querySelectorAll('td[data-f]').forEach(function(td){
+        var f = td.dataset.f, v = data[f]; if (v === null || v === undefined) v = '';
+        if (f === 'pay_by') { td.innerHTML = '<select name="pay_by"><option'+(v!=='Account'?' selected':'')+'>Company</option><option'+(v==='Account'?' selected':'')+'>Account</option></select>'; return; }
+        var type = (f === 'estimated_price' || f === 'vat_percentage') ? 'number' : 'text';
+        td.innerHTML = '<input name="'+f+'" type="'+type+'" '+(type==='number'?'step="0.01" min="0"':'')+' value="'+String(v).replace(/"/g,'&quot;')+'">';
+    });
+    var cell = btn.parentNode;
+    cell.innerHTML = '<button type="button" class="dr-icon" title="Save" onclick="drSaveRow(this)" style="color:#15803d"><i class="fas fa-check"></i></button><button type="button" class="dr-icon" title="Cancel" onclick="location.reload()"><i class="fas fa-times"></i></button>';
+    var first = tr.querySelector('td[data-f] input'); if (first) first.focus();
+    tr.querySelectorAll('input').forEach(function(i){ i.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); drSaveRow(cell.firstChild); } if (e.key === 'Escape') location.reload(); }); });
+}
+function drSaveRow(btn){
+    var tr = btn.closest('tr'), body = {};
+    tr.querySelectorAll('td[data-f] input, td[data-f] select').forEach(function(i){ body[i.name] = i.value; });
+    btn.disabled = true;
+    drReq(DR_ITEM_BASE+'/'+tr.dataset.id, 'PUT', body).then(function(){ location.reload(); }).catch(function(e){ alert(e.message); btn.disabled = false; });
+}
+</script>
 @endsection

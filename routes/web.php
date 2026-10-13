@@ -326,6 +326,9 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('demand-requests/{id}/approve', 'DemandRequestController@approve')->name('crm.demand_requests.approve');
         Route::post('demand-requests/{id}/reject', 'DemandRequestController@reject')->name('crm.demand_requests.reject');
         Route::get('demand-requests/{id}', 'DemandRequestController@show')->whereNumber('id')->name('crm.demand_requests.show');
+        Route::post('demand-requests/{id}/items/{itemId}/receive', 'DemandRequestController@toggleItemReceived')->name('crm.demand_requests.item_receive');
+        Route::put('demand-requests/{id}/items/{itemId}', 'DemandRequestController@updateItem')->name('crm.demand_requests.item_update');
+        Route::delete('demand-requests/{id}/items/{itemId}', 'DemandRequestController@destroyItem')->name('crm.demand_requests.item_destroy');
         Route::put('demand-requests/{id}', 'DemandRequestController@update')->name('crm.demand_requests.update');
         Route::delete('demand-requests/{id}', 'DemandRequestController@destroy')->name('crm.demand_requests.destroy');
 

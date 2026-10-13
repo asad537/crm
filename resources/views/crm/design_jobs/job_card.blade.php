@@ -37,6 +37,7 @@
 .jc-field{grid-column:span 3;min-width:0}
 .jc-2{grid-column:span 2}.jc-4{grid-column:span 4}.jc-6{grid-column:span 6}.jc-8{grid-column:span 8}.jc-12{grid-column:1/-1}
 .jc-field label{display:block;margin-bottom:.4rem;color:#405069;font-size:.76rem;font-weight:760}
+.jc-inv-avail{display:block;font-size:.66rem;font-weight:700;color:#15803d;margin-top:.2rem;min-height:.9rem}.jc-inv-avail.short{color:#b91c1c}
 .jc-control{width:100%;min-height:42px;padding:.58rem .75rem;border:1px solid #cfd9e5;border-radius:8px;background:#fff;color:#263449;font-size:.84rem;outline:0}
 .jc-print-value{display:none}
 .jc-control:focus{border-color:var(--primary-purple);box-shadow:0 0 0 3px var(--primary-shadow)}
@@ -538,6 +539,8 @@ textarea.jc-control{min-height:74px;resize:vertical}
         'item' => $m->item,
         'specs' => $m->specs,
         'qty' => $m->qty,
+        'inventory_item_id' => $m->inventory_item_id,
+        'consumed_qty' => $m->consumed_qty,
         'needed_by' => optional($m->needed_by)->format('Y-m-d'),
         'remarks' => $m->remarks,
     ])->all());
@@ -551,11 +554,11 @@ textarea.jc-control{min-height:74px;resize:vertical}
             <thead><tr><th>#</th><th>Items</th><th>Specs</th><th>Qty</th><th>Needed By</th><th>Remarks</th><th></th></tr></thead>
             <tbody id="jcMaterials">
                 @foreach($materialRows as $i => $m)
-                    <tr>
+                    <tr data-consumed="{{ $m['consumed_qty'] ?? '' }}">
                         <td class="jc-material-number">{{ $loop->iteration }}</td>
-                        <td><input class="jc-control" name="materials[{{ $loop->index }}][item]" value="{{ $m['item'] ?? '' }}" aria-label="Item {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><input class="jc-control jc-inv-pick" list="jcInventoryList" name="materials[{{ $loop->index }}][item]" value="{{ $m['item'] ?? '' }}" aria-label="Item {{ $loop->iteration }}" oninput="jcInvPick(this)" onchange="jcInvPick(this)" placeholder="Type or pick from inventory"><input type="hidden" name="materials[{{ $loop->index }}][inventory_item_id]" value="{{ $m['inventory_item_id'] ?? '' }}"><span class="jc-material-print-value"></span><small class="jc-inv-avail"></small></td>
                         <td><input class="jc-control" name="materials[{{ $loop->index }}][specs]" value="{{ $m['specs'] ?? '' }}" aria-label="Specs {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
-                        <td><input class="jc-control" name="materials[{{ $loop->index }}][qty]" value="{{ $m['qty'] ?? '' }}" aria-label="Quantity {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
+                        <td><input class="jc-control" name="materials[{{ $loop->index }}][qty]" value="{{ $m['qty'] ?? '' }}" aria-label="Quantity {{ $loop->iteration }}" oninput="jcInvAvail(this.closest('tr'))"><span class="jc-material-print-value"></span></td>
                         <td><input class="jc-control" type="date" name="materials[{{ $loop->index }}][needed_by]" value="{{ $m['needed_by'] ?? '' }}" aria-label="Needed by {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
                         <td><input class="jc-control" name="materials[{{ $loop->index }}][remarks]" value="{{ $m['remarks'] ?? '' }}" aria-label="Remarks {{ $loop->iteration }}"><span class="jc-material-print-value"></span></td>
                         <td><button class="jc-remove" type="button" onclick="jcRemoveMaterialRow(this)" aria-label="Remove row {{ $loop->iteration }}"><i class="fas fa-trash"></i></button></td>
@@ -565,6 +568,9 @@ textarea.jc-control{min-height:74px;resize:vertical}
         </table>
     </div>
     <button class="jc-add jc-material-add" type="button" onclick="jcAddMaterialRow()"><i class="fas fa-plus"></i> Add row</button>
+    <datalist id="jcInventoryList">@foreach(($inventoryItems ?? []) as $inv)<option value="{{ $inv['label'] }}" data-id="{{ $inv['id'] }}">{{ rtrim(rtrim(number_format($inv['available'],3,'.',''),'0'),'.') }} {{ $inv['unit'] }} available</option>@endforeach</datalist>
+    @if($errors->has('materials'))<div style="margin-top:.6rem;padding:.6rem .9rem;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;font-size:.8rem;font-weight:700"><i class="fas fa-exclamation-triangle"></i> {{ $errors->first('materials') }}</div>@endif
+    <div style="margin-top:.4rem;font-size:.72rem;color:#64748b"><i class="fas fa-boxes"></i> Items picked from inventory are deducted from stock when the job card is saved; the available quantity shows under the item.</div>
 </div>
 
 @if($readOnly)</fieldset>@endif
@@ -633,16 +639,34 @@ function jcReindexMaterialRows(){
         row.querySelector('.jc-remove').setAttribute('aria-label','Remove row '+(index+1));
         row.querySelectorAll('input').forEach(function(field){
             field.name=field.name.replace(/materials\[\d+\]/,'materials['+index+']');
-            field.setAttribute('aria-label',field.getAttribute('aria-label').replace(/\d+$/,index+1));
+            if(field.getAttribute('aria-label')) field.setAttribute('aria-label',field.getAttribute('aria-label').replace(/\d+$/,index+1));
         });
     });
+}
+var JC_INVENTORY = @json($inventoryItems ?? []);
+function jcInvPick(input){
+    var tr=input.closest('tr'), hidden=tr.querySelector('input[name$="[inventory_item_id]"]'), v=input.value.trim().toLowerCase();
+    var hit=JC_INVENTORY.find(function(i){ return i.label.toLowerCase()===v; });
+    hidden.value = hit ? hit.id : '';
+    jcInvAvail(tr);
+}
+function jcInvAvail(tr){
+    var hidden=tr.querySelector('input[name$="[inventory_item_id]"]'), out=tr.querySelector('.jc-inv-avail'); if(!out) return;
+    var hit=JC_INVENTORY.find(function(i){ return String(i.id)===String(hidden.value); });
+    if(!hit){ out.textContent=''; out.classList.remove('short'); return; }
+    var want=parseFloat(String(tr.querySelector('input[name$="[qty]"]').value).replace(/[^0-9.]/g,''))||0;
+    var prev=parseFloat(tr.dataset.consumed||'0')||0, avail=hit.available+prev; // what this card already holds can be re-used
+    out.textContent='Available: '+avail+' '+(hit.unit||'')+(want>avail?' — short by '+(want-avail):'');
+    out.classList.toggle('short', want>avail);
 }
 function jcAddMaterialRow(){
     var box=document.getElementById('jcMaterials'),clone=box.querySelector('tr').cloneNode(true);
     clone.querySelectorAll('input').forEach(function(field){field.value='';});
-    clone.querySelectorAll('.jc-material-print-value').forEach(function(value){value.textContent='';});
+    clone.querySelectorAll('.jc-material-print-value,.jc-inv-avail').forEach(function(value){value.textContent='';});
+    clone.removeAttribute('data-consumed');
     box.appendChild(clone);jcReindexMaterialRows();
 }
+document.querySelectorAll('#jcMaterials tr').forEach(jcInvAvail);
 function jcRemoveMaterialRow(button){
     var box=document.getElementById('jcMaterials'),row=button.closest('tr');
     if(box.querySelectorAll('tr').length===1){

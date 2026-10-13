@@ -103,6 +103,7 @@ class DesignJobController extends Controller
             'materials' => collect(),
             'attachments' => collect(),
             'designers' => $this->jobDesignerOptions(),
+            'inventoryItems' => \App\CrmInventoryItem::orderBy('name')->get(['id', 'name', 'paper_size', 'gsm', 'unit', 'quantity'])->map(fn ($i) => ['id' => $i->id, 'label' => trim($i->name . ($i->paper_size ? ' ' . $i->paper_size : '') . ($i->gsm ? ' ' . $i->gsm . 'gsm' : '')), 'unit' => $i->unit, 'available' => (float) $i->quantity])->values(),
         ]);
     }
 
