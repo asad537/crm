@@ -148,8 +148,9 @@
                 <div><label>Against Job</label>
                     <select class="inv-control" name="job_id">
                         <option value="">— select job —</option>
-                        @foreach($jobs as $j)<option value="{{ $j->id }}">{{ $j->job_number }}</option>@endforeach
+                        @foreach($jobs as $j)<option value="{{ $j->id }}">{{ $j->label }}</option>@endforeach
                     </select>
+                    @if($jobs->isEmpty())<div style="margin-top:.3rem;font-size:.68rem;color:#b45309;font-weight:700"><i class="fas fa-info-circle"></i> No jobs in this workspace yet (Jobs page is empty) — type the job number below.</div>@endif
                 </div>
                 <div class="full"><label>Or Job Number (manual)</label><input class="inv-control" name="job_number" placeholder="JOB-XXXX (if not in list)"></div>
                 <div class="full"><label>Note</label><textarea class="inv-control" name="note" rows="2"></textarea></div>

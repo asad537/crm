@@ -43,7 +43,13 @@ class InventoryController extends Controller
         ];
 
         // For the "consume against job" dropdown.
-        $jobs = \App\DesignJob::orderBy('id', 'desc')->limit(200)->get(['id', 'job_number']);
+        // Jobs of THIS workspace, newest first, with a readable label (number · product · client).
+        $jobs = \App\DesignJob::where('workspace_id', \App\Support\CrmWorkspaceContext::id())
+            ->orderBy('id', 'desc')->limit(300)->get(['id', 'job_number', 'title', 'client_name', 'status'])
+            ->map(function ($j) {
+                $j->label = trim(($j->job_number ?: '#' . $j->id) . ($j->title ? ' · ' . $j->title : '') . ($j->client_name ? ' · ' . $j->client_name : ''));
+                return $j;
+            });
         $vendors = class_exists(\App\Vendor::class) ? \App\Vendor::orderBy('name')->get(['id', 'name']) : collect();
 
         return view('crm.inventory.index', compact('items', 'summary', 'jobs', 'vendors'));
