@@ -676,7 +676,12 @@ class DemandRequestController extends Controller
             'description' => 'nullable|string|max:500', 'specification' => 'nullable|string|max:500', 'gsm' => 'nullable|string|max:60',
             'qty' => 'nullable|string|max:60', 'estimated_price' => 'nullable|numeric|min:0', 'vat_percentage' => 'nullable|numeric|min:0|max:100',
             'pay_by' => 'nullable|in:Company,Account',
+            'files' => 'nullable|array|max:10', 'files.*' => 'file|max:20480',
+            'remove_files' => 'nullable|array', 'remove_files.*' => 'integer',
         ]);
+        $newFiles = $data['files'] ?? [];
+        $removeFiles = $data['remove_files'] ?? [];
+        unset($data['files'], $data['remove_files']);
         $price = isset($data['estimated_price']) && $data['estimated_price'] !== '' ? round((float) $data['estimated_price'], 2) : null;
         $vat = isset($data['vat_percentage']) && $data['vat_percentage'] !== '' ? round((float) $data['vat_percentage'], 2) : 0;
         $total = 0;
@@ -685,6 +690,24 @@ class DemandRequestController extends Controller
             $total = round($base + $base * $vat / 100, 2);
         }
         $item->update(array_merge($data, ['estimated_price' => $price, 'vat_percentage' => $vat, 'estimated_total' => $total, 'pay_by' => ($data['pay_by'] ?? 'Company') === 'Account' ? 'Account' : 'Company']));
+        // Proforma invoice files: remove the ones ticked, add the ones uploaded.
+        if ($removeFiles) {
+            foreach ($item->files()->whereIn('id', $removeFiles)->get() as $f) {
+                if ($f->path && is_file(public_path($f->path))) @unlink(public_path($f->path));
+                $f->delete();
+            }
+        }
+        if ($newFiles) {
+            $dir = public_path('uploads/demand-requests');
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            foreach ($newFiles as $file) {
+                if (!$file) continue;
+                $ext = strtolower($file->getClientOriginalExtension());
+                $fname = 'dri_' . uniqid('', true) . ($ext ? '.' . $ext : '');
+                $file->move($dir, $fname);
+                $item->files()->create(['path' => 'uploads/demand-requests/' . $fname, 'name' => $file->getClientOriginalName(), 'mime' => $file->getClientMimeType(), 'size' => @filesize($dir . '/' . $fname) ?: null]);
+            }
+        }
         if ($item->received) {
             app(\App\Services\InventoryService::class)->resyncReceivedQty($item, \Auth::guard('crm')->id());
         }

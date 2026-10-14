@@ -30,6 +30,8 @@
 .dr-icon:hover{background:#f1f5f9;color:#1e293b}.dr-icon-danger:hover{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
 .dr-recv{border:1px solid #e2e8f0;background:#fff;color:#64748b;padding:.25rem .55rem;border-radius:999px;cursor:pointer;font-size:.66rem;font-weight:800;white-space:nowrap}
 .dr-recv.on{background:#dcfce7;color:#15803d;border-color:#bbf7d0}.dr-recv:hover{filter:brightness(.97)}
+.dr-lbl{display:block;font-size:.68rem;font-weight:800;color:#475569;margin-bottom:.25rem}
+.dr-file-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.4rem .6rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.76rem;cursor:default}.dr-file-row a{color:var(--primary-purple);text-decoration:none}.dr-file-del{color:#b91c1c;font-weight:700;display:inline-flex;gap:.3rem;align-items:center;cursor:pointer}
 .dr-item-row.editing td{background:#fffbeb}.dr-item-row.editing input,.dr-item-row.editing select{width:100%;min-width:70px;padding:.3rem .4rem;border:1px solid #cbd5e1;border-radius:7px;font-size:.74rem}
 .dr-item-row.editing td.dr-num input{text-align:right}
 .dr-pri-Urgent{background:#fff1f2;color:#e11d48}.dr-pri-Normal{background:#eef2f7;color:#64748b}
@@ -139,7 +141,7 @@
                 @php($inet = $dr->itemNet($it->id))
                 @php($__adjOut = $dr->adjustedOutForItem($it->id))
                 @php($__ix = is_array($it->extra) ? $it->extra : [])
-                <tr class="dr-item-row" data-id="{{ $it->id }}" data-item="{{ json_encode(['category'=>$it->category,'job_no'=>$it->job_no,'vendor_name'=>$it->vendor_name,'vendor_invoice_no'=>$it->vendor_invoice_no,'description'=>$it->description,'specification'=>$it->specification,'gsm'=>$it->gsm,'qty'=>$it->qty,'estimated_price'=>$it->estimated_price,'vat_percentage'=>$it->vat_percentage,'pay_by'=>$it->pay_by ?: 'Company']) }}">
+                <tr class="dr-item-row" data-id="{{ $it->id }}" data-item="{{ json_encode(['category'=>$it->category,'job_no'=>$it->job_no,'vendor_name'=>$it->vendor_name,'vendor_invoice_no'=>$it->vendor_invoice_no,'description'=>$it->description,'specification'=>$it->specification,'gsm'=>$it->gsm,'qty'=>$it->qty,'estimated_price'=>$it->estimated_price,'vat_percentage'=>$it->vat_percentage,'pay_by'=>$it->pay_by ?: 'Company','files'=>$it->files->map(fn($f)=>['id'=>$f->id,'name'=>$f->name,'url'=>$f->url])->values()]) }}">
                     <td>{{ $loop->iteration }}</td>
                     <td style="white-space:nowrap">
                         <button type="button" class="dr-icon" title="Edit this row" onclick="drEditRow(this)"><i class="fas fa-pen"></i></button>
@@ -486,6 +488,29 @@
         @endif
     </div>
 </div>
+<div class="inv-modal-bg" id="drItemModal" onclick="if(event.target===this)this.style.display='none'" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55)">
+    <div style="width:100%;max-width:760px;max-height:92vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.25)">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.15rem;border-bottom:1px solid #edf1f5"><div><h3 style="margin:0;font-size:1rem"><i class="fas fa-pen" style="color:var(--primary-purple)"></i> Edit item</h3><div id="drItemModalSub" style="font-size:.74rem;color:#64748b;margin-top:.15rem"></div></div><button type="button" onclick="document.getElementById('drItemModal').style.display='none'" style="border:0;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer"><i class="fas fa-times"></i></button></div>
+        <form id="drItemForm" onsubmit="return drSaveItem(this)" enctype="multipart/form-data">
+            <div style="padding:1rem 1.15rem;display:grid;grid-template-columns:repeat(6,1fr);gap:.7rem;font-size:.78rem">
+                <div style="grid-column:span 2"><label class="dr-lbl">Category</label><input class="dr-control" name="category" list="drCatsPay"></div>
+                <div style="grid-column:span 2"><label class="dr-lbl">Job #</label><input class="dr-control" name="job_no"></div>
+                <div style="grid-column:span 2"><label class="dr-lbl">Pay by</label><select class="dr-control" name="pay_by"><option>Company</option><option>Account</option></select></div>
+                <div style="grid-column:span 3"><label class="dr-lbl">Vendor</label><input class="dr-control" name="vendor_name" list="drVendors"></div>
+                <div style="grid-column:span 3"><label class="dr-lbl">Vendor invoice #</label><input class="dr-control" name="vendor_invoice_no"></div>
+                <div style="grid-column:span 6"><label class="dr-lbl">Description</label><input class="dr-control" name="description"></div>
+                <div style="grid-column:span 4"><label class="dr-lbl">Specification</label><input class="dr-control" name="specification"></div>
+                <div style="grid-column:span 2"><label class="dr-lbl">GSM</label><input class="dr-control" name="gsm"></div>
+                <div style="grid-column:span 2"><label class="dr-lbl">Qty</label><input class="dr-control" name="qty" oninput="drRecalcItem()"></div>
+                <div style="grid-column:span 2"><label class="dr-lbl">Unit price</label><input class="dr-control" name="estimated_price" type="number" step="0.01" min="0" oninput="drRecalcItem()"></div>
+                <div style="grid-column:span 2"><label class="dr-lbl">VAT %</label><input class="dr-control" name="vat_percentage" type="number" step="0.01" min="0" max="100" oninput="drRecalcItem()"></div>
+                <div style="grid-column:span 6;display:flex;justify-content:flex-end;gap:.5rem;align-items:baseline;padding:.4rem .7rem;border-radius:9px;background:#f7f9fc"><span style="color:#64748b;font-weight:700">Requested total (incl. VAT)</span><strong id="drItemTotal" style="font-size:1rem;color:var(--primary-purple)">0.00</strong></div>
+                <div style="grid-column:span 6"><label class="dr-lbl">Proforma invoice files</label><div id="drItemFiles" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.5rem"></div><input class="dr-control" type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"><div style="font-size:.68rem;color:#94a3b8;margin-top:.25rem">Tick “delete” on a file to remove it; choose files to add more.</div></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:.9rem 1.15rem;border-top:1px solid #edf1f5"><button type="button" class="dr-btn" onclick="document.getElementById('drItemModal').style.display='none'" style="background:#eef2f7;color:#475569">Cancel</button><button type="submit" class="dr-btn dr-btn-primary"><i class="fas fa-check"></i> Save changes</button></div>
+        </form>
+    </div>
+</div>
 <div class="inv-modal-bg" id="drStockModal" onclick="if(event.target===this)this.style.display='none'" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55)">
     <div style="width:100%;max-width:560px;background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.25)">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.15rem;border-bottom:1px solid #edf1f5"><h3 style="margin:0;font-size:1rem"><i class="fas fa-boxes" style="color:var(--primary-purple)"></i> Add to Inventory</h3><button type="button" onclick="document.getElementById('drStockModal').style.display='none'" style="border:0;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer"><i class="fas fa-times"></i></button></div>
@@ -542,24 +567,30 @@ function drDeleteRow(btn){
     drReq(DR_ITEM_BASE+'/'+tr.dataset.id, 'DELETE').then(function(){ location.reload(); }).catch(function(e){ alert(e.message); });
 }
 function drEditRow(btn){
-    var tr = btn.closest('tr'); if (tr.classList.contains('editing')) return;
-    var data = JSON.parse(tr.dataset.item || '{}'); tr.classList.add('editing');
-    tr.querySelectorAll('td[data-f]').forEach(function(td){
-        var f = td.dataset.f, v = data[f]; if (v === null || v === undefined) v = '';
-        if (f === 'pay_by') { td.innerHTML = '<select name="pay_by"><option'+(v!=='Account'?' selected':'')+'>Company</option><option'+(v==='Account'?' selected':'')+'>Account</option></select>'; return; }
-        var type = (f === 'estimated_price' || f === 'vat_percentage') ? 'number' : 'text';
-        td.innerHTML = '<input name="'+f+'" type="'+type+'" '+(type==='number'?'step="0.01" min="0"':'')+' value="'+String(v).replace(/"/g,'&quot;')+'">';
+    var tr = btn.closest('tr'), d = JSON.parse(tr.dataset.item || '{}'), m = document.getElementById('drItemModal'), f = document.getElementById('drItemForm');
+    f.reset(); m.dataset.id = tr.dataset.id;
+    ['category','job_no','vendor_name','vendor_invoice_no','description','specification','gsm','qty','estimated_price','vat_percentage','pay_by'].forEach(function(k){ if (f.elements[k]) f.elements[k].value = (d[k] === null || d[k] === undefined) ? '' : d[k]; });
+    document.getElementById('drItemModalSub').textContent = 'Item #' + tr.querySelector('td').textContent.trim() + (d.description ? ' · ' + d.description : '');
+    var list = document.getElementById('drItemFiles'); list.innerHTML = '';
+    (d.files || []).forEach(function(fl){
+        list.insertAdjacentHTML('beforeend', '<label class="dr-file-row"><a href="'+fl.url+'" target="_blank"><i class="fas fa-paperclip"></i> '+fl.name.replace(/</g,'&lt;')+'</a><span class="dr-file-del"><input type="checkbox" name="remove_files[]" value="'+fl.id+'"> delete</span></label>');
     });
-    var cell = btn.parentNode;
-    cell.innerHTML = '<button type="button" class="dr-icon" title="Save" onclick="drSaveRow(this)" style="color:#15803d"><i class="fas fa-check"></i></button><button type="button" class="dr-icon" title="Cancel" onclick="location.reload()"><i class="fas fa-times"></i></button>';
-    var first = tr.querySelector('td[data-f] input'); if (first) first.focus();
-    tr.querySelectorAll('input').forEach(function(i){ i.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); drSaveRow(cell.firstChild); } if (e.key === 'Escape') location.reload(); }); });
+    if (!(d.files || []).length) list.innerHTML = '<div style="color:#94a3b8;font-size:.74rem">No proforma invoice attached.</div>';
+    drRecalcItem(); m.style.display = 'flex'; f.elements.description.focus();
 }
-function drSaveRow(btn){
-    var tr = btn.closest('tr'), body = {};
-    tr.querySelectorAll('td[data-f] input, td[data-f] select').forEach(function(i){ body[i.name] = i.value; });
-    btn.disabled = true;
-    drReq(DR_ITEM_BASE+'/'+tr.dataset.id, 'PUT', body).then(function(){ location.reload(); }).catch(function(e){ alert(e.message); btn.disabled = false; });
+function drRecalcItem(){
+    var f = document.getElementById('drItemForm'), q = parseFloat(String(f.elements.qty.value).replace(/,/g,'')), p = parseFloat(f.elements.estimated_price.value), v = parseFloat(f.elements.vat_percentage.value) || 0;
+    var base = (isNaN(q) || isNaN(p)) ? 0 : q * p, t = base + base * v / 100;
+    document.getElementById('drItemTotal').textContent = t.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function drSaveItem(form){
+    var m = document.getElementById('drItemModal'), btn = form.querySelector('button[type=submit]'); btn.disabled = true;
+    var fd = new FormData(form); fd.append('_method', 'PUT');
+    fetch(DR_ITEM_BASE + '/' + m.dataset.id, {method: 'POST', body: fd, headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': DR_TOKEN, 'X-Requested-With': 'XMLHttpRequest'}})
+        .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.message || (j.errors ? Object.values(j.errors).flat().join(' ') : 'Save failed')); return j; }); })
+        .then(function(){ location.reload(); })
+        .catch(function(e){ alert(e.message); btn.disabled = false; });
+    return false;
 }
 </script>
 @endsection
