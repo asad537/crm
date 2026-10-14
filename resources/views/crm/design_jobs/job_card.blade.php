@@ -268,6 +268,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
 <form id="jcForm" method="POST" enctype="multipart/form-data" novalidate action="{{ $job->exists ? route('crm.design_jobs.job_card.update', $job->id) : route('crm.design_jobs.store') }}">{{ csrf_field() }}
 <input type="hidden" name="wizard_completed_step" value="{{ old('wizard_completed_step', ($card->section_choices ?? [])['__completed_step'] ?? ($job->exists ? 12 : -1)) }}">
 <input type="hidden" name="wizard_current_step" value="{{ old('wizard_current_step', ($card->section_choices ?? [])['__active_step'] ?? 0) }}">
+@unless($job->exists)<input type="hidden" name="job_no_suggestion" value="{{ old('job_no_suggestion', $jobNumberPreview ?? '') }}">@endunless
 @if($readOnly)<fieldset class="jc-readonly-fields" disabled>@endif
 
 {{-- Card 1 — Job header --}}
@@ -275,7 +276,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
     <h4 class="jc-title"><i class="fas fa-file-signature"></i> Job Header</h4>
     <div class="jc-grid">
         <div class="jc-field"><label>Job Assigned Date</label><input class="jc-control" type="date" name="job_date" value="{{ old('job_date', $jobDateDefault) }}"></div>
-        <div class="jc-field"><label>Job No #</label><input class="jc-control" @if($job->exists) name="job_no" @else readonly @endif value="{{ $job->exists ? $val('job_no', $job->job_number) : ($jobNumberPreview ?? '') }}" placeholder="{{ $job->exists ? '' : 'Auto-generated when saved' }}"></div>
+        <div class="jc-field"><label>Job No #</label><input class="jc-control" name="job_no" value="{{ $job->exists ? $val('job_no', $job->job_number) : old('job_no', $jobNumberPreview ?? '') }}" placeholder="{{ $job->exists ? '' : 'Auto-generated when saved' }}"></div>
         <div class="jc-field"><label>Product @unless($job->exists)<span style="color:#e11d48">*</span>@endunless</label><input class="jc-control" name="product" value="{{ $val('product', $job->title) }}" {{ $job->exists ? '' : 'required' }}></div>
         <div class="jc-field"><label>Order Qty</label><input class="jc-control" type="number" min="0" name="order_qty" value="{{ $val('order_qty') }}"></div>
         <div class="jc-field jc-4"><label>Priority</label><select class="jc-control" name="priority_level">

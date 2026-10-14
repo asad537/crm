@@ -214,16 +214,23 @@ class DesignJobCardController extends Controller
         abort_unless($user->isAdmin() || $user->isDesigner(), 403, 'Only designers can create job cards.');
 
         $draft = $request->input('save_mode') === 'draft';
+        $enteredJobNumber = $this->nullIfBlank($request->input('job_no'));
+        $suggestedJobNumber = $this->nullIfBlank($request->input('job_no_suggestion'));
+        $useNextNumber = $enteredJobNumber === null || ($suggestedJobNumber !== null && $enteredJobNumber === $suggestedJobNumber);
+        if ($useNextNumber) {
+            // The prefilled suggestion may have become stale while the form was open.
+            $request->request->remove('job_no');
+        }
         $this->validateCard($request, null, $draft);
         $request->validate(['product' => ($draft ? 'nullable' : 'required') . '|string|max:255']);
 
         $uploadedPaths = [];
         $removedPaths = [];
         try {
-            $job = DB::transaction(function () use ($request, $user, $draft, &$uploadedPaths, &$removedPaths) {
-                // The number shown on the new-job form is only a preview. Allocate
-                // the actual next number while holding the sequence row lock.
-                $jobNumber = $this->newJobNumber();
+            $job = DB::transaction(function () use ($request, $user, $draft, $useNextNumber, $enteredJobNumber, &$uploadedPaths, &$removedPaths) {
+                // Allocate unchanged suggestions under the sequence lock; keep
+                // a manually edited number exactly as entered.
+                $jobNumber = $useNextNumber ? $this->newJobNumber() : $enteredJobNumber;
                 $job = DesignJob::create([
                     'job_number' => $jobNumber,
                     'workspace_id' => CrmWorkspaceContext::id(),
