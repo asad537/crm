@@ -46,13 +46,20 @@
                 <tr data-search="{{ strtolower($customer->name.' '.$customer->company_name.' '.$customer->country.' '.$customer->phone.' '.$customer->email) }}">
                     <td><div class="cs-person"><span class="cs-avatar">{{ strtoupper(substr($customer->name,0,1)) }}</span><div><strong>{{ $customer->name }}</strong><div class="cs-muted">{{ $customer->company_name ?: 'Customer #'.str_pad($customer->id,4,'0',STR_PAD_LEFT) }}</div></div></div></td>
                     <td>{{ $customer->country ?: '-' }}</td><td>{{ $customer->phone ?: '-' }}</td><td>{{ $customer->email ?: '-' }}</td>
+                    @if($customer->isIncomeCustomer())
+                        @php($__ibal = $customer->incomeEntries->sum(fn($e) => $e->balance))
+                        <td colspan="3"><span class="cs-status" style="background:#ede9fe;color:#6d28d9"><i class="fas fa-home"></i> {{ $customer->income_head ?: 'Other income' }}</span> <span class="cs-muted">{{ $customer->currency }} {{ number_format((float)$customer->recurring_amount,2) }}/month · day {{ $customer->recurring_day }}</span>
+                            @if($__ibal > 0.009)<div style="margin-top:.25rem;font-weight:800;color:#b91c1c">Due: {{ $customer->currency }} {{ number_format($__ibal,2) }}</div>@else<div style="margin-top:.25rem;font-weight:800;color:#15803d">All paid</div>@endif</td>
+                    @else
                     <td>{{ $customer->sales_count }}</td><td>{{ $customer->currency }} {{ number_format($customer->sales->sum('total_amount'),2) }}</td><td>{{ $customer->currency }} {{ number_format($customer->sales->sum('balance_amount'),2) }}</td>
+                    @endif
                     <td><div class="cs-row-actions">
-                        <a class="cs-link" href="{{ route('crm.customer_sales.index',['customer_id'=>$customer->id]) }}">View Sales <i class="fas fa-arrow-right"></i></a>
+                        <a class="cs-link" href="{{ route('crm.customer_sales.index',['customer_id'=>$customer->id]) }}">{{ $customer->isIncomeCustomer() ? 'Monthly dues' : 'View Sales' }} <i class="fas fa-arrow-right"></i></a>
                         @if(Auth::guard('crm')->user()->isAdmin() || Auth::guard('crm')->user()->isSalesManager() || Auth::guard('crm')->user()->isAccounts())
                             <form method="POST" action="{{ route('crm.customers.destroy', $customer->id) }}" onsubmit="return confirm('Delete this empty customer profile? This cannot be undone.');">
                                 @csrf @method('DELETE')
-                                <button class="cs-delete" type="submit" title="{{ $customer->sales_count ? 'Customer has sales records' : 'Delete customer' }}" aria-label="Delete customer" {{ $customer->sales_count ? 'disabled' : '' }}><i class="fas fa-trash-alt"></i></button>
+                                @php($__locked = $customer->sales_count || $customer->incomeEntries->sum('amount_paid') > 0)
+                                <button class="cs-delete" type="submit" title="{{ $__locked ? 'Customer has records' : 'Delete customer' }}" aria-label="Delete customer" {{ $__locked ? 'disabled' : '' }}><i class="fas fa-trash-alt"></i></button>
                             </form>
                         @endif
                     </div></td>
@@ -63,6 +70,66 @@
             </tbody>
         </table>
     </div>
+@elseif($selectedCustomer->isIncomeCustomer())
+    <a class="cs-back" href="{{ route('crm.customer_sales.index') }}"><i class="fas fa-arrow-left"></i> All Customers</a>
+    <div class="cs-hero"><div><h2>{{ $selectedCustomer->name }} <span class="cs-status" style="background:#ede9fe;color:#6d28d9;font-size:.7rem;vertical-align:middle"><i class="fas fa-home"></i> {{ $selectedCustomer->income_head ?: 'Other income' }}</span></h2><div class="cs-muted">{{ $selectedCustomer->company_name }} · {{ $selectedCustomer->country }} · {{ $selectedCustomer->email }} · {{ $selectedCustomer->currency }} {{ number_format((float)$selectedCustomer->recurring_amount,2) }} every month, due on day {{ $selectedCustomer->recurring_day }}{{ $selectedCustomer->recurring_active ? '' : ' · schedule paused' }}</div></div>
+        @if($canEditIncome)<button class="cs-btn cs-btn-soft" type="button" onclick="document.getElementById('incomeScheduleModal').style.display='flex'"><i class="fas fa-cog"></i> Schedule</button>@endif</div>
+    <div class="cs-stats">
+        <div class="cs-stat"><span>Total Due (all months)</span><strong>{{ $selectedCustomer->currency }} {{ number_format($incomeSummary['due'],2) }}</strong></div>
+        <div class="cs-stat"><span>Received</span><strong>{{ $selectedCustomer->currency }} {{ number_format($incomeSummary['paid'],2) }}</strong></div>
+        <div class="cs-stat"><span>Outstanding</span><strong style="color:{{ $incomeSummary['balance'] > 0.009 ? '#b91c1c' : '#15803d' }}">{{ $selectedCustomer->currency }} {{ number_format($incomeSummary['balance'],2) }}</strong></div>
+        <div class="cs-stat"><span>Overdue months</span><strong>{{ $incomeSummary['overdue'] }}</strong></div>
+    </div>
+    @if($canEditIncome)
+    <form method="POST" action="{{ route('crm.income.add_period', $selectedCustomer->id) }}" class="cs-toolbar" style="gap:.5rem;align-items:flex-end;flex-wrap:wrap">{{ csrf_field() }}
+        <div style="flex:0 0 150px"><label class="cs-muted" style="font-size:.68rem;font-weight:800">Add a month</label><input class="cs-control" type="month" name="period" value="{{ now()->addMonth()->format('Y-m') }}" required></div>
+        <div style="flex:0 0 140px"><label class="cs-muted" style="font-size:.68rem;font-weight:800">Amount</label><input class="cs-control" type="number" step=".01" min="0" name="amount_due" value="{{ $selectedCustomer->recurring_amount }}" required></div>
+        <div style="flex:0 0 160px"><label class="cs-muted" style="font-size:.68rem;font-weight:800">Head</label><input class="cs-control" name="income_head" value="{{ $selectedCustomer->income_head }}"></div>
+        <button class="cs-btn cs-btn-soft" style="flex:0 0 auto"><i class="fas fa-plus"></i> Add</button>
+        <span class="cs-muted" style="font-size:.7rem">Months are created automatically every month; use this for a one-off charge or next month in advance.</span>
+    </form>
+    @endif
+    <div class="cs-table-wrap"><table class="cs-table"><thead><tr><th>Month</th><th>Head</th><th>Due date</th><th>Due</th><th>Received</th><th>Balance</th><th>Status</th><th>Paid on / Method / Ref</th><th>Proof</th><th>{{ $canEditIncome ? 'Record payment' : '' }}</th></tr></thead><tbody>
+    @forelse($incomeEntries as $e)
+        @php($__st = $e->status)
+        <tr>
+            <td><strong>{{ $e->period_label }}</strong></td>
+            <td>{{ $e->income_head }}</td>
+            <td>{{ $e->due_date->format('d M Y') }}</td>
+            <td>
+                @if($canEditIncome)<form method="POST" action="{{ route('crm.income.update_due', $e->id) }}" class="cs-pay" title="Change this month's due">{{ csrf_field() }}{{ method_field('PUT') }}<input class="cs-control" name="amount_due" type="number" step=".01" min="0" value="{{ $e->amount_due }}" style="width:110px"><button class="cs-icon-btn" title="Save due"><i class="fas fa-save"></i></button></form>
+                @else{{ number_format($e->amount_due,2) }}@endif
+            </td>
+            <td>{{ number_format($e->amount_paid,2) }}</td>
+            <td style="font-weight:800;color:{{ $e->balance > 0.009 ? '#b91c1c' : '#15803d' }}">{{ number_format($e->balance,2) }}</td>
+            <td><span class="cs-status" style="{{ $__st==='paid' ? 'background:#dcfce7;color:#15803d' : ($__st==='partial' ? 'background:#fef3c7;color:#b45309' : ($__st==='overdue' ? 'background:#fee2e2;color:#b91c1c' : 'background:#e0f2fe;color:#0369a1')) }}">{{ ucfirst($__st) }}</span></td>
+            <td class="cs-muted">{{ $e->paid_at ? $e->paid_at->format('d M Y') : '—' }}{{ $e->payment_method ? ' · '.$e->payment_method : '' }}{{ $e->reference ? ' · '.$e->reference : '' }}{{ $e->note ? ' · '.$e->note : '' }}</td>
+            <td>@if($e->proof_path)<a class="cs-link" href="{{ route('crm.income.proof', $e->id) }}" target="_blank"><i class="fas fa-paperclip"></i> View</a>@else—@endif</td>
+            <td>
+                @if($canEditIncome)
+                <form method="POST" action="{{ route('crm.income.pay', $e->id) }}" enctype="multipart/form-data" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;min-width:420px">{{ csrf_field() }}
+                    <input class="cs-control" name="amount_paid" type="number" step=".01" min="0" value="{{ $e->amount_paid > 0 ? $e->amount_paid : $e->amount_due }}" style="width:105px" title="Amount received">
+                    <input class="cs-control" name="paid_at" type="date" value="{{ optional($e->paid_at)->format('Y-m-d') ?: date('Y-m-d') }}" style="width:140px">
+                    <select class="cs-control" name="payment_method" style="width:110px">@foreach(['Cash','Bank Transfer','Cheque','Card','Online'] as $m)<option {{ $e->payment_method===$m?'selected':'' }}>{{ $m }}</option>@endforeach</select>
+                    <input class="cs-control" name="reference" placeholder="Ref #" value="{{ $e->reference }}" style="width:95px">
+                    <input class="cs-control" name="proof" type="file" accept=".jpg,.jpeg,.png,.pdf,.webp" style="width:170px;padding:.4rem">
+                    <button class="cs-btn cs-btn-primary" style="padding:.5rem .8rem"><i class="fas fa-check"></i> Save</button>
+                </form>
+                @endif
+            </td>
+        </tr>
+    @empty<tr><td colspan="10" class="cs-empty">No months due yet — check the schedule start month.</td></tr>@endforelse
+    </tbody></table></div>
+    @if($canEditIncome)
+    <div class="cs-modal-bg" id="incomeScheduleModal" onclick="if(event.target===this)this.style.display='none'"><div class="cs-modal" style="max-width:560px"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-cog"></i></span><div><h3>Recurring schedule</h3><div class="cs-muted">{{ $selectedCustomer->name }}</div></div></div><button class="cs-close" type="button" onclick="document.getElementById('incomeScheduleModal').style.display='none'"><i class="fas fa-times"></i></button></div>
+        <form method="POST" action="{{ route('crm.income.schedule', $selectedCustomer->id) }}" class="cs-form">{{ csrf_field() }}{{ method_field('PUT') }}<div class="cs-grid">
+            <div class="cs-field-6"><label>Income head *</label><input class="cs-control" name="income_head" value="{{ $selectedCustomer->income_head }}" list="incomeHeads" required></div>
+            <div class="cs-field-6"><label>Monthly amount ({{ $selectedCustomer->currency }}) *</label><input class="cs-control" type="number" step=".01" min="0" name="recurring_amount" value="{{ $selectedCustomer->recurring_amount }}" required></div>
+            <div class="cs-field-6"><label>Due day of month *</label><input class="cs-control" type="number" min="1" max="31" name="recurring_day" value="{{ $selectedCustomer->recurring_day }}" required></div>
+            <div class="cs-field-6"><label>First month *</label><input class="cs-control" type="month" name="recurring_start" value="{{ optional($selectedCustomer->recurring_start)->format('Y-m') }}" required></div>
+            <div class="cs-field-12"><label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" name="recurring_active" value="1" {{ $selectedCustomer->recurring_active ? 'checked' : '' }}> Active — keep creating a due row every month</label></div>
+        </div><div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="document.getElementById('incomeScheduleModal').style.display='none'">Cancel</button><button class="cs-btn cs-btn-primary">Save</button></div></form></div></div>
+    @endif
 @else
     <a class="cs-back" href="{{ route('crm.customer_sales.index') }}"><i class="fas fa-arrow-left"></i> All Customers</a>
     <div class="cs-hero"><div><h2>{{ $selectedCustomer->name }}</h2><div class="cs-muted">{{ $selectedCustomer->company_name }} · {{ $selectedCustomer->country }} · {{ $selectedCustomer->email }}</div></div><span class="cs-status">{{ $selectedCustomer->currency }}</span></div>
@@ -98,6 +165,19 @@
     <div class="cs-field-6"><label>Customer Name *</label><input class="cs-control" name="name" required></div><div class="cs-field-6"><label>Company</label><input class="cs-control" name="company_name"></div>
     <div class="cs-field"><label>Phone</label><input class="cs-control" name="phone"></div><div class="cs-field"><label>Email</label><input class="cs-control" type="email" name="email"></div><div class="cs-field"><label>Country *</label><select class="cs-control" name="country" id="customerCountry" required><option value="">Select country</option></select></div>
     <div class="cs-field"><label>Currency *</label><select class="cs-control" name="currency" id="customerCurrency" required>@foreach(['AED','USD','GBP','EUR','PKR','SAR','QAR','OMR','KWD','CAD','AUD'] as $currency)<option>{{ $currency }}</option>@endforeach</select></div><div class="cs-field"><label>TRN / Tax Number</label><input class="cs-control" name="tax_number"></div>
+    @if($canEditIncome)
+    <div class="cs-field-12" style="padding:.7rem .85rem;border:1px solid #e9e5ff;border-radius:12px;background:#faf9ff">
+        <label>Customer type</label>
+        <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:.82rem"><label style="display:flex;gap:.4rem;align-items:center"><input type="radio" name="customer_type" value="sales" checked onchange="csToggleIncome()"> Sales customer (orders & invoices)</label><label style="display:flex;gap:.4rem;align-items:center"><input type="radio" name="customer_type" value="income" onchange="csToggleIncome()"> Other income — rent, service charges… (monthly due)</label></div>
+        <div id="csIncomeFields" style="display:none;margin-top:.7rem" class="cs-grid">
+            <div class="cs-field"><label>Income head *</label><input class="cs-control" name="income_head" list="incomeHeads" placeholder="Rent"><datalist id="incomeHeads"><option value="Rent"><option value="Service charges"><option value="Utilities"><option value="Commission"><option value="Other income"></datalist></div>
+            <div class="cs-field"><label>Monthly amount *</label><input class="cs-control" type="number" step=".01" min="0" name="recurring_amount"></div>
+            <div class="cs-field"><label>Due day of month *</label><input class="cs-control" type="number" min="1" max="31" name="recurring_day" value="1"></div>
+            <div class="cs-field-6"><label>First month *</label><input class="cs-control" type="month" name="recurring_start" value="{{ date('Y-m') }}"></div>
+            <div class="cs-field-6 cs-muted" style="align-self:end;font-size:.72rem">A due row is created for every month from the first month onward; Accounts records what is received against each.</div>
+        </div>
+    </div>
+    @endif
     <div class="cs-field-6"><label>Billing Address</label><textarea class="cs-control" name="billing_address"></textarea></div><div class="cs-field-6"><label>Shipping Address</label><textarea class="cs-control" name="shipping_address"></textarea></div><div class="cs-field-12"><label>Notes</label><textarea class="cs-control" name="notes"></textarea></div>
 </div><div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="closeCustomerModal()">Cancel</button><button class="cs-btn cs-btn-primary">Save Customer</button></div></form></div></div>
 
@@ -117,6 +197,7 @@
 @section('scripts')
 <script>
 function filterCustomers(value){var q=(value||'').toLowerCase().trim();document.querySelectorAll('#customersTable tbody tr[data-search]').forEach(function(row){row.style.display=!q||(row.getAttribute('data-search')||'').indexOf(q)!==-1?'table-row':'none'})}
+function csToggleIncome(){var r=document.querySelector('input[name=customer_type]:checked');var box=document.getElementById('csIncomeFields');if(!box)return;var on=r&&r.value==='income';box.style.display=on?'grid':'none';box.querySelectorAll('input').forEach(function(i){ if(['income_head','recurring_amount','recurring_day','recurring_start'].indexOf(i.name)!==-1) i.required=on; });}
 function openCustomerModal(){document.getElementById('customerModal').style.display='flex';document.body.style.overflow='hidden'}function closeCustomerModal(){document.getElementById('customerModal').style.display='none';document.body.style.overflow=''}
 (function(){var select=document.getElementById('customerCountry');if(!select)return;var fallback=['United Arab Emirates','United States','United Kingdom','Pakistan','Saudi Arabia','Qatar','Oman','Kuwait','Bahrain','Canada','Australia','India','China','Germany','France'];function render(list){select.innerHTML='<option value="">Select country</option>';list.sort().forEach(function(name){var option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option)})}fetch('https://restcountries.com/v3.1/all?fields=name').then(function(r){return r.json()}).then(function(rows){render(rows.map(function(row){return row.name.common}))}).catch(function(){render(fallback)})})();
 @if($selectedCustomer)

@@ -15,6 +15,8 @@ class Kernel extends ConsoleKernel
         // Mail client: pull new mail for every connected mailbox. Runs inline (no queue
         // worker required); each account is protected by its own cache lock.
         $schedule->command('crm:mail-sync')->everyMinute()->withoutOverlapping(10)->runInBackground();
+        // Rent / other income: create each month's due row so it shows as due until paid.
+        $schedule->command('crm:income-dues')->dailyAt('00:10');
     }
 
     /**

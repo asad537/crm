@@ -15,14 +15,32 @@ class CustomerSaleController extends Controller
     {
         $this->authorizeAccess();
 
+        $user = \Auth::guard('crm')->user();
+        $canSeeIncome = $user->isAdmin() || $user->isSuperAdmin() || $user->isAccounts() || $user->isSalesManager();
+        $canEditIncome = $user->isAdmin() || $user->isSuperAdmin() || $user->isAccounts();
+        app(\App\Services\IncomeDueService::class)->ensureAll(); // this month's rent dues exist before we show anything
+
         $customers = CrmCustomer::withCount('sales')
-            ->with(['sales:id,customer_id,total_amount,paid_amount,balance_amount'])
+            ->with(['sales:id,customer_id,total_amount,paid_amount,balance_amount', 'incomeEntries'])
+            ->when(!$canSeeIncome, fn ($q) => $q->where('customer_type', '!=', 'income'))
             ->orderBy('name')
             ->get();
 
         $selectedCustomer = $request->filled('customer_id')
             ? CrmCustomer::findOrFail($request->customer_id)
             : null;
+        if ($selectedCustomer && $selectedCustomer->isIncomeCustomer() && !$canSeeIncome) abort(403);
+        $incomeEntries = collect();
+        $incomeSummary = null;
+        if ($selectedCustomer && $selectedCustomer->isIncomeCustomer()) {
+            $incomeEntries = $selectedCustomer->incomeEntries()->get();
+            $incomeSummary = [
+                'due' => (float) $incomeEntries->sum('amount_due'),
+                'paid' => (float) $incomeEntries->sum('amount_paid'),
+                'balance' => (float) $incomeEntries->sum(fn ($e) => $e->balance),
+                'overdue' => $incomeEntries->filter(fn ($e) => $e->status === 'overdue')->count(),
+            ];
+        }
         $directoryOrderCount = $customers->sum('sales_count');
         $directorySalesTotal = $customers->sum(function ($customer) {
             return $customer->sales->sum('total_amount');
@@ -61,7 +79,7 @@ class CustomerSaleController extends Controller
             ];
         }
 
-        return view('crm.customer_sales.index', compact('customers', 'selectedCustomer', 'sales', 'summary', 'directorySummary'));
+        return view('crm.customer_sales.index', compact('customers', 'selectedCustomer', 'sales', 'summary', 'directorySummary', 'incomeEntries', 'incomeSummary', 'canEditIncome', 'canSeeIncome'));
     }
 
     public function storeCustomer(Request $request)
@@ -78,8 +96,30 @@ class CustomerSaleController extends Controller
             'tax_number' => 'nullable|string|max:100',
             'currency' => 'required|string|max:10',
             'notes' => 'nullable|string',
+            'customer_type' => 'nullable|in:sales,income',
+            'income_head' => 'nullable|string|max:80',
+            'recurring_amount' => 'nullable|numeric|min:0',
+            'recurring_day' => 'nullable|integer|min:1|max:31',
+            'recurring_start' => 'nullable|date_format:Y-m',
         ]);
+        $user = \Auth::guard('crm')->user();
+        if (($data['customer_type'] ?? 'sales') === 'income') {
+            if (!$user->isAdmin() && !$user->isSuperAdmin() && !$user->isAccounts()) {
+                abort(403, 'Only Accounts / Admin can add other-income customers.');
+            }
+            $request->validate(['income_head' => 'required', 'recurring_amount' => 'required|numeric|min:0.01', 'recurring_day' => 'required', 'recurring_start' => 'required']);
+            $data['recurring_start'] = $data['recurring_start'] . '-01';
+            $data['recurring_active'] = true;
+        } else {
+            $data['customer_type'] = 'sales';
+            unset($data['income_head'], $data['recurring_amount'], $data['recurring_day'], $data['recurring_start']);
+        }
         $customer = CrmCustomer::create($data);
+        if ($customer->isIncomeCustomer()) {
+            app(\App\Services\IncomeDueService::class)->ensureDues($customer);
+            return redirect()->route('crm.customer_sales.index', ['customer_id' => $customer->id])
+                ->with('success', 'Income customer added. Monthly dues are listed below.');
+        }
 
         return redirect()->route('crm.customer_sales.index', ['customer_id' => $customer->id])
             ->with('success', 'Customer added successfully. You can now add a sale.');
@@ -98,6 +138,11 @@ class CustomerSaleController extends Controller
                 return redirect()->route('crm.customer_sales.index')
                     ->with('error', 'Customer has sales records and cannot be deleted.');
             }
+            if ($customer->incomeEntries()->where('amount_paid', '>', 0)->exists()) {
+                return redirect()->route('crm.customer_sales.index')
+                    ->with('error', 'Customer has recorded income payments and cannot be deleted. Deactivate the schedule instead.');
+            }
+            $customer->incomeEntries()->delete();
 
             $email = strtolower(trim((string) $customer->email));
             if ($email !== '' && CrmEmail::where('workspace_id', $customer->workspace_id)

@@ -33,11 +33,12 @@ class GeneralLedgerController extends Controller
             'count'   => (int)   $payableAgg->c,
         ];
         $receivableAll = $this->receivableRows();
+        $income = \App\CrmIncomeEntry::with('customer')->get(); // rent / other income dues
         $receivableTotals = [
-            'total' => $receivableAll->sum('total'),
-            'received' => $receivableAll->where('is_received', true)->sum('total'),
-            'pending' => $receivableAll->where('is_received', false)->sum('total'),
-            'count' => $receivableAll->count(),
+            'total' => $receivableAll->sum('total') + (float) $income->sum('amount_due'),
+            'received' => $receivableAll->where('is_received', true)->sum('total') + (float) $income->sum('amount_paid'),
+            'pending' => $receivableAll->where('is_received', false)->sum('total') + (float) $income->sum(fn ($e) => $e->balance),
+            'count' => $receivableAll->count() + $income->count(),
         ];
 
         // Party dropdown options: customers (receivable) and/or vendors (payable),
@@ -47,6 +48,7 @@ class GeneralLedgerController extends Controller
                 ->filter()->unique()->sort()->values() : collect();
         $customerNames = $receivableAll
                 ->map(fn ($r) => $r->lead->client_name ?? null)
+                ->concat($income->map(fn ($e) => optional($e->customer)->name))
                 ->filter()->unique()->sort()->values();
         if ($tab === 'payable') {
             $partyOptions = $vendorNames;
@@ -226,6 +228,29 @@ class GeneralLedgerController extends Controller
                     'status_tone' => $status === 'received' ? 'ok' : ($status === 'approved' ? 'part' : 'due'),
                     'term' => trim(($order->payment_term ? ucwords(str_replace('_', ' ', $order->payment_term)) : '').($order->credit_days ? ' · '.$order->credit_days.'d' : '')) ?: null,
                     'settled_at' => $order->final_payment_received_at ?: $order->balance_received_at,
+                ]);
+            }
+            // Rent / other income: one receivable line per month due.
+            foreach (\App\CrmIncomeEntry::with('customer')->get() as $e) {
+                $date = \Carbon\Carbon::parse($e->due_date);
+                if ($filters['date_from'] && $date->lt(\Carbon\Carbon::parse($filters['date_from'])->startOfDay())) continue;
+                if ($filters['date_to'] && $date->gt(\Carbon\Carbon::parse($filters['date_to'])->endOfDay())) continue;
+                $st = $e->status; // paid | partial | overdue | due
+                $entries->push((object) [
+                    'type' => 'receivable',
+                    'date' => $date,
+                    'party' => optional($e->customer)->name ?: '—',
+                    'ref' => ($e->income_head ?: 'Income') . ' ' . $e->period_label,
+                    'detail' => ($e->income_head ?: 'Other income') . ' — ' . $e->period_label . ($e->reference ? ' · ' . $e->reference : ''),
+                    'total' => (float) $e->amount_due,
+                    'paid' => (float) $e->amount_paid,
+                    'balance' => $e->balance,
+                    'currency' => optional($e->customer)->currency ?: 'AED',
+                    'status' => $st === 'paid' ? 'received' : ($st === 'partial' ? 'approved' : 'pending'),
+                    'status_label' => $st === 'paid' ? 'Received' : ($st === 'partial' ? 'Partial' : ($st === 'overdue' ? 'Overdue' : 'Due')),
+                    'status_tone' => $st === 'paid' ? 'ok' : ($st === 'partial' ? 'part' : 'due'),
+                    'term' => $e->payment_method ?: 'Monthly',
+                    'settled_at' => $e->paid_at,
                 ]);
             }
         }

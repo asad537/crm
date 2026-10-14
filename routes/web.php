@@ -302,6 +302,11 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         // Customer sales add-on
         Route::get('customer-sales', 'CustomerSaleController@index')->name('crm.customer_sales.index');
         Route::post('customers', 'CustomerSaleController@storeCustomer')->name('crm.customers.store');
+        Route::post('income/entries/{entry}/pay', 'OtherIncomeController@pay')->name('crm.income.pay');
+        Route::put('income/entries/{entry}', 'OtherIncomeController@updateDue')->name('crm.income.update_due');
+        Route::get('income/entries/{entry}/proof', 'OtherIncomeController@proof')->name('crm.income.proof');
+        Route::post('income/customers/{customer}/periods', 'OtherIncomeController@addPeriod')->name('crm.income.add_period');
+        Route::put('income/customers/{customer}/schedule', 'OtherIncomeController@updateSchedule')->name('crm.income.schedule');
         Route::delete('customers/{id}', 'CustomerSaleController@destroyCustomer')->name('crm.customers.destroy');
         Route::post('customer-sales', 'CustomerSaleController@storeSale')->name('crm.customer_sales.store');
         Route::put('customer-sales/{id}', 'CustomerSaleController@updateSale')->name('crm.customer_sales.update');
