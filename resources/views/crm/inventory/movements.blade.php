@@ -22,13 +22,14 @@
     </div>
     <div class="invm-wrap">
         <table class="invm-table">
-            <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Balance</th><th>Job</th><th>Reference</th><th>By</th></tr></thead>
+            <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Rate</th><th>Balance</th><th>Job</th><th>Reference</th><th>By</th></tr></thead>
             <tbody>
             @forelse($movements as $m)
                 <tr>
                     <td style="white-space:nowrap;color:#64748b">{{ $m->created_at->format('d M Y, h:i A') }}</td>
                     <td><span class="invm-tag {{ $m->type }}">{{ $m->type === 'in' ? 'Stock In' : ($m->type === 'out' ? 'Used' : 'Adjust') }}</span></td>
                     <td style="font-weight:800;color:{{ $m->type==='out' ? '#be123c' : '#047857' }}">{{ $m->type==='out' ? '−' : '+' }}{{ rtrim(rtrim(number_format($m->quantity,3,'.',''),'0'),'.') }}</td>
+                    <td>{{ $m->unit_cost !== null ? number_format($m->unit_cost,2) : '—' }}</td>
                     <td>{{ rtrim(rtrim(number_format($m->balance_after,3,'.',''),'0'),'.') }}</td>
                     <td>{{ $m->job_number ?: '—' }}</td>
                     <td>{{ $m->reference ?: '—' }}@if($m->note)<div style="color:#94a3b8;font-size:.68rem">{{ $m->note }}</div>@endif</td>
