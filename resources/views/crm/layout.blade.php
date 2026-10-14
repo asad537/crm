@@ -2074,6 +2074,24 @@
             }, true);
         })();
     </script>
+<script>
+// Inline flash banners (saved / updated / error notices rendered by pages) fade out by themselves after 2s,
+// same as toasts. Works on first load and after AJAX partial navigation.
+(function(){
+    function autoDismiss(root){
+        (root||document).querySelectorAll('.inv-flash, .dr-flash, .dj-banner, .cs-flash, [data-autodismiss]').forEach(function(el){
+            if (el.__dismissArmed) return; el.__dismissArmed = true;
+            el.style.transition = 'opacity .4s, max-height .4s, margin .4s, padding .4s';
+            setTimeout(function(){ el.style.opacity = '0'; el.style.overflow = 'hidden'; el.style.maxHeight = el.offsetHeight + 'px';
+                requestAnimationFrame(function(){ el.style.maxHeight = '0'; el.style.marginTop = '0'; el.style.marginBottom = '0'; el.style.paddingTop = '0'; el.style.paddingBottom = '0'; });
+                setTimeout(function(){ el.remove(); }, 450); }, 2000);
+        });
+    }
+    autoDismiss();
+    window.__crmAutoDismissFlash = autoDismiss;
+    new MutationObserver(function(){ autoDismiss(); }).observe(document.body, {childList: true, subtree: true});
+})();
+</script>
 </body>
 
 </html>
