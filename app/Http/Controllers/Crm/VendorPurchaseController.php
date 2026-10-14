@@ -488,15 +488,21 @@ class VendorPurchaseController extends Controller
         $this->authorizeAccess();
         $search = trim((string) $request->input('search', ''));
         $selectedJob = trim((string) $request->input('job_id', ''));
+        // Older purchases used "General"/"Genral" as a placeholder Job ID. They are
+        // valid expenses, but must not become a job in the Job Expenses report.
+        $isJobId = static function ($value): bool {
+            $value = trim((string) $value);
+            return $value !== '' && !in_array(strtolower($value), ['general', 'genral'], true);
+        };
 
         // Attribute expense to jobs at the LINE-ITEM level: each item counts under its own
         // Job ID (extra.job_id) or, if it has none, the invoice header job_id. Amounts are the
         // item's share of the invoice total/paid/balance (by gross) so job totals tie to invoices.
         $jobItemRows = collect();
-        VendorPurchase::with('items')->get()->each(function ($p) use ($jobItemRows) {
+        VendorPurchase::with('items')->get()->each(function ($p) use ($jobItemRows, $isJobId) {
             if ($p->items->isEmpty()) {
                 $jobId = trim((string) $p->job_id);
-                if ($jobId !== '') {
+                if ($isJobId($jobId)) {
                     $jobItemRows->push((object) ['job_id' => $jobId, 'purchase_id' => $p->id, 'vendor_name' => $p->vendor_name, 'total' => (float) $p->total_amount, 'paid' => (float) $p->paid_amount, 'balance' => (float) $p->balance_amount, 'purchase_date' => $p->purchase_date, 'currency' => $p->currency]);
                 }
                 return;
@@ -506,7 +512,7 @@ class VendorPurchaseController extends Controller
             $count = $grosses->count();
             foreach ($p->items->values() as $i => $it) {
                 $jobId = trim((string) (data_get($it->extra, 'job_id') ?: $p->job_id));
-                if ($jobId === '') continue;
+                if (!$isJobId($jobId)) continue;
                 $ratio = $sumGross > 0 ? (float) $grosses[$i] / $sumGross : ($count ? 1 / $count : 0);
                 $jobItemRows->push((object) ['job_id' => $jobId, 'purchase_id' => $p->id, 'vendor_name' => $p->vendor_name, 'total' => round((float) $p->total_amount * $ratio, 2), 'paid' => round((float) $p->paid_amount * $ratio, 2), 'balance' => round((float) $p->balance_amount * $ratio, 2), 'purchase_date' => $p->purchase_date, 'currency' => $p->currency]);
             }
@@ -516,6 +522,7 @@ class VendorPurchaseController extends Controller
         // qty × the item's average cost at that time. Stock was already paid for, so paid = total.
         $stockMoves = \App\CrmInventoryMovement::with('item')->whereIn('type', ['out', 'in'])->whereNotNull('job_number')->where('job_number', '!=', '')->get();
         foreach ($stockMoves as $mv) {
+            if (!$isJobId($mv->job_number)) continue;
             $cost = round((float) $mv->quantity * (float) ($mv->unit_cost ?? optional($mv->item)->unit_cost ?? 0), 2);
             if ($mv->type === 'in') $cost = -$cost; // returned to stock → credit back to the job
             $jobItemRows->push((object) ['job_id' => trim($mv->job_number), 'purchase_id' => 'stock-' . $mv->id, 'vendor_name' => 'Inventory (stock)', 'total' => $cost, 'paid' => $cost, 'balance' => 0.0, 'purchase_date' => $mv->created_at, 'currency' => optional($mv->item)->currency ?: 'AED']);
@@ -523,6 +530,7 @@ class VendorPurchaseController extends Controller
 
         // A single job selected → show ONLY that job's purchases (matched on header OR any item).
         if ($selectedJob !== '') {
+            abort_unless($isJobId($selectedJob), 404);
             $rows = $jobItemRows->where('job_id', $selectedJob);
             $jobSummary = [
                 'job_id' => $selectedJob,
