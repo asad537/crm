@@ -52,12 +52,12 @@ class InventoryService
     }
 
     /** Inventory item that matches a demand line (name + specification + GSM, case-insensitive), created if missing. */
-    public function itemForDemandLine(DemandRequestItem $line, int $workspaceId): ?CrmInventoryItem
+    public function itemForDemandLine(DemandRequestItem $line, int $workspaceId, array $o = []): ?CrmInventoryItem
     {
-        $name = trim((string) $line->description);
+        $name = trim((string) ($o['name'] ?? $line->description));
         if ($name === '') return null;
-        $spec = trim((string) $line->specification) ?: null;
-        $gsm = trim((string) $line->gsm) ?: null;
+        $spec = trim((string) ($o['paper_size'] ?? $line->specification)) ?: null;
+        $gsm = trim((string) ($o['gsm'] ?? $line->gsm)) ?: null;
         $q = CrmInventoryItem::withoutGlobalScopes()->where('workspace_id', $workspaceId)->whereRaw('LOWER(name) = ?', [mb_strtolower($name)]);
         $q->where(function ($w) use ($spec) { $spec ? $w->whereRaw('LOWER(paper_size) = ?', [mb_strtolower($spec)]) : $w->whereNull('paper_size')->orWhere('paper_size', ''); });
         $q->where(function ($w) use ($gsm) { $gsm ? $w->whereRaw('LOWER(gsm) = ?', [mb_strtolower($gsm)]) : $w->whereNull('gsm')->orWhere('gsm', ''); });
@@ -66,29 +66,32 @@ class InventoryService
         return CrmInventoryItem::create([
             'workspace_id' => $workspaceId,
             'name' => $name,
-            'category' => trim((string) $line->category) ?: null,
+            'category' => trim((string) ($o['category'] ?? $line->category)) ?: null,
             'paper_size' => $spec,
             'gsm' => $gsm,
-            'unit' => 'pcs',
+            'unit' => trim((string) ($o['unit'] ?? '')) ?: 'pcs',
             'quantity' => 0,
-            'unit_cost' => $line->estimated_price,
+            'unit_cost' => $o['unit_cost'] ?? $line->estimated_price,
         ]);
     }
 
-    /** Mark a demand line received: stock goes IN. Idempotent (a second call does nothing). */
-    public function receiveDemandLine(DemandRequestItem $line, ?int $userId): ?CrmInventoryMovement
+    /**
+     * Put a received demand line INTO inventory. This is an explicit step the user confirms
+     * (name / size / GSM / unit / qty / cost can be corrected in $o). Idempotent per line.
+     */
+    public function receiveDemandLine(DemandRequestItem $line, ?int $userId, array $o = []): ?CrmInventoryMovement
     {
         $extra = (array) ($line->extra ?? []);
         if (!empty($extra['inventory_movement_id'])) return null; // already stocked in
-        $qty = self::numericQty($line->qty);
+        $qty = isset($o['qty']) && $o['qty'] !== '' ? (float) $o['qty'] : self::numericQty($line->qty);
         $request = $line->request()->first();
-        if (!$qty || !$request) return null;
-        $item = $this->itemForDemandLine($line, (int) $request->workspace_id);
+        if (!$qty || $qty <= 0 || !$request) return null;
+        $item = $this->itemForDemandLine($line, (int) $request->workspace_id, $o);
         if (!$item) return null;
         $mv = $this->move($item, 'in', $qty, [
-            'unit_cost' => $line->actual_price ?: $line->estimated_price,
+            'unit_cost' => isset($o['unit_cost']) && $o['unit_cost'] !== '' ? (float) $o['unit_cost'] : ($line->actual_price ?: $line->estimated_price),
             'reference' => 'Demand #' . $request->request_no . ' received',
-            'note' => trim(implode(' · ', array_filter([$line->vendor_name, $line->vendor_invoice_no ? 'Inv ' . $line->vendor_invoice_no : null]))) ?: null,
+            'note' => trim((string) ($o['note'] ?? '')) ?: (trim(implode(' · ', array_filter([$line->vendor_name, $line->vendor_invoice_no ? 'Inv ' . $line->vendor_invoice_no : null]))) ?: null),
         ], $userId);
         $extra['inventory_item_id'] = $item->id;
         $extra['inventory_movement_id'] = $mv->id;

@@ -49,11 +49,16 @@ class InventoryFlowTest extends TestCase
         $line = $dr->items()->first();
 
         $this->as($u)->postJson(route('crm.demand_requests.item_receive', [$dr->id, $line->id]))->assertOk()->assertJson(['received' => true]);
+        $this->assertNull(CrmInventoryItem::withoutGlobalScopes()->where('name', $name)->first(), 'receiving alone does not touch inventory');
+        // explicit entry (user confirms / corrects the values)
+        $this->as($u)->postJson(route('crm.demand_requests.item_stock_in', [$dr->id, $line->id]), ['name' => $name, 'paper_size' => '100x70', 'gsm' => '150', 'unit' => 'sheets', 'qty' => 6250, 'unit_cost' => 0.6])->assertOk();
         $item = CrmInventoryItem::withoutGlobalScopes()->where('name', $name)->first();
         $this->assertNotNull($item, 'an inventory item is created from the demand line');
         $this->assertSame(6250.0, (float) $item->quantity);
         $this->assertSame('100x70', $item->paper_size);
         $this->assertSame('150', $item->gsm);
+        $this->assertSame('sheets', $item->unit);
+        $this->as($u)->postJson(route('crm.demand_requests.item_stock_in', [$dr->id, $line->id]), ['name' => $name, 'qty' => 1])->assertStatus(422); // not twice
         $this->assertSame(1, CrmInventoryMovement::where('inventory_item_id', $item->id)->where('type', 'in')->count());
 
         // receiving twice does not double-count
@@ -70,9 +75,10 @@ class InventoryFlowTest extends TestCase
         $this->as($u)->postJson(route('crm.demand_requests.item_receive', [$dr->id, $line->id]))->assertOk()->assertJson(['received' => false]);
         $this->assertSame(0.0, (float) $item->fresh()->quantity);
 
-        // receive again, then delete the row → reversed and row gone
-        $this->as($u)->postJson(route('crm.demand_requests.item_receive', [$dr->id, $line->id]))->assertOk();
+        // stock in again (fresh entry), then delete the row → reversed and row gone
+        $this->as($u)->postJson(route('crm.demand_requests.item_stock_in', [$dr->id, $line->id]), ['name' => $name, 'paper_size' => '100x70', 'gsm' => '150', 'qty' => 6000])->assertOk();
         $this->assertSame(6000.0, (float) $item->fresh()->quantity);
+        $this->assertSame(1, CrmInventoryItem::withoutGlobalScopes()->where('name', $name)->count(), 'matched the existing item, no duplicate');
         $this->as($u)->deleteJson(route('crm.demand_requests.item_destroy', [$dr->id, $line->id]))->assertOk();
         $this->assertSame(0.0, (float) $item->fresh()->quantity);
         $this->assertSame(0, $dr->items()->count());

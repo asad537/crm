@@ -146,10 +146,14 @@
                         <button type="button" class="dr-icon dr-icon-danger" title="Delete this row" onclick="drDeleteRow(this)"><i class="fas fa-trash"></i></button>
                     </td>
                     <td style="white-space:nowrap">
-                        <button type="button" class="dr-recv {{ $it->received ? 'on' : '' }}" title="{{ $it->received ? 'Received '.optional($it->received_at)->format('d M Y').' — click to undo' : 'Mark as received (adds to inventory)' }}" onclick="drToggleReceived(this)">
+                        <button type="button" class="dr-recv {{ $it->received ? 'on' : '' }}" title="{{ $it->received ? 'Received '.optional($it->received_at)->format('d M Y').' — click to undo' : 'Mark as received' }}" onclick="drToggleReceived(this)">
                             <i class="fas {{ $it->received ? 'fa-check-circle' : 'fa-circle' }}"></i> {{ $it->received ? 'Received' : 'Receive' }}
                         </button>
-                        @if($it->received && !empty($__ix['inventory_item_id']))<div style="font-size:.6rem;color:#64748b;margin-top:.15rem"><i class="fas fa-boxes"></i> +{{ rtrim(rtrim(number_format((float)($__ix['inventory_qty'] ?? 0),3,'.',''),'0'),'.') }} in <a href="{{ route('crm.inventory.movements', $__ix['inventory_item_id']) }}" style="color:var(--primary-purple)">inventory</a></div>@endif
+                        @if($it->received && !empty($__ix['inventory_item_id']))
+                            <div style="font-size:.6rem;color:#64748b;margin-top:.15rem"><i class="fas fa-boxes"></i> +{{ rtrim(rtrim(number_format((float)($__ix['inventory_qty'] ?? 0),3,'.',''),'0'),'.') }} in <a href="{{ route('crm.inventory.movements', $__ix['inventory_item_id']) }}" style="color:var(--primary-purple)">inventory</a></div>
+                        @elseif($it->received)
+                            <div style="margin-top:.2rem"><button type="button" class="dr-recv" style="background:#eef2ff;color:var(--primary-purple);border-color:#e0e7ff" title="Enter this item into Inventory" onclick="drStockIn(this)"><i class="fas fa-boxes"></i> Add to inventory</button></div>
+                        @endif
                     </td>
                     <td data-f="category">{{ $it->category ?: '—' }}</td>
                     <td data-f="job_no">{{ $it->job_no ?: '—' }}</td>
@@ -482,6 +486,25 @@
         @endif
     </div>
 </div>
+<div class="inv-modal-bg" id="drStockModal" onclick="if(event.target===this)this.style.display='none'" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55)">
+    <div style="width:100%;max-width:560px;background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.25)">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.15rem;border-bottom:1px solid #edf1f5"><h3 style="margin:0;font-size:1rem"><i class="fas fa-boxes" style="color:var(--primary-purple)"></i> Add to Inventory</h3><button type="button" onclick="document.getElementById('drStockModal').style.display='none'" style="border:0;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer"><i class="fas fa-times"></i></button></div>
+        <form onsubmit="return drStockSubmit(this)">
+            <div style="padding:1rem 1.15rem;display:grid;grid-template-columns:1fr 1fr;gap:.7rem;font-size:.78rem">
+                <div style="grid-column:1/-1"><label style="font-weight:800;color:#475569">Item name *</label><input class="dr-control" name="name" required style="width:100%"></div>
+                <div><label style="font-weight:800;color:#475569">Category</label><input class="dr-control" name="category" style="width:100%"></div>
+                <div><label style="font-weight:800;color:#475569">Size / Specification</label><input class="dr-control" name="paper_size" style="width:100%"></div>
+                <div><label style="font-weight:800;color:#475569">GSM</label><input class="dr-control" name="gsm" style="width:100%"></div>
+                <div><label style="font-weight:800;color:#475569">Unit</label><input class="dr-control" name="unit" list="drUnits" style="width:100%"><datalist id="drUnits"><option value="pcs"><option value="sheets"><option value="rolls"><option value="kg"><option value="boxes"><option value="litre"></datalist></div>
+                <div><label style="font-weight:800;color:#475569">Quantity received *</label><input class="dr-control" name="qty" type="number" step="0.001" min="0.001" required style="width:100%"></div>
+                <div><label style="font-weight:800;color:#475569">Unit cost</label><input class="dr-control" name="unit_cost" type="number" step="0.01" min="0" style="width:100%"></div>
+                <div style="grid-column:1/-1"><label style="font-weight:800;color:#475569">Note</label><input class="dr-control" name="note" style="width:100%"></div>
+                <div style="grid-column:1/-1;font-size:.7rem;color:#64748b">Same name + size + GSM as an existing inventory item adds to that item; otherwise a new item is created.</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:.9rem 1.15rem;border-top:1px solid #edf1f5"><button type="button" class="dr-btn" onclick="document.getElementById('drStockModal').style.display='none'" style="background:#eef2f7;color:#475569">Cancel</button><button type="submit" class="dr-btn dr-btn-primary"><i class="fas fa-check"></i> Add to Inventory</button></div>
+        </form>
+    </div>
+</div>
 <script>
 // Inline per-row actions on the items table (edit / delete / received → inventory).
 var DR_ITEM_BASE = @json(url('/crm/demand-requests/'.$dr->id.'/items'));
@@ -493,6 +516,25 @@ function drReq(url, method, body){
 function drToggleReceived(btn){
     var tr = btn.closest('tr'); btn.disabled = true;
     drReq(DR_ITEM_BASE+'/'+tr.dataset.id+'/receive', 'POST').then(function(){ location.reload(); }).catch(function(e){ alert(e.message); btn.disabled = false; });
+}
+function drStockIn(btn){
+    var tr = btn.closest('tr'), d = JSON.parse(tr.dataset.item || '{}'), m = document.getElementById('drStockModal');
+    m.dataset.id = tr.dataset.id;
+    m.querySelector('[name=name]').value = d.description || '';
+    m.querySelector('[name=category]').value = d.category || '';
+    m.querySelector('[name=paper_size]').value = d.specification || '';
+    m.querySelector('[name=gsm]').value = d.gsm || '';
+    m.querySelector('[name=qty]').value = (String(d.qty||'').replace(/,/g,'').match(/\d+(\.\d+)?/)||[''])[0];
+    m.querySelector('[name=unit_cost]').value = d.estimated_price || '';
+    m.querySelector('[name=unit]').value = 'pcs';
+    m.querySelector('[name=note]').value = [d.vendor_name, d.vendor_invoice_no ? 'Inv '+d.vendor_invoice_no : ''].filter(Boolean).join(' · ');
+    m.style.display = 'flex'; m.querySelector('[name=name]').focus();
+}
+function drStockSubmit(form){
+    var m = document.getElementById('drStockModal'), body = {}; new FormData(form).forEach(function(v,k){ body[k]=v; });
+    var btn = form.querySelector('button[type=submit]'); btn.disabled = true;
+    drReq(DR_ITEM_BASE+'/'+m.dataset.id+'/stock-in', 'POST', body).then(function(){ location.reload(); }).catch(function(e){ alert(e.message); btn.disabled = false; });
+    return false;
 }
 function drDeleteRow(btn){
     var tr = btn.closest('tr');

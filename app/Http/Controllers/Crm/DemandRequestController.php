@@ -637,12 +637,31 @@ class DemandRequestController extends Controller
             $msg = 'Item #' . $item->position . ' marked not received; stock reversed.';
         } else {
             $item->forceFill(['received' => true, 'received_at' => now()])->save();
-            $mv = $inv->receiveDemandLine($item, $uid);
-            $msg = $mv
-                ? 'Item #' . $item->position . ' received — ' . rtrim(rtrim(number_format($mv->quantity, 3, '.', ''), '0'), '.') . ' added to inventory (' . $mv->item->name . ').'
-                : 'Item #' . $item->position . ' received (no numeric qty, so nothing was added to inventory).';
+            $msg = 'Item #' . $item->position . ' marked received. Use "Add to inventory" to stock it.';
         }
         return $request->expectsJson() ? response()->json(['success' => true, 'message' => $msg, 'received' => (bool) $item->received]) : back()->with('status', $msg);
+    }
+
+    /** Explicit inventory entry for a received line (user confirms/corrects name, size, GSM, unit, qty, cost). */
+    public function stockInItem(Request $request, $id, $itemId)
+    {
+        $this->authorizeAccess();
+        $dr = DemandRequest::findOrFail($id);
+        $item = $dr->items()->findOrFail($itemId);
+        $data = $request->validate([
+            'name' => 'required|string|max:190', 'category' => 'nullable|string|max:120', 'paper_size' => 'nullable|string|max:120',
+            'gsm' => 'nullable|string|max:60', 'unit' => 'nullable|string|max:30', 'qty' => 'required|numeric|min:0.001',
+            'unit_cost' => 'nullable|numeric|min:0', 'note' => 'nullable|string|max:500',
+        ]);
+        if (!$item->received) {
+            $item->forceFill(['received' => true, 'received_at' => now()])->save();
+        }
+        $mv = app(\App\Services\InventoryService::class)->receiveDemandLine($item, \Auth::guard('crm')->id(), $data);
+        if (!$mv) {
+            return response()->json(['success' => false, 'message' => 'This item is already in inventory.'], 422);
+        }
+        $msg = rtrim(rtrim(number_format($mv->quantity, 3, '.', ''), '0'), '.') . ' ' . $mv->item->unit . ' of ' . $mv->item->name . ' added to inventory.';
+        return $request->expectsJson() ? response()->json(['success' => true, 'message' => $msg]) : back()->with('status', $msg);
     }
 
     /** Inline edit of one item row. */
