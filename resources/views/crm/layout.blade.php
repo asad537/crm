@@ -1383,9 +1383,17 @@
                     </span>
                 </a>
                 <a href="{{ route('crm.vendor_purchases.index') }}"
-                    class="nav-item {{ request()->routeIs('crm.vendor_purchases.*') ? 'active' : '' }}">
+                    class="nav-item {{ request()->routeIs('crm.vendor_purchases.*') && !request()->routeIs('crm.vendor_purchases.jobs') ? 'active' : '' }}">
                     <i class="fas fa-truck-loading"></i>
                     <span class="nav-label">Vendors</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.vendor_purchases.jobs') }}"
+                    class="nav-item {{ request()->routeIs('crm.vendor_purchases.jobs') ? 'active' : '' }}">
+                    <i class="fas fa-briefcase"></i>
+                    <span class="nav-label">Job Expenses</span>
                     <span class="nav-right">
                         <i class="fas fa-chevron-right arrow"></i>
                     </span>
