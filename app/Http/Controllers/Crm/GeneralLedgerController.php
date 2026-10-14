@@ -43,10 +43,10 @@ class GeneralLedgerController extends Controller
 
         // Party dropdown options: customers (receivable) and/or vendors (payable),
         // built from the names that actually appear in the ledger for this tab.
-        $vendorNames = $payableTotals ? VendorPurchase::get()
+        $vendorNames = $payableTotals ? VendorPurchase::get()->toBase()
                 ->map(fn ($p) => $p->vendor_name ?: optional($p->vendor)->name)
                 ->filter()->unique()->sort()->values() : collect();
-        $customerNames = $receivableAll
+        $customerNames = $receivableAll->toBase()
                 ->map(fn ($r) => $r->lead->client_name ?? null)
                 ->concat($income->map(fn ($e) => optional($e->customer)->name))
                 ->filter()->unique()->sort()->values();

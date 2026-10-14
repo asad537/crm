@@ -11,7 +11,7 @@ class CrmIncomeEntry extends Model
 
     protected $fillable = [
         'workspace_id', 'customer_id', 'income_head', 'period', 'due_date', 'amount_due', 'amount_paid',
-        'paid_at', 'payment_method', 'reference', 'proof_path', 'note', 'created_by', 'paid_recorded_by',
+        'paid_at', 'payment_method', 'reference', 'proof_path', 'note', 'created_by', 'paid_recorded_by', 'import_source_key',
     ];
 
     protected $casts = ['due_date' => 'date', 'paid_at' => 'date', 'amount_due' => 'decimal:2', 'amount_paid' => 'decimal:2'];

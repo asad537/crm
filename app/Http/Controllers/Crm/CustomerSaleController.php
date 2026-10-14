@@ -30,9 +30,10 @@ class CustomerSaleController extends Controller
             ? CrmCustomer::findOrFail($request->customer_id)
             : null;
         if ($selectedCustomer && $selectedCustomer->isIncomeCustomer() && !$canSeeIncome) abort(403);
+        if ($request->query('view') === 'income' && !$canSeeIncome) abort(403);
         $incomeEntries = collect();
         $incomeSummary = null;
-        if ($selectedCustomer && $selectedCustomer->isIncomeCustomer()) {
+        if ($selectedCustomer && $canSeeIncome) {
             $incomeEntries = $selectedCustomer->incomeEntries()->get();
             $incomeSummary = [
                 'due' => (float) $incomeEntries->sum('amount_due'),
@@ -41,6 +42,9 @@ class CustomerSaleController extends Controller
                 'overdue' => $incomeEntries->filter(fn ($e) => $e->status === 'overdue')->count(),
             ];
         }
+        $showIncome = $selectedCustomer && ($selectedCustomer->isIncomeCustomer() || ($request->query('view') === 'income' && $incomeEntries->isNotEmpty()));
+        $hasBoth = $selectedCustomer && $incomeEntries->isNotEmpty()
+            && CustomerSale::where('customer_id', $selectedCustomer->id)->exists();
         $directoryOrderCount = $customers->sum('sales_count');
         $directorySalesTotal = $customers->sum(function ($customer) {
             return $customer->sales->sum('total_amount');
@@ -52,7 +56,7 @@ class CustomerSaleController extends Controller
         ];
 
         $sales = collect();
-        $summary = ['total' => 0, 'paid' => 0, 'balance' => 0, 'open_count' => 0];
+        $summary = ['total' => 0, 'paid' => 0, 'balance' => 0, 'credit' => 0, 'open_count' => 0];
 
         if ($selectedCustomer) {
             $query = CustomerSale::where('customer_id', $selectedCustomer->id)
@@ -75,11 +79,13 @@ class CustomerSaleController extends Controller
                 'total' => (clone $base)->sum('total_amount'),
                 'paid' => (clone $base)->sum('paid_amount'),
                 'balance' => (clone $base)->sum('balance_amount'),
+                'credit' => (clone $base)->get(['total_amount', 'paid_amount'])
+                    ->sum(fn ($sale) => max(0, round((float) $sale->paid_amount - (float) $sale->total_amount, 2))),
                 'open_count' => (clone $base)->whereNotIn('order_status', ['Completed', 'Cancelled'])->count(),
             ];
         }
 
-        return view('crm.customer_sales.index', compact('customers', 'selectedCustomer', 'sales', 'summary', 'directorySummary', 'incomeEntries', 'incomeSummary', 'canEditIncome', 'canSeeIncome'));
+        return view('crm.customer_sales.index', compact('customers', 'selectedCustomer', 'sales', 'summary', 'directorySummary', 'incomeEntries', 'incomeSummary', 'canEditIncome', 'canSeeIncome', 'showIncome', 'hasBoth'));
     }
 
     public function storeCustomer(Request $request)
@@ -88,6 +94,7 @@ class CustomerSaleController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:60',
             'email' => 'nullable|email|max:255',
             'country' => 'required|string|max:100',
@@ -182,7 +189,7 @@ class CustomerSaleController extends Controller
             return redirect()->route('crm.orders.invoice.edit', $sale->crm_email_id)
                 ->with('error', 'This sale is linked to an order. Edit its invoice instead.');
         }
-        $data = $this->validateSale($request);
+        $data = $this->validateSale($request, $sale);
         $this->calculateSale($data);
         $sale->update($data);
 
@@ -198,9 +205,9 @@ class CustomerSaleController extends Controller
             return redirect()->route('crm.orders.invoice', $sale->crm_email_id)
                 ->with('error', 'This sale is linked to an order. Record payments on its invoice.');
         }
-        $data = $request->validate(['paid_amount' => 'required|numeric|min:0|max:'.$sale->total_amount]);
+        $data = $request->validate(['paid_amount' => 'required|numeric|min:0']);
         $paid = round((float) $data['paid_amount'], 2);
-        $balance = round((float) $sale->total_amount - $paid, 2);
+        $balance = max(0, round((float) $sale->total_amount - $paid, 2));
         $sale->update([
             'paid_amount' => $paid,
             'balance_amount' => $balance,
@@ -210,7 +217,7 @@ class CustomerSaleController extends Controller
         return redirect()->back()->with('success', 'Payment updated successfully.');
     }
 
-    private function validateSale(Request $request)
+    private function validateSale(Request $request, ?CustomerSale $existing = null)
     {
         return $request->validate([
             'customer_id' => 'required|integer|exists:crm_customers,id',
@@ -219,7 +226,7 @@ class CustomerSaleController extends Controller
             'due_date' => 'nullable|date|after_or_equal:order_date',
             'item_name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'quantity' => 'required|numeric|min:0.01',
+            'quantity' => $existing && $existing->import_source_key ? 'nullable|numeric|min:0.01' : 'required|numeric|min:0.01',
             'unit' => 'required|in:Pieces,Boxes,Sheets,Rolls,Kg,Sets,Units',
             'unit_price' => 'required|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -235,14 +242,13 @@ class CustomerSaleController extends Controller
 
     private function calculateSale(&$data)
     {
-        $subtotal = round((float) $data['quantity'] * (float) $data['unit_price'], 2);
+        $subtotal = round((float) ($data['quantity'] ?? 0) * (float) $data['unit_price'], 2);
         $discount = round((float) ($data['discount_amount'] ?? 0), 2);
         $tax = round((float) ($data['tax_amount'] ?? 0), 2);
         $shipping = round((float) ($data['shipping_cost'] ?? 0), 2);
         $total = max(0, round($subtotal - $discount + $tax + $shipping, 2));
         $paid = round((float) ($data['paid_amount'] ?? 0), 2);
-        if ($paid > $total) abort(422, 'Paid amount cannot exceed sale total.');
-        $balance = round($total - $paid, 2);
+        $balance = max(0, round($total - $paid, 2));
         $data['subtotal'] = $subtotal;
         $data['discount_amount'] = $discount;
         $data['tax_amount'] = $tax;

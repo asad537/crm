@@ -9,7 +9,7 @@ class CrmCustomer extends Model
     protected $table = 'crm_customers';
 
     protected $fillable = [
-        'workspace_id', 'name', 'company_name', 'phone', 'email', 'country',
+        'workspace_id', 'name', 'company_name', 'contact_person', 'phone', 'email', 'country',
         'billing_address', 'shipping_address', 'tax_number', 'currency', 'notes',
         'customer_type', 'income_head', 'recurring_amount', 'recurring_day', 'recurring_start', 'recurring_active',
     ];
