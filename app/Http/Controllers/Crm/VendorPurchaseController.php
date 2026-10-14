@@ -512,6 +512,15 @@ class VendorPurchaseController extends Controller
             }
         });
 
+        // Materials taken from Inventory against a job (job card procurement / "Use stock"): cost is
+        // qty × the item's average cost at that time. Stock was already paid for, so paid = total.
+        $stockMoves = \App\CrmInventoryMovement::with('item')->whereIn('type', ['out', 'in'])->whereNotNull('job_number')->where('job_number', '!=', '')->get();
+        foreach ($stockMoves as $mv) {
+            $cost = round((float) $mv->quantity * (float) ($mv->unit_cost ?? optional($mv->item)->unit_cost ?? 0), 2);
+            if ($mv->type === 'in') $cost = -$cost; // returned to stock → credit back to the job
+            $jobItemRows->push((object) ['job_id' => trim($mv->job_number), 'purchase_id' => 'stock-' . $mv->id, 'vendor_name' => 'Inventory (stock)', 'total' => $cost, 'paid' => $cost, 'balance' => 0.0, 'purchase_date' => $mv->created_at, 'currency' => optional($mv->item)->currency ?: 'AED']);
+        }
+
         // A single job selected → show ONLY that job's purchases (matched on header OR any item).
         if ($selectedJob !== '') {
             $rows = $jobItemRows->where('job_id', $selectedJob);
@@ -530,10 +539,12 @@ class VendorPurchaseController extends Controller
                 })
                 ->orderBy('purchase_date', 'desc')->orderBy('id', 'desc')
                 ->paginate(20)->appends($request->all());
+            $stockRows = $stockMoves->filter(fn ($mv) => trim($mv->job_number) === $selectedJob)->sortByDesc('id')->values();
             return view('crm.vendor_purchases.jobs', [
                 'selectedJob' => $selectedJob,
                 'jobSummary' => $jobSummary,
                 'purchases' => $purchases,
+                'stockRows' => $stockRows,
                 'jobGroups' => null,
                 'search' => $search,
             ]);

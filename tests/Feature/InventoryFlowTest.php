@@ -98,7 +98,7 @@ class InventoryFlowTest extends TestCase
         $this->assertSame(19.0, (float) $item->fresh()->unit_cost, 'consumption does not change the average');
         $svc->move($item, 'in', 500, ['unit_cost' => 25], $u->id);
         $this->assertSame(20.5, (float) $item->fresh()->unit_cost, '1500 @ 19 + 500 @ 25 → 20.50');
-        $this->assertSame([20.0, 18.0, null, 25.0], CrmInventoryMovement::where('inventory_item_id', $item->id)->orderBy('id')->get()->map(fn ($m) => $m->unit_cost === null ? null : (float) $m->unit_cost)->all(), 'each movement keeps its own price');
+        $this->assertSame([20.0, 18.0, 19.0, 25.0], CrmInventoryMovement::where('inventory_item_id', $item->id)->orderBy('id')->get()->map(fn ($m) => (float) $m->unit_cost)->all(), 'purchases keep their price; consumption records the average cost it was charged at');
     }
 
     public function test_job_card_materials_consume_stock_and_refuse_more_than_available(): void

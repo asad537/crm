@@ -115,6 +115,33 @@
             @if($purchases->hasPages())<div class="jb-pagination">{{ $purchases->links() }}</div>@endif
         </div>
 
+        @if(isset($stockRows))
+        <div class="jb-card" style="margin-top:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.9rem 1rem .4rem"><div><div style="font-weight:850;color:var(--ink)"><i class="fas fa-boxes" style="color:var(--primary-purple)"></i> Materials from Inventory</div><div class="jb-muted">Stock used on this job (from the job card's procurement list or "Use stock"). Cost = qty × average unit cost; counted in the job total above.</div></div>
+                <div style="text-align:right"><div class="k jb-muted" style="font-size:.63rem;text-transform:uppercase;font-weight:800">Stock cost</div><div style="font-weight:900;color:var(--ink)">{{ $fmt($stockRows->sum(fn($m) => ($m->type === 'in' ? -1 : 1) * (float)$m->quantity * (float)($m->unit_cost ?? 0))) }}</div></div></div>
+            <div class="jb-wrap">
+            <table class="jb-table">
+                <thead><tr><th>Date</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Cost</th><th>Reference</th><th>By</th></tr></thead>
+                <tbody>
+                @forelse($stockRows as $m)
+                    <tr>
+                        <td class="jb-muted">{{ $m->created_at->format('d M Y') }}</td>
+                        <td><strong>{{ optional($m->item)->name ?: '—' }}</strong>@if(optional($m->item)->paper_size || optional($m->item)->gsm)<div class="jb-muted">{{ trim(optional($m->item)->paper_size.' '.(optional($m->item)->gsm ? optional($m->item)->gsm.'gsm' : '')) }}</div>@endif</td>
+                        <td class="r jb-num">{{ $m->type === 'in' ? '−' : '' }}{{ rtrim(rtrim(number_format($m->quantity,3,'.',''),'0'),'.') }} <span class="jb-muted">{{ optional($m->item)->unit }}</span></td>
+                        <td class="r jb-num">{{ $m->unit_cost !== null ? number_format($m->unit_cost,2) : '—' }}</td>
+                        <td class="r jb-num {{ $m->type === 'in' ? 'green' : '' }}">{{ $m->type === 'in' ? '−' : '' }}{{ $fmt((float)$m->quantity * (float)($m->unit_cost ?? 0)) }}</td>
+                        <td class="jb-muted">{{ $m->reference ?: '—' }}</td>
+                        <td class="jb-muted">{{ optional($m->creator)->name ?: '—' }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7"><div class="jb-empty"><i class="fas fa-boxes"></i>No stock has been used on this job yet.</div></td></tr>
+                @endforelse
+                </tbody>
+            </table>
+            </div>
+        @endif
+        </div>
+
     {{-- ── All jobs: totals ── --}}
     @else
         <div class="jb-stats">

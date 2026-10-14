@@ -34,6 +34,10 @@ class InventoryService
             }
             $locked->save();
             $item->quantity = $balance;
+            $item->unit_cost = $locked->unit_cost;
+            if ($type === 'out' && (!isset($extra['unit_cost']) || $extra['unit_cost'] === '' || $extra['unit_cost'] === null)) {
+                $extra['unit_cost'] = $locked->unit_cost; // what this consumption cost the job
+            }
             return CrmInventoryMovement::create([
                 'workspace_id' => $locked->workspace_id,
                 'inventory_item_id' => $locked->id,
