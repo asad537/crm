@@ -153,6 +153,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('inventory/{id}/consume', 'InventoryController@consume')->name('crm.inventory.consume');
         Route::post('inventory/{id}/adjust', 'InventoryController@adjust')->name('crm.inventory.adjust');
         Route::get('inventory/{id}/movements', 'InventoryController@movements')->name('crm.inventory.movements')->where('id', '[0-9]+');
+        Route::put('inventory/{id}', 'InventoryController@update')->name('crm.inventory.update')->where('id', '[0-9]+');
         Route::delete('inventory/{id}', 'InventoryController@destroy')->name('crm.inventory.destroy');
 
         // Emails

@@ -31,7 +31,14 @@ class InventoryController extends Controller
             });
         }
         if ($request->filled('category')) $items->where('category', $request->category);
-        $items = $items->orderBy('name')->paginate(30)->appends($request->all());
+        if ($request->input('status') === 'low') $items->where('reorder_level', '>', 0)->whereColumn('quantity', '<=', 'reorder_level');
+        if ($request->input('status') === 'out') $items->where('quantity', '<=', 0);
+        if ($request->input('status') === 'in') $items->where('quantity', '>', 0);
+        $sortable = ['name', 'paper_size', 'gsm', 'stock_type', 'quantity', 'reorder_level', 'unit_cost'];
+        $sort = in_array($request->input('sort'), $sortable, true) ? $request->input('sort') : 'name';
+        $dir = $request->input('dir') === 'desc' ? 'desc' : 'asc';
+        $perPage = in_array((int) $request->input('per_page'), [10, 25, 50, 100], true) ? (int) $request->input('per_page') : 10;
+        $items = $items->orderBy($sort, $dir)->orderBy('name')->paginate($perPage)->appends($request->all());
 
         // Summary tiles
         $all = CrmInventoryItem::all();
@@ -52,7 +59,32 @@ class InventoryController extends Controller
             });
         $vendors = class_exists(\App\Vendor::class) ? \App\Vendor::orderBy('name')->get(['id', 'name']) : collect();
 
-        return view('crm.inventory.index', compact('items', 'summary', 'jobs', 'vendors'));
+        $categories = CrmInventoryItem::whereNotNull('category')->where('category', '!=', '')->distinct()->orderBy('category')->pluck('category')
+            ->concat(['Paper', 'Board', 'Ink', 'Finishing Material', 'Other'])->unique()->values();
+
+        return view('crm.inventory.index', compact('items', 'summary', 'jobs', 'vendors', 'categories', 'sort', 'dir', 'perPage'));
+    }
+
+    /** Edit an item's master data (name, size, GSM, unit, reorder level, cost). Quantity changes only through movements. */
+    public function update(Request $request, $id)
+    {
+        $user = $this->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin() && !$user->isAccounts())) abort(403);
+        $item = CrmInventoryItem::findOrFail($id);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'category' => 'nullable|string|max:60',
+            'paper_size' => 'nullable|string|max:60',
+            'gsm' => 'nullable|string|max:30',
+            'stock_type' => 'nullable|string|max:120',
+            'unit' => 'required|string|max:30',
+            'reorder_level' => 'nullable|numeric|min:0',
+            'unit_cost' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|max:8',
+            'notes' => 'nullable|string|max:2000',
+        ]);
+        $item->update($data);
+        return back()->with('success', $item->name.' updated.');
     }
 
     /** Create a new stock item (with an opening "in" movement). */
