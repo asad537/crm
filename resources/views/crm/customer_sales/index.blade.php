@@ -5,7 +5,7 @@
 @section('header_actions')
     @if($selectedCustomer)
         <button class="cs-btn cs-btn-soft" type="button" onclick="openCustomerModal()"><i class="fas fa-user-plus"></i> Add Customer</button>
-        <button class="cs-btn cs-btn-primary" type="button" onclick="openSaleModal()"><i class="fas fa-plus"></i> Add Sale</button>
+        @if(!$selectedCustomer->isIncomeCustomer())<button class="cs-btn cs-btn-primary" type="button" onclick="openSaleModal()"><i class="fas fa-plus"></i> Add Sale</button>@endif
     @else
         <button class="cs-btn cs-btn-primary" type="button" onclick="openCustomerModal()"><i class="fas fa-user-plus"></i> Add Customer</button>
     @endif
@@ -89,37 +89,43 @@
         <span class="cs-muted" style="font-size:.7rem">Months are created automatically every month; use this for a one-off charge or next month in advance.</span>
     </form>
     @endif
-    <div class="cs-table-wrap"><table class="cs-table"><thead><tr><th>Month</th><th>Head</th><th>Due date</th><th>Due</th><th>Received</th><th>Balance</th><th>Status</th><th>Paid on / Method / Ref</th><th>Proof</th><th>{{ $canEditIncome ? 'Record payment' : '' }}</th></tr></thead><tbody>
+    <div class="cs-table-wrap"><table class="cs-table"><thead><tr><th>Month</th><th>Head</th><th>Due date</th><th style="text-align:right">Due</th><th style="text-align:right">Received</th><th style="text-align:right">Balance</th><th>Status</th><th>Payment details</th><th>Proof</th><th></th></tr></thead><tbody>
     @forelse($incomeEntries as $e)
         @php($__st = $e->status)
         <tr>
             <td><strong>{{ $e->period_label }}</strong></td>
             <td>{{ $e->income_head }}</td>
             <td>{{ $e->due_date->format('d M Y') }}</td>
-            <td>
-                @if($canEditIncome)<form method="POST" action="{{ route('crm.income.update_due', $e->id) }}" class="cs-pay" title="Change this month's due">{{ csrf_field() }}{{ method_field('PUT') }}<input class="cs-control" name="amount_due" type="number" step=".01" min="0" value="{{ $e->amount_due }}" style="width:110px"><button class="cs-icon-btn" title="Save due"><i class="fas fa-save"></i></button></form>
-                @else{{ number_format($e->amount_due,2) }}@endif
-            </td>
-            <td>{{ number_format($e->amount_paid,2) }}</td>
-            <td style="font-weight:800;color:{{ $e->balance > 0.009 ? '#b91c1c' : '#15803d' }}">{{ number_format($e->balance,2) }}</td>
+            <td style="text-align:right;white-space:nowrap">{{ number_format($e->amount_due,2) }} @if($canEditIncome)<button class="cs-icon-btn" type="button" title="Change this month's due" onclick="openDueModal({{ $e->id }})"><i class="fas fa-pen" style="font-size:.7rem"></i></button>@endif</td>
+            <td style="text-align:right">{{ number_format($e->amount_paid,2) }}</td>
+            <td style="text-align:right;font-weight:800;color:{{ $e->balance > 0.009 ? '#b91c1c' : '#15803d' }}">{{ number_format($e->balance,2) }}</td>
             <td><span class="cs-status" style="{{ $__st==='paid' ? 'background:#dcfce7;color:#15803d' : ($__st==='partial' ? 'background:#fef3c7;color:#b45309' : ($__st==='overdue' ? 'background:#fee2e2;color:#b91c1c' : 'background:#e0f2fe;color:#0369a1')) }}">{{ ucfirst($__st) }}</span></td>
-            <td class="cs-muted">{{ $e->paid_at ? $e->paid_at->format('d M Y') : '—' }}{{ $e->payment_method ? ' · '.$e->payment_method : '' }}{{ $e->reference ? ' · '.$e->reference : '' }}{{ $e->note ? ' · '.$e->note : '' }}</td>
-            <td>@if($e->proof_path)<a class="cs-link" href="{{ route('crm.income.proof', $e->id) }}" target="_blank"><i class="fas fa-paperclip"></i> View</a>@else—@endif</td>
-            <td>
-                @if($canEditIncome)
-                <form method="POST" action="{{ route('crm.income.pay', $e->id) }}" enctype="multipart/form-data" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;min-width:420px">{{ csrf_field() }}
-                    <input class="cs-control" name="amount_paid" type="number" step=".01" min="0" value="{{ $e->amount_paid > 0 ? $e->amount_paid : $e->amount_due }}" style="width:105px" title="Amount received">
-                    <input class="cs-control" name="paid_at" type="date" value="{{ optional($e->paid_at)->format('Y-m-d') ?: date('Y-m-d') }}" style="width:140px">
-                    <select class="cs-control" name="payment_method" style="width:110px">@foreach(['Cash','Bank Transfer','Cheque','Card','Online'] as $m)<option {{ $e->payment_method===$m?'selected':'' }}>{{ $m }}</option>@endforeach</select>
-                    <input class="cs-control" name="reference" placeholder="Ref #" value="{{ $e->reference }}" style="width:95px">
-                    <input class="cs-control" name="proof" type="file" accept=".jpg,.jpeg,.png,.pdf,.webp" style="width:170px;padding:.4rem">
-                    <button class="cs-btn cs-btn-primary" style="padding:.5rem .8rem"><i class="fas fa-check"></i> Save</button>
-                </form>
-                @endif
-            </td>
+            <td class="cs-muted" style="font-size:.74rem">@if($e->paid_at){{ $e->paid_at->format('d M Y') }}@if($e->payment_method) · {{ $e->payment_method }}@endif @if($e->reference)· {{ $e->reference }}@endif @if($e->note)<div>{{ $e->note }}</div>@endif @else — @endif</td>
+            <td>@if($e->proof_path)<a class="cs-link" href="{{ route('crm.income.proof', $e->id) }}" target="_blank"><i class="fas fa-paperclip"></i> View</a>@else<span class="cs-muted">—</span>@endif</td>
+            <td style="white-space:nowrap">@if($canEditIncome)<button class="cs-btn {{ $__st==='paid' ? 'cs-btn-soft' : 'cs-btn-primary' }}" type="button" style="padding:.45rem .75rem;font-size:.74rem" onclick="openPayModal({{ $e->id }})"><i class="fas {{ $__st==='paid' ? 'fa-edit' : 'fa-hand-holding-usd' }}"></i> {{ $__st==='paid' ? 'Edit' : 'Record payment' }}</button>@endif</td>
         </tr>
     @empty<tr><td colspan="10" class="cs-empty">No months due yet — check the schedule start month.</td></tr>@endforelse
     </tbody></table></div>
+    @if($canEditIncome)
+    {{-- Record payment modal --}}
+    <div class="cs-modal-bg" id="incomePayModal" onclick="if(event.target===this)this.style.display='none'"><div class="cs-modal" style="max-width:560px"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-hand-holding-usd"></i></span><div><h3>Record payment</h3><div class="cs-muted" id="incomePaySub"></div></div></div><button class="cs-close" type="button" onclick="document.getElementById('incomePayModal').style.display='none'"><i class="fas fa-times"></i></button></div>
+        <form method="POST" id="incomePayForm" enctype="multipart/form-data" class="cs-form">{{ csrf_field() }}<div class="cs-grid">
+            <div class="cs-field-6"><label>Amount received ({{ $selectedCustomer->currency }}) *</label><input class="cs-control" type="number" step=".01" min="0" name="amount_paid" required></div>
+            <div class="cs-field-6"><label>Received on</label><input class="cs-control" type="date" name="paid_at" value="{{ date('Y-m-d') }}"></div>
+            <div class="cs-field-6"><label>Method</label><select class="cs-control" name="payment_method">@foreach(['Cash','Bank Transfer','Cheque','Card','Online'] as $m)<option>{{ $m }}</option>@endforeach</select></div>
+            <div class="cs-field-6"><label>Reference #</label><input class="cs-control" name="reference" placeholder="Cheque / transfer no."></div>
+            <div class="cs-field-12"><label>Proof (image or PDF)</label><input class="cs-control" type="file" name="proof" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="cs-field-12"><label>Note</label><input class="cs-control" name="note"></div>
+            <div class="cs-field-12 cs-muted" style="font-size:.72rem">Enter the total received for this month. Less than the due = Partial; equal = Paid.</div>
+        </div><div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="document.getElementById('incomePayModal').style.display='none'">Cancel</button><button class="cs-btn cs-btn-primary"><i class="fas fa-check"></i> Save payment</button></div></form></div></div>
+    {{-- Change due modal --}}
+    <div class="cs-modal-bg" id="incomeDueModal" onclick="if(event.target===this)this.style.display='none'"><div class="cs-modal" style="max-width:460px"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-pen"></i></span><div><h3>Change due</h3><div class="cs-muted" id="incomeDueSub"></div></div></div><button class="cs-close" type="button" onclick="document.getElementById('incomeDueModal').style.display='none'"><i class="fas fa-times"></i></button></div>
+        <form method="POST" id="incomeDueForm" class="cs-form">{{ csrf_field() }}{{ method_field('PUT') }}<div class="cs-grid">
+            <div class="cs-field-6"><label>Amount due ({{ $selectedCustomer->currency }}) *</label><input class="cs-control" type="number" step=".01" min="0" name="amount_due" required></div>
+            <div class="cs-field-6"><label>Due date</label><input class="cs-control" type="date" name="due_date"></div>
+            <div class="cs-field-12"><label>Note</label><input class="cs-control" name="note" placeholder="e.g. one month discount"></div>
+        </div><div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="document.getElementById('incomeDueModal').style.display='none'">Cancel</button><button class="cs-btn cs-btn-primary"><i class="fas fa-check"></i> Save</button></div></form></div></div>
+    @endif
     @if($canEditIncome)
     <div class="cs-modal-bg" id="incomeScheduleModal" onclick="if(event.target===this)this.style.display='none'"><div class="cs-modal" style="max-width:560px"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-cog"></i></span><div><h3>Recurring schedule</h3><div class="cs-muted">{{ $selectedCustomer->name }}</div></div></div><button class="cs-close" type="button" onclick="document.getElementById('incomeScheduleModal').style.display='none'"><i class="fas fa-times"></i></button></div>
         <form method="POST" action="{{ route('crm.income.schedule', $selectedCustomer->id) }}" class="cs-form">{{ csrf_field() }}{{ method_field('PUT') }}<div class="cs-grid">
@@ -200,7 +206,12 @@ function filterCustomers(value){var q=(value||'').toLowerCase().trim();document.
 function csToggleIncome(){var r=document.querySelector('input[name=customer_type]:checked');var box=document.getElementById('csIncomeFields');if(!box)return;var on=r&&r.value==='income';box.style.display=on?'grid':'none';box.querySelectorAll('input').forEach(function(i){ if(['income_head','recurring_amount','recurring_day','recurring_start'].indexOf(i.name)!==-1) i.required=on; });}
 function openCustomerModal(){document.getElementById('customerModal').style.display='flex';document.body.style.overflow='hidden'}function closeCustomerModal(){document.getElementById('customerModal').style.display='none';document.body.style.overflow=''}
 (function(){var select=document.getElementById('customerCountry');if(!select)return;var fallback=['United Arab Emirates','United States','United Kingdom','Pakistan','Saudi Arabia','Qatar','Oman','Kuwait','Bahrain','Canada','Australia','India','China','Germany','France'];function render(list){select.innerHTML='<option value="">Select country</option>';list.sort().forEach(function(name){var option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option)})}fetch('https://restcountries.com/v3.1/all?fields=name').then(function(r){return r.json()}).then(function(rows){render(rows.map(function(row){return row.name.common}))}).catch(function(){render(fallback)})})();
-@if($selectedCustomer)
+@if($selectedCustomer && $selectedCustomer->isIncomeCustomer())
+var incomeEntries={!! json_encode($incomeEntries->keyBy('id')->map(fn($e)=>['label'=>$e->period_label,'due'=>(float)$e->amount_due,'paid'=>(float)$e->amount_paid,'paid_at'=>$e->paid_at ? $e->paid_at->format('Y-m-d') : null,'method'=>$e->payment_method,'ref'=>$e->reference,'note'=>$e->note,'due_date'=>$e->due_date->format('Y-m-d')])) !!};
+function openPayModal(id){var e=incomeEntries[id];if(!e)return;var f=document.getElementById('incomePayForm');f.action='{{ url('/crm/income/entries') }}/'+id+'/pay';f.reset();document.getElementById('incomePaySub').textContent=e.label+' · due '+e.due.toFixed(2);f.elements.amount_paid.value=(e.paid>0?e.paid:e.due).toFixed(2);f.elements.paid_at.value=e.paid_at||'{{ date('Y-m-d') }}';if(e.method)f.elements.payment_method.value=e.method;f.elements.reference.value=e.ref||'';f.elements.note.value=e.note||'';document.getElementById('incomePayModal').style.display='flex';f.elements.amount_paid.focus();}
+function openDueModal(id){var e=incomeEntries[id];if(!e)return;var f=document.getElementById('incomeDueForm');f.action='{{ url('/crm/income/entries') }}/'+id;f.reset();document.getElementById('incomeDueSub').textContent=e.label;f.elements.amount_due.value=e.due.toFixed(2);f.elements.due_date.value=e.due_date;f.elements.note.value=e.note||'';document.getElementById('incomeDueModal').style.display='flex';}
+@endif
+@if($selectedCustomer && !$selectedCustomer->isIncomeCustomer())
 var customerSales=@json($sales->getCollection()->keyBy('id'));
 function openSaleModal(){var form=document.getElementById('saleForm');form.reset();form.action='{{ route('crm.customer_sales.store') }}';document.getElementById('saleMethod').value='POST';document.getElementById('saleModalTitle').textContent='Add Customer Sale';form.elements.customer_id.value='{{ $selectedCustomer->id }}';form.elements.order_date.value='{{ date('Y-m-d') }}';form.elements.currency.value='{{ $selectedCustomer->currency }}';document.getElementById('saleModal').style.display='flex';document.body.style.overflow='hidden';calculateSale()}
 function closeSaleModal(){document.getElementById('saleModal').style.display='none';document.body.style.overflow=''}
