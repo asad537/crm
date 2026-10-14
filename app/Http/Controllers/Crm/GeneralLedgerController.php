@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Crm;
 
 use App\CrmEmail;
+use App\CustomerSale;
 use App\Http\Controllers\Controller;
 use App\SalesOrder;
 use App\VendorPurchase;
@@ -34,11 +35,14 @@ class GeneralLedgerController extends Controller
         ];
         $receivableAll = $this->receivableRows();
         $income = \App\CrmIncomeEntry::with('customer')->get(); // rent / other income dues
+        // Unlinked Customer Sales are separate from workflow invoices. Linked sales already
+        // appear through their CRM order and must not be counted a second time.
+        $customerSales = CustomerSale::with('customer')->whereNull('crm_email_id')->get();
         $receivableTotals = [
-            'total' => $receivableAll->sum('total') + (float) $income->sum('amount_due'),
-            'received' => $receivableAll->where('is_received', true)->sum('total') + (float) $income->sum('amount_paid'),
-            'pending' => $receivableAll->where('is_received', false)->sum('total') + (float) $income->sum(fn ($e) => $e->balance),
-            'count' => $receivableAll->count() + $income->count(),
+            'total' => $receivableAll->sum('total') + (float) $income->sum('amount_due') + (float) $customerSales->sum('total_amount'),
+            'received' => $receivableAll->where('is_received', true)->sum('total') + (float) $income->sum('amount_paid') + (float) $customerSales->sum('paid_amount'),
+            'pending' => $receivableAll->where('is_received', false)->sum('total') + (float) $income->sum(fn ($e) => $e->balance) + (float) $customerSales->sum('balance_amount'),
+            'count' => $receivableAll->count() + $income->count() + $customerSales->count(),
         ];
 
         // Party dropdown options: customers (receivable) and/or vendors (payable),
@@ -49,6 +53,7 @@ class GeneralLedgerController extends Controller
         $customerNames = $receivableAll->toBase()
                 ->map(fn ($r) => $r->lead->client_name ?? null)
                 ->concat($income->map(fn ($e) => optional($e->customer)->name))
+                ->concat($customerSales->map(fn ($sale) => optional($sale->customer)->name))
                 ->filter()->unique()->sort()->values();
         if ($tab === 'payable') {
             $partyOptions = $vendorNames;
@@ -230,6 +235,31 @@ class GeneralLedgerController extends Controller
                     'settled_at' => $order->final_payment_received_at ?: $order->balance_received_at,
                 ]);
             }
+            foreach (CustomerSale::with('customer')->whereNull('crm_email_id')->get() as $sale) {
+                $date = $sale->order_date;
+                if ($filters['date_from'] && $date->lt(\Carbon\Carbon::parse($filters['date_from'])->startOfDay())) continue;
+                if ($filters['date_to'] && $date->gt(\Carbon\Carbon::parse($filters['date_to'])->endOfDay())) continue;
+                $total = (float) $sale->total_amount;
+                $paid = (float) $sale->paid_amount;
+                $balance = (float) $sale->balance_amount;
+                $status = $balance > 0 ? ($paid > 0 ? 'partial' : 'pending') : ($paid > 0 ? 'received' : 'pending');
+                $entries->push((object) [
+                    'type' => 'receivable',
+                    'date' => $date,
+                    'party' => optional($sale->customer)->name ?: '—',
+                    'ref' => $sale->order_number,
+                    'detail' => $sale->item_name . ($sale->description ? ' · ' . $sale->description : ''),
+                    'total' => $total,
+                    'paid' => $paid,
+                    'balance' => $balance,
+                    'currency' => $sale->currency ?: 'AED',
+                    'status' => $status,
+                    'status_label' => $status === 'received' ? 'Received' : ($status === 'partial' ? 'Partial' : ($total == 0 && $sale->quantity === null ? 'Price pending' : 'Pending')),
+                    'status_tone' => $status === 'received' ? 'ok' : ($status === 'partial' ? 'part' : 'due'),
+                    'term' => $sale->payment_method,
+                    'settled_at' => null,
+                ]);
+            }
             // Rent / other income: one receivable line per month due.
             foreach (\App\CrmIncomeEntry::with('customer')->get() as $e) {
                 $date = \Carbon\Carbon::parse($e->due_date);
@@ -246,7 +276,7 @@ class GeneralLedgerController extends Controller
                     'paid' => (float) $e->amount_paid,
                     'balance' => $e->balance,
                     'currency' => optional($e->customer)->currency ?: 'AED',
-                    'status' => $st === 'paid' ? 'received' : ($st === 'partial' ? 'approved' : 'pending'),
+                    'status' => $st === 'paid' ? 'received' : ($st === 'partial' ? 'partial' : 'pending'),
                     'status_label' => $st === 'paid' ? 'Received' : ($st === 'partial' ? 'Partial' : ($st === 'overdue' ? 'Overdue' : 'Due')),
                     'status_tone' => $st === 'paid' ? 'ok' : ($st === 'partial' ? 'part' : 'due'),
                     'term' => $e->payment_method ?: 'Monthly',
@@ -258,6 +288,9 @@ class GeneralLedgerController extends Controller
         if ($filters['status'] !== 'all') {
             if ($tab === 'all' && in_array($filters['status'], ['payable', 'receivable'])) {
                 $entries = $entries->where('type', $filters['status']);
+            } elseif ($tab === 'receivable' && $filters['status'] === 'pending') {
+                // The Pending card is the outstanding balance, including partially paid items.
+                $entries = $entries->filter(fn ($entry) => $entry->balance > 0);
             } else {
                 $entries = $entries->where('status', $filters['status']);
             }

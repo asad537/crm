@@ -15,7 +15,7 @@
         ? ['all' => 'All Types', 'payable' => 'Payable Only', 'receivable' => 'Receivable Only']
         : ($isPayable
             ? ['all' => 'All Statuses', 'paid' => 'Paid', 'partial' => 'Partial', 'unpaid' => 'Unpaid']
-            : ['all' => 'All Statuses', 'received' => 'Received', 'pending' => 'Pending']);
+            : ['all' => 'All Statuses', 'received' => 'Received', 'partial' => 'Partial', 'pending' => 'Outstanding']);
     $exportParams = array_filter([
         'tab' => $tab, 'search' => $search, 'date_from' => $dateFrom, 'date_to' => $dateTo,
         'status' => $status !== 'all' ? $status : null,
@@ -175,7 +175,7 @@
         <div class="gl-sub">
             @if($isAll)<strong>All Entries</strong> — payable and receivable together, newest first
             @elseif($isPayable)<strong>Accounts Payable</strong> — every vendor purchase, what's paid and what's still owed
-            @else<strong>Accounts Receivable</strong> — customer orders land here automatically as they're created and paid @endif
+            @else<strong>Accounts Receivable</strong> — customer sales, orders and rent with received amounts and outstanding balances @endif
         </div>
         <div class="gl-tabs">
             <a class="gl-tab {{ $isAll ? 'active' : '' }}" href="{{ route('crm.general_ledger.index', ['tab' => 'all']) }}"><i class="fas fa-book"></i> All Entries</a>
@@ -224,7 +224,7 @@
                 <div class="gl-stat-top"><span class="gl-ico brand"><i class="fas fa-file-invoice-dollar"></i></span><span class="gl-k">Total Receivable</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
                 <div class="gl-v">{{ $fmt($receivableTotals['total']) }} <small>AED</small></div>
                 <div class="gl-bar"><span style="width:{{ round($paidRatio) }}%"></span></div>
-                <div class="gl-note">{{ $receivableTotals['count'] }} order(s) · {{ round($paidRatio) }}% collected</div>
+                <div class="gl-note">{{ $receivableTotals['count'] }} receivable entries · {{ round($paidRatio) }}% collected</div>
             </a>
             <a href="{{ route('crm.general_ledger.index', array_merge($__glBase, ['tab'=>'receivable','status'=>'received'])) }}" class="gl-stat green gl-stat-link" title="Show received payments">
                 <div class="gl-stat-top"><span class="gl-ico green"><i class="fas fa-check-circle"></i></span><span class="gl-k">Received</span><i class="fas fa-arrow-right gl-stat-go"></i></div>
