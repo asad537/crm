@@ -33,7 +33,10 @@ class DesignJobNumberSequenceTest extends TestCase
             $method->setAccessible(true);
             $controller = new DesignJobCardController();
 
+            $this->assertSame(sprintf('AMS-%04d', $start + 1), $controller->nextJobNumberPreview());
+            $this->assertSame(62, (int) DB::table('design_job_number_sequences')->where('workspace_id', 2)->value('last_number'));
             $this->assertSame(sprintf('AMS-%04d', $start + 1), $method->invoke($controller));
+            $this->assertSame(sprintf('AMS-%04d', $start + 2), $controller->nextJobNumberPreview());
             $this->assertSame(sprintf('AMS-%04d', $start + 2), $method->invoke($controller));
         } finally {
             DB::rollBack();

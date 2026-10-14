@@ -98,6 +98,7 @@ class DesignJobController extends Controller
 
         return view('crm.design_jobs.job_card', [
             'job' => new DesignJob(),
+            'jobNumberPreview' => app(DesignJobCardController::class)->nextJobNumberPreview(),
             'card' => new \App\DesignJobCard(),
             'stocks' => collect(),
             'materials' => collect(),

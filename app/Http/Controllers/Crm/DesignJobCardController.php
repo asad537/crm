@@ -221,7 +221,9 @@ class DesignJobCardController extends Controller
         $removedPaths = [];
         try {
             $job = DB::transaction(function () use ($request, $user, $draft, &$uploadedPaths, &$removedPaths) {
-                $jobNumber = $this->nullIfBlank($request->input('job_no')) ?: $this->newJobNumber();
+                // The number shown on the new-job form is only a preview. Allocate
+                // the actual next number while holding the sequence row lock.
+                $jobNumber = $this->newJobNumber();
                 $job = DesignJob::create([
                     'job_number' => $jobNumber,
                     'workspace_id' => CrmWorkspaceContext::id(),
@@ -463,6 +465,25 @@ class DesignJobCardController extends Controller
         } while (DesignJob::where('job_number', $jobNumber)->exists());
 
         return $jobNumber;
+    }
+
+    /** Preview the next workspace number without consuming the sequence. */
+    public function nextJobNumberPreview(): ?string
+    {
+        $workspaceId = CrmWorkspaceContext::id();
+        if (!$workspaceId) return null;
+
+        $sequence = DB::table('design_job_number_sequences')
+            ->where('workspace_id', $workspaceId)->first();
+        if (!$sequence) return null;
+
+        $largest = DesignJob::query()->where('job_number', 'like', $sequence->prefix . '-%')
+            ->pluck('job_number')->reduce(function ($max, $number) use ($sequence) {
+                return preg_match('/^' . preg_quote($sequence->prefix, '/') . '-(\d+)$/', $number, $m)
+                    ? max($max, (int) $m[1]) : $max;
+            }, 0);
+
+        return $sequence->prefix . '-' . str_pad((string) (max((int) $sequence->last_number, $largest) + 1), 4, '0', STR_PAD_LEFT);
     }
 
     private function jobDesignerOptions()
