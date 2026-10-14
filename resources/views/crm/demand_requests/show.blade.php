@@ -31,7 +31,7 @@
 .dr-recv{border:1px solid #e2e8f0;background:#fff;color:#64748b;padding:.25rem .55rem;border-radius:999px;cursor:pointer;font-size:.66rem;font-weight:800;white-space:nowrap}
 .dr-recv.on{background:#dcfce7;color:#15803d;border-color:#bbf7d0}.dr-recv:hover{filter:brightness(.97)}
 .dr-lbl{display:block;font-size:.68rem;font-weight:800;color:#475569;margin-bottom:.25rem}
-.dr-file-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.4rem .6rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.76rem;cursor:default}.dr-file-row a{color:var(--primary-purple);text-decoration:none}.dr-file-del{color:#b91c1c;font-weight:700;display:inline-flex;gap:.3rem;align-items:center;cursor:pointer}
+.dr-file-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.4rem .6rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.76rem;cursor:default}.dr-file-row a{color:var(--primary-purple);text-decoration:none}.dr-file-del{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:#fff1f2;color:#be123c;cursor:pointer;position:relative}.dr-file-del input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}.dr-file-del:hover{background:#fecdd3}.dr-file-row.removing{opacity:.55;border-style:dashed}.dr-file-row.removing a{text-decoration:line-through}.dr-file-row.removing .dr-file-del{background:#be123c;color:#fff}
 .dr-item-row.editing td{background:#fffbeb}.dr-item-row.editing input,.dr-item-row.editing select{width:100%;min-width:70px;padding:.3rem .4rem;border:1px solid #cbd5e1;border-radius:7px;font-size:.74rem}
 .dr-item-row.editing td.dr-num input{text-align:right}
 .dr-pri-Urgent{background:#fff1f2;color:#e11d48}.dr-pri-Normal{background:#eef2f7;color:#64748b}
@@ -573,7 +573,7 @@ function drEditRow(btn){
     document.getElementById('drItemModalSub').textContent = 'Item #' + tr.querySelector('td').textContent.trim() + (d.description ? ' · ' + d.description : '');
     var list = document.getElementById('drItemFiles'); list.innerHTML = '';
     (d.files || []).forEach(function(fl){
-        list.insertAdjacentHTML('beforeend', '<label class="dr-file-row"><a href="'+fl.url+'" target="_blank"><i class="fas fa-paperclip"></i> '+fl.name.replace(/</g,'&lt;')+'</a><span class="dr-file-del"><input type="checkbox" name="remove_files[]" value="'+fl.id+'"> delete</span></label>');
+        list.insertAdjacentHTML('beforeend', '<label class="dr-file-row"><a href="'+fl.url+'" target="_blank"><i class="fas fa-paperclip"></i> '+fl.name.replace(/</g,'&lt;')+'</a><span class="dr-file-del" title="Remove this file on save"><input type="checkbox" name="remove_files[]" value="'+fl.id+'" onchange="this.closest(\'.dr-file-row\').classList.toggle(\'removing\', this.checked)"><i class="fas fa-trash-alt"></i></span></label>');
     });
     if (!(d.files || []).length) list.innerHTML = '<div style="color:#94a3b8;font-size:.74rem">No proforma invoice attached.</div>';
     drRecalcItem(); m.style.display = 'flex'; f.elements.description.focus();
