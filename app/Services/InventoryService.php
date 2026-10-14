@@ -20,9 +20,18 @@ class InventoryService
         return DB::transaction(function () use ($item, $type, $qty, $extra, $userId) {
             $locked = CrmInventoryItem::withoutGlobalScopes()->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $signed = $extra['_signed'] ?? ($type === 'out' ? -$qty : $qty);
-            $balance = round((float) $locked->quantity + $signed, 3);
+            $oldQty = (float) $locked->quantity;
+            $balance = round($oldQty + $signed, 3);
             $locked->quantity = $balance;
-            if (!empty($extra['unit_cost']) && $type === 'in') $locked->unit_cost = $extra['unit_cost'];
+            // Weighted-average cost: 1000 @ 20 then 1000 @ 18 → the item is carried at 19.00.
+            // Each purchase keeps its own price on the movement row; the item holds the average.
+            if ($type === 'in' && isset($extra['unit_cost']) && $extra['unit_cost'] !== '' && $extra['unit_cost'] !== null) {
+                $newCost = (float) $extra['unit_cost'];
+                $oldCost = (float) ($locked->unit_cost ?? 0);
+                $locked->unit_cost = ($oldQty > 0 && $oldCost > 0)
+                    ? round(($oldQty * $oldCost + $qty * $newCost) / ($oldQty + $qty), 4)
+                    : $newCost;
+            }
             $locked->save();
             $item->quantity = $balance;
             return CrmInventoryMovement::create([

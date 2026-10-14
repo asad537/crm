@@ -84,6 +84,23 @@ class InventoryFlowTest extends TestCase
         $this->assertSame(0, $dr->items()->count());
     }
 
+    public function test_unit_cost_is_a_weighted_average_of_purchases(): void
+    {
+        $u = $this->admin();
+        $this->as($u);
+        $item = CrmInventoryItem::create(['workspace_id' => self::WS, 'name' => 'Kraft '.uniqid(), 'unit' => 'sheets', 'quantity' => 0]);
+        $svc = app(InventoryService::class);
+        $svc->move($item, 'in', 1000, ['unit_cost' => 20, 'reference' => 'first'], $u->id);
+        $this->assertSame(20.0, (float) $item->fresh()->unit_cost);
+        $svc->move($item, 'in', 1000, ['unit_cost' => 18, 'reference' => 'second'], $u->id);
+        $this->assertSame(19.0, (float) $item->fresh()->unit_cost, '1000 @ 20 + 1000 @ 18 → 19.00');
+        $svc->move($item, 'out', 500, ['reference' => 'used'], $u->id);
+        $this->assertSame(19.0, (float) $item->fresh()->unit_cost, 'consumption does not change the average');
+        $svc->move($item, 'in', 500, ['unit_cost' => 25], $u->id);
+        $this->assertSame(20.5, (float) $item->fresh()->unit_cost, '1500 @ 19 + 500 @ 25 → 20.50');
+        $this->assertSame([20.0, 18.0, null, 25.0], CrmInventoryMovement::where('inventory_item_id', $item->id)->orderBy('id')->get()->map(fn ($m) => $m->unit_cost === null ? null : (float) $m->unit_cost)->all(), 'each movement keeps its own price');
+    }
+
     public function test_job_card_materials_consume_stock_and_refuse_more_than_available(): void
     {
         $u = $this->admin();

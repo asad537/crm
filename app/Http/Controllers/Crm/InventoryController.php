@@ -218,26 +218,8 @@ class InventoryController extends Controller
     /** Apply a stock movement and update the running balance atomically. */
     private function applyMovement(CrmInventoryItem $item, $type, $qty, array $extra, $user)
     {
-        DB::transaction(function () use ($item, $type, $qty, $extra, $user) {
-            $locked = CrmInventoryItem::withoutGlobalScopes()->where('id', $item->id)->lockForUpdate()->first();
-            $signed = $extra['_signed'] ?? ($type === 'out' ? -$qty : $qty);
-            $balance = (float) $locked->quantity + $signed;
-            $locked->quantity = $balance;
-            $locked->save();
-            CrmInventoryMovement::create([
-                'workspace_id' => $locked->workspace_id,
-                'inventory_item_id' => $locked->id,
-                'type' => $type,
-                'quantity' => $qty,
-                'balance_after' => $balance,
-                'job_id' => $extra['job_id'] ?? null,
-                'job_number' => $extra['job_number'] ?? null,
-                'vendor_purchase_id' => $extra['vendor_purchase_id'] ?? null,
-                'unit_cost' => $extra['unit_cost'] ?? null,
-                'reference' => $extra['reference'] ?? null,
-                'note' => $extra['note'] ?? null,
-                'created_by' => $user->id,
-            ]);
-        });
+        // One ledger implementation for the whole app (demand receipts, job cards, manual in/out):
+        // running balance + weighted-average unit cost live in InventoryService.
+        app(\App\Services\InventoryService::class)->move($item, $type, (float) $qty, $extra, $user->id);
     }
 }
