@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Crm;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\CrmEmail;
+use App\CustomerSale;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -241,6 +242,35 @@ class OrdersController extends Controller
 
         $orders = $query->with(['orderItems', 'orderPayments'])->paginate(15)->appends($request->all());
 
+        // Historical sales were imported as CustomerSale records, not CrmEmail invoices.
+        // Show them here without creating a second invoice or ledger transaction.
+        $historicalQuery = CustomerSale::with('customer')
+            ->whereNull('crm_email_id')
+            ->whereNotNull('import_source_key');
+        if ($isRestricted || $request->filled('agent')) {
+            // Historical rows have no sales agent; do not expose them in agent-specific views.
+            $historicalQuery->whereRaw('1 = 0');
+        }
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $historicalQuery->whereBetween('order_date', [$request->start_date, $request->end_date]);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $historicalQuery->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('item_name', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($customer) use ($search) {
+                        $customer->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+        $historicalOrders = (clone $historicalQuery)->orderBy('order_date', 'desc')
+            ->orderBy('id', 'desc')->paginate(15, ['*'], 'history_page')->appends($request->all());
+        $historicalCount = (clone $historicalQuery)->count();
+        $historicalRevenue = (float) (clone $historicalQuery)->sum('total_amount');
+        $historicalUnpaid = (float) (clone $historicalQuery)->sum('balance_amount');
+        $historicalUnpaidCount = (clone $historicalQuery)->where('balance_amount', '>', 0.009)->count();
+
         // Agent list for dropdown filter — cached 5 min (agent names rarely change).
         if ($isRestricted) {
             $agents = collect([$currentUser->name]);
@@ -261,14 +291,14 @@ class OrdersController extends Controller
 
         // Summary stats — merged into ONE aggregate query (was 4 separate queries).
         $statsOrders = (clone $query)->with(['orderItems', 'orderPayments'])->get();
-        $totalOrders = $statsOrders->count();
-        $totalRevenue = (float) $statsOrders->sum(function ($order) { return $order->orderInvoiceTotal(); });
-        $unpaidTotal = (float) $statsOrders->sum(function ($order) { return $order->orderBalanceDue(); });
-        $unpaidCount = $statsOrders->filter(function ($order) { return $order->orderBalanceDue() > 0.009; })->count();
+        $totalOrders = $statsOrders->count() + $historicalCount;
+        $totalRevenue = (float) $statsOrders->sum(function ($order) { return $order->orderInvoiceTotal(); }) + $historicalRevenue;
+        $unpaidTotal = (float) $statsOrders->sum(function ($order) { return $order->orderBalanceDue(); }) + $historicalUnpaid;
+        $unpaidCount = $statsOrders->filter(function ($order) { return $order->orderBalanceDue() > 0.009; })->count() + $historicalUnpaidCount;
         $avgOrderValue = $totalOrders > 0 ? ($totalRevenue / $totalOrders) : 0;
 
         return view('crm.orders.index', compact(
-            'orders', 'agents', 'totalOrders', 'totalRevenue', 'avgOrderValue', 'unpaidTotal', 'unpaidCount'
+            'orders', 'historicalOrders', 'agents', 'totalOrders', 'totalRevenue', 'avgOrderValue', 'unpaidTotal', 'unpaidCount'
         ));
     }
 

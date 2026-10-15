@@ -162,6 +162,7 @@
     }
 
     .orders-table { width: 100%; border-collapse: collapse; }
+    .historical-orders-table { min-width: 950px; }
     .orders-table thead tr {
         background: #f8f9ff;
     }
@@ -291,17 +292,17 @@
         .stats-row { grid-template-columns: 1fr; }
         .filter-row { grid-template-columns: 1fr 1fr; }
         .filter-actions { grid-column: span 2; }
-        .orders-table th:nth-child(5),
-        .orders-table td:nth-child(5) { display: none; }
+        .invoice-orders-table th:nth-child(5),
+        .invoice-orders-table td:nth-child(5) { display: none; }
     }
     @media (max-width: 600px) {
         .stats-row { grid-template-columns: 1fr; }
         .filter-row { grid-template-columns: 1fr; }
         .filter-actions { grid-column: span 1; }
-        .orders-table th:nth-child(7),
-        .orders-table td:nth-child(7),
-        .orders-table th:nth-child(8),
-        .orders-table td:nth-child(8) { display: none; }
+        .invoice-orders-table th:nth-child(7),
+        .invoice-orders-table td:nth-child(7),
+        .invoice-orders-table th:nth-child(8),
+        .invoice-orders-table td:nth-child(8) { display: none; }
     }
     .btn-edit-invoice:hover { border-color: var(--primary-purple) !important; color: var(--primary-purple) !important; background: var(--primary-soft) !important; }
     .btn-delete-invoice:hover { border-color: #dc2626 !important; background: #fef2f2 !important; color: #991b1b !important; }
@@ -338,9 +339,9 @@
             <i class="fas fa-shopping-bag"></i>
         </div>
         <div class="stat-text">
-            <span class="stat-label">Total Invoices</span>
+            <span class="stat-label">Total Orders</span>
             <span class="stat-value">{{ number_format($totalOrders) }}</span>
-            <span class="stat-sub">Confirmed deals</span>
+            <span class="stat-sub">CRM invoices + historical sales</span>
         </div>
     </div>
     <div class="stat-card">
@@ -360,7 +361,7 @@
         <div class="stat-text">
             <span class="stat-label">Unpaid</span>
             <span class="stat-value">{{ $__wsCur }} {{ number_format($unpaidTotal ?? 0, 0) }}</span>
-            <span class="stat-sub" style="color:#b45309">{{ $unpaidCount ?? 0 }} pending invoice{{ ($unpaidCount ?? 0) === 1 ? '' : 's' }}</span>
+            <span class="stat-sub" style="color:#b45309">{{ $unpaidCount ?? 0 }} pending order{{ ($unpaidCount ?? 0) === 1 ? '' : 's' }}</span>
         </div>
     </div>
 </div>
@@ -423,10 +424,52 @@
 </div>
 
 {{-- ── ORDERS TABLE ── --}}
+@if($historicalOrders->total() > 0)
 <div class="content-card">
     <div class="table-header">
         <div class="table-header-title">
-            <i class="fas fa-list-ul" style="color:var(--primary-purple);"></i> Invoice List <span class="count-pill">{{ $orders->total() }}</span>
+            <i class="fas fa-history" style="color:var(--primary-purple);"></i>
+            Historical Orders <span class="count-pill">{{ $historicalOrders->total() }}</span>
+        </div>
+        <span style="font-size:.75rem;color:#64748b;">Imported sales records · details can be updated in Customers</span>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="orders-table historical-orders-table">
+        <thead><tr>
+            <th>Order #</th><th>Client</th><th>Product</th><th>Status</th>
+            <th>Qty</th><th>Total</th><th>Received</th><th>Balance</th><th>Date</th><th>Details</th>
+        </tr></thead>
+        <tbody>
+        @foreach($historicalOrders as $sale)
+        <tr data-search="{{ strtolower($sale->order_number.' '.optional($sale->customer)->name.' '.$sale->item_name) }}">
+            <td><span class="id-chip">{{ $sale->order_number }}</span></td>
+            <td><div class="client-name">{{ optional($sale->customer)->name ?: '—' }}</div></td>
+            <td><span class="product-tag">{{ $sale->item_name ?: 'General' }}</span></td>
+            <td>
+                <span style="display:inline-block;padding:.3rem .65rem;border-radius:999px;font-size:.72rem;font-weight:700;{{ $sale->order_status === 'Draft' ? 'color:#92400e;background:#fef3c7;' : 'color:#15803d;background:#dcfce7;' }}">{{ $sale->order_status }}</span>
+                <div style="font-size:.7rem;color:#64748b;margin-top:4px;">{{ $sale->payment_status }}</div>
+            </td>
+            <td><span class="qty-badge">{{ $sale->quantity === null ? '—' : number_format((float) $sale->quantity, 0) }}</span></td>
+            <td><span class="total-val">{{ $sale->currency ?: $__wsCur }} {{ number_format((float) $sale->total_amount, 2) }}</span></td>
+            <td>{{ number_format((float) $sale->paid_amount, 2) }}</td>
+            <td>{{ number_format((float) $sale->balance_amount, 2) }}</td>
+            <td><span class="date-val">{{ optional($sale->order_date)->format('M d, Y') ?: '—' }}</span></td>
+            <td><a href="{{ route('crm.customer_sales.index', ['customer_id' => $sale->customer_id, 'search' => $sale->order_number]) }}" class="btn-invoice">View</a></td>
+        </tr>
+        @endforeach
+        <tr id="historicalNoMatch" style="display:none;"><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">No historical orders match your search.</td></tr>
+        </tbody>
+    </table>
+    </div>
+    <div class="pag-wrap">{{ $historicalOrders->links() }}</div>
+</div>
+@endif
+
+@if($orders->total() > 0 || $historicalOrders->total() === 0)
+<div class="content-card">
+    <div class="table-header">
+        <div class="table-header-title">
+            <i class="fas fa-list-ul" style="color:var(--primary-purple);"></i> CRM Invoice List <span class="count-pill">{{ $orders->total() }}</span>
         </div>
         <div style="display:flex; align-items:center; gap:0.75rem;">
             @if($orders->total() > 0)
@@ -460,7 +503,7 @@
     </div>
 
     @if($orders->count() > 0)
-    <table class="orders-table">
+    <table class="orders-table invoice-orders-table">
         <thead>
             <tr>
                 <th style="width:36px;text-align:center;"><input type="checkbox" id="oiCheckAll" onclick="oiToggleAll(this)" style="cursor:pointer;"></th>
@@ -576,9 +619,9 @@
         <div class="empty-icon-wrap">
             <i class="fas fa-shopping-bag"></i>
         </div>
-        <div class="empty-title">No Orders Found</div>
+        <div class="empty-title">No CRM Invoices Found</div>
         <div class="empty-sub">
-            Confirmed online and offline orders will appear here.
+            Confirmed CRM invoices will appear here. Imported historical orders are listed above.
         </div>
         @if(request()->hasAny(['start_date', 'end_date', 'agent', 'search']))
         <a href="{{ route('crm.orders.index') }}" class="btn-clear-filters">
@@ -588,6 +631,7 @@
     </div>
     @endif
 </div>
+@endif
 
 </div>
 @endsection
@@ -671,14 +715,17 @@ $(function() {
 function oiLiveSearch(term) {
     term = (term || '').trim().toLowerCase();
     var shown = 0;
-    document.querySelectorAll('.orders-table tbody tr').forEach(function (row) {
-        var hay = row.getAttribute('data-search') || '';
-        var match = term === '' || hay.indexOf(term) !== -1;
-        row.style.display = match ? '' : 'none';
-        if (match) shown++;
+    document.querySelectorAll('.orders-table').forEach(function (table) {
+        var tableShown = 0;
+        table.querySelectorAll('tbody tr[data-search]').forEach(function (row) {
+            var hay = row.getAttribute('data-search') || '';
+            var match = term === '' || hay.indexOf(term) !== -1;
+            row.style.display = match ? '' : 'none';
+            if (match) { shown++; tableShown++; }
+        });
+        var noMatch = table.querySelector('#oiNoMatch, #historicalNoMatch');
+        if (noMatch) noMatch.style.display = tableShown === 0 ? '' : 'none';
     });
-    var empty = document.getElementById('oiNoMatch');
-    if (empty) empty.style.display = shown === 0 ? '' : 'none';
     var allBox = document.getElementById('oiCheckAll');
     if (allBox) allBox.checked = false;
     oiSyncSelected();
@@ -686,7 +733,7 @@ function oiLiveSearch(term) {
 
 // ── Row selection ──
 function oiToggleAll(box) {
-    document.querySelectorAll('.orders-table tbody tr').forEach(function (row) {
+    document.querySelectorAll('.invoice-orders-table tbody tr').forEach(function (row) {
         if (row.style.display === 'none') return;
         var cb = row.querySelector('.oi-check');
         if (cb) cb.checked = box.checked;
