@@ -162,6 +162,9 @@
             @if($sale->crm_email_id)
                 <a class="cs-link" href="{{ route('crm.orders.invoice', $sale->crm_email_id) }}">View Invoice</a>
             @else
+                @if($sale->import_source_key && $sale->order_status !== 'Draft' && $canSeeIncome)
+                    <a class="cs-link" href="{{ route('crm.orders.historical_invoice', $sale->id) }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-right:8px;color:#c2410c;font-weight:800"><i class="fas fa-file-invoice"></i> Invoice</a>
+                @endif
                 <button class="cs-icon-btn" type="button" onclick="editSale({{ $sale->id }})"><i class="fas fa-edit"></i></button>
             @endif
         </td></tr>

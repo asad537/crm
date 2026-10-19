@@ -308,7 +308,7 @@ class OrdersController extends Controller
     public function historicalInvoice($id)
     {
         $user = \Auth::guard('crm')->user();
-        if (!$user || (!$user->isAdmin() && !$user->isSalesManager() && !$user->isAccounts())) {
+        if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin() && !$user->isSalesManager() && !$user->isAccounts())) {
             abort(403, 'Unauthorized to view historical invoices.');
         }
 
