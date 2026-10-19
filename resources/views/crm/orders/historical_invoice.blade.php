@@ -15,8 +15,10 @@
         * { box-sizing: border-box; }
         body { margin: 0; background: #f1f5f9; color: #172033; font-family: Arial, Helvetica, sans-serif; }
         .toolbar { width: 210mm; max-width: calc(100% - 28px); margin: 18px auto 12px; display: flex; justify-content: space-between; }
+        .toolbar-group { display: flex; gap: 9px; }
         .toolbar a, .toolbar button { display: inline-block; padding: 10px 15px; border: 1px solid #d7deea; border-radius: 8px; background: white; color: #344256; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
         .toolbar button { background: #f4511e; border-color: #f4511e; color: white; }
+        .toolbar button.secondary { background: white; border-color: #d7deea; color: #344256; }
         .invoice { width: 210mm; min-height: 297mm; margin: 0 auto 24px; padding: 18mm 17mm; background: white; box-shadow: 0 6px 28px rgba(15,23,42,.12); }
         .top { display: flex; justify-content: space-between; gap: 28px; align-items: flex-start; }
         .company { max-width: 125mm; display: flex; align-items: center; gap: 14px; }
@@ -50,7 +52,10 @@
 <body>
     <nav class="toolbar">
         <a href="{{ route('crm.orders.index') }}">&#8592; Back to Orders</a>
-        <button type="button" onclick="window.print()">Print / Save PDF</button>
+        <div class="toolbar-group">
+            <button type="button" class="secondary" onclick="window.print()">Print</button>
+            <button type="button" id="dlPdfBtn" onclick="downloadInvoicePdf(this)">&#8681; Download PDF</button>
+        </div>
     </nav>
     <main class="invoice">
         <header class="top">
@@ -109,5 +114,26 @@
         </section>
         <footer class="footnote">Thank you for your business.</footer>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>
+    <script>
+        function downloadInvoicePdf(btn) {
+            var el = document.querySelector('.invoice');
+            if (!el || typeof html2pdf === 'undefined') { window.print(); return; }
+            var name = String(@json($sale->order_number)).replace(/[^A-Za-z0-9_-]+/g, '');
+            var original = btn.innerHTML;
+            btn.innerHTML = 'Generating…';
+            btn.disabled = true;
+            html2pdf().set({
+                margin: 0,
+                filename: 'Invoice-' + name + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            }).from(el).save()
+                .then(function () { btn.innerHTML = original; btn.disabled = false; })
+                .catch(function () { btn.innerHTML = original; btn.disabled = false; window.print(); });
+        }
+    </script>
 </body>
 </html>
