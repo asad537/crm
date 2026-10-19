@@ -303,6 +303,29 @@ class OrdersController extends Controller
     }
 
     /**
+     * Read-only printable invoice view for historical customer sales imports.
+     */
+    public function historicalInvoice($id)
+    {
+        $user = \Auth::guard('crm')->user();
+        if (!$user || (!$user->isAdmin() && !$user->isSalesManager() && !$user->isAccounts())) {
+            abort(403, 'Unauthorized to view historical invoices.');
+        }
+
+        $workspace = view()->shared('activeCrmWorkspace');
+        if (!$workspace || $workspace->slug !== 'mybox-packaging-app') {
+            abort(404);
+        }
+
+        $sale = CustomerSale::with('customer')
+            ->whereNull('crm_email_id')
+            ->whereNotNull('import_source_key')
+            ->findOrFail($id);
+
+        return view('crm.orders.historical_invoice', compact('sale'));
+    }
+
+    /**
      * Export the filtered invoice list to Excel or PDF.
      */
     public function export(Request $request)

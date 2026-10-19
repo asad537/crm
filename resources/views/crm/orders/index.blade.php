@@ -437,7 +437,7 @@
     <table class="orders-table historical-orders-table">
         <thead><tr>
             <th>Order #</th><th>Client</th><th>Product</th><th>Status</th>
-            <th>Qty</th><th>Total</th><th>Received</th><th>Balance</th><th>Date</th><th>Details</th>
+            <th>Qty</th><th>Total</th><th>Received</th><th>Balance</th><th>Date</th><th>Actions</th>
         </tr></thead>
         <tbody>
         @foreach($historicalOrders as $sale)
@@ -454,7 +454,12 @@
             <td>{{ number_format((float) $sale->paid_amount, 2) }}</td>
             <td>{{ number_format((float) $sale->balance_amount, 2) }}</td>
             <td><span class="date-val">{{ optional($sale->order_date)->format('M d, Y') ?: '—' }}</span></td>
-            <td><a href="{{ route('crm.customer_sales.index', ['customer_id' => $sale->customer_id, 'search' => $sale->order_number]) }}" class="btn-invoice">View</a></td>
+            <td style="white-space:nowrap;">
+                <a href="{{ route('crm.customer_sales.index', ['customer_id' => $sale->customer_id, 'search' => $sale->order_number]) }}" class="btn-invoice">View</a>
+                @if($sale->order_status !== 'Draft')
+                    <a href="{{ route('crm.orders.historical_invoice', $sale->id) }}" class="btn-invoice" target="_blank" rel="noopener" style="margin-left:6px;background:#fff7ed;color:#c2410c;border-color:#fed7aa;">Invoice</a>
+                @endif
+            </td>
         </tr>
         @endforeach
         <tr id="historicalNoMatch" style="display:none;"><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">No historical orders match your search.</td></tr>

@@ -264,6 +264,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
 
         // Orders (accessible by all authenticated CRM users: Admins, Sales Managers, and Sales Agents)
         Route::get('orders', 'OrdersController@index')->name('crm.orders.index');
+        Route::get('orders/historical/{id}/invoice', 'OrdersController@historicalInvoice')->name('crm.orders.historical_invoice');
         Route::get('orders/export', 'OrdersController@export')->name('crm.orders.export');
         Route::get('orders/create', 'OrdersController@create')->name('crm.orders.create');
         Route::post('orders', 'OrdersController@store')->name('crm.orders.store');
