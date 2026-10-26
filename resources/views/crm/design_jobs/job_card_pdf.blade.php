@@ -384,6 +384,7 @@
     $jobInfo = array_values(array_filter([
         ['Job Assigned Date', $date($card->job_date ?: $job->created_at)],
         ['Job No.', $card->job_no ?: $job->job_number],
+        ['TCB Reference No', $job->tcb_reference],
         ['Product', $card->product ?: $job->title],
         ['Order Qty', $card->order_qty],
         ['Job Start On', $date($card->job_start_on)],

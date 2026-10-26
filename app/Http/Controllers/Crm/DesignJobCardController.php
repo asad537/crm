@@ -233,6 +233,7 @@ class DesignJobCardController extends Controller
                 $jobNumber = $useNextNumber ? $this->newJobNumber() : $enteredJobNumber;
                 $job = DesignJob::create([
                     'job_number' => $jobNumber,
+                    'tcb_reference' => $this->nullIfBlank($request->input('tcb_reference')),
                     'workspace_id' => CrmWorkspaceContext::id(),
                     'designer_id' => $user->id,
                     'title' => $this->nullIfBlank($request->input('product')) ?: 'Untitled Job',
@@ -317,6 +318,7 @@ class DesignJobCardController extends Controller
             'qc_rejection_comments' => $draft ? 'nullable|string' : 'nullable|required_if:qc_result,rejected|string',
             'delay_reason' => 'nullable|string',
             'client_name' => 'nullable|string|max:255',
+            'tcb_reference' => 'nullable|string|max:100',
             'details' => 'nullable|string|max:3000',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|extensions:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,ai,psd,eps,zip|max:20480',
@@ -399,7 +401,7 @@ class DesignJobCardController extends Controller
                 $jobUpdates[$field] = $this->nullIfBlank($request->input($field));
             }
         }
-        foreach (['client_name', 'details'] as $field) {
+        foreach (['client_name', 'details', 'tcb_reference'] as $field) {
             if ($request->has($field)) {
                 $jobUpdates[$field] = $this->nullIfBlank($request->input($field));
             }

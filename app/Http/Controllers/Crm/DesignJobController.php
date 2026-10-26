@@ -52,6 +52,7 @@ class DesignJobController extends Controller
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('job_number', 'like', "%{$search}%")
+                    ->orWhere('tcb_reference', 'like', "%{$search}%")
                     ->orWhere('title', 'like', "%{$search}%")
                     ->orWhere('client_name', 'like', "%{$search}%")
                     ->orWhereHas('ticket', function ($tq) use ($search) {

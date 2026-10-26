@@ -277,8 +277,8 @@ textarea.jc-control{min-height:74px;resize:vertical}
     <div class="jc-grid">
         <div class="jc-field"><label>Job Assigned Date</label><input class="jc-control" type="date" name="job_date" value="{{ old('job_date', $jobDateDefault) }}"></div>
         <div class="jc-field"><label>Job No #</label><input class="jc-control" name="job_no" value="{{ $job->exists ? $val('job_no', $job->job_number) : old('job_no', $jobNumberPreview ?? '') }}" placeholder="{{ $job->exists ? '' : 'Auto-generated when saved' }}"></div>
+        <div class="jc-field"><label>TCB Reference No</label><input class="jc-control" name="tcb_reference" maxlength="100" value="{{ old('tcb_reference', $job->tcb_reference) }}" placeholder="e.g. TCB-18245-A"></div>
         <div class="jc-field"><label>Product @unless($job->exists)<span style="color:#e11d48">*</span>@endunless</label><input class="jc-control" name="product" value="{{ $val('product', $job->title) }}" {{ $job->exists ? '' : 'required' }}></div>
-        <div class="jc-field"><label>Order Qty</label><input class="jc-control" type="number" min="0" name="order_qty" value="{{ $val('order_qty') }}"></div>
         <div class="jc-field jc-4"><label>Priority</label><select class="jc-control" name="priority_level">
             @foreach(['regular' => 'Regular', 'urgent' => 'Urgent', 'critical' => 'Critical'] as $key => $label)
                 <option value="{{ $key }}" {{ $priorityLevel === $key ? 'selected' : '' }}>{{ $label }}</option>
@@ -298,6 +298,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
                 <input class="jc-control" value="{{ $job->designer->name ?? ($job->exists ? 'Unassigned' : auth('crm')->user()->name) }}" readonly>
             @endif
         </div>
+        <div class="jc-field jc-4"><label>Order Qty</label><input class="jc-control" type="number" min="0" name="order_qty" value="{{ $val('order_qty') }}"></div>
         <div class="jc-field jc-12"><label>Job Notes</label><textarea class="jc-control" name="details" maxlength="3000" placeholder="Comments and other job details can be added later">{{ old('details', $job->details) }}</textarea></div>
     </div>
 </div>

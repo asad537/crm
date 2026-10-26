@@ -200,7 +200,7 @@
             </div>
             <div class="dj-search">
                 <i class="fas fa-search"></i>
-                <input name="search" value="{{ request('search') }}" placeholder="Search job, ticket, client…" oninput="if(!this.value){this.form.submit()}">
+                <input name="search" value="{{ request('search') }}" placeholder="Search job, TCB ref, ticket, client…" oninput="if(!this.value){this.form.submit()}">
             </div>
         </form>
     </div>
@@ -230,6 +230,7 @@
                     data-challan-update-url="{{ $challan ? route('crm.challans.update', $challan->id) : '' }}">
                     <td class="dj-job">
                         <a href="{{ route('crm.design_jobs.job_card.edit', $job->id) }}">{{ $job->job_number }}</a>
+                        @if($job->tcb_reference)<div class="sub" style="color:var(--primary-purple, #f45a24);font-weight:700" title="TCB Reference No">{{ $job->tcb_reference }}</div>@endif
                         <div class="sub">{{ $job->created_at->format('d M Y') }}</div>
                     </td>
                     {{-- <td class="dj-est">
