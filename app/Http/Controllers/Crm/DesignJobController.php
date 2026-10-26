@@ -68,11 +68,17 @@ class DesignJobController extends Controller
         // Keep AMS jobs in their natural numeric order (AMS-0062 before
         // AMS-0061). The ID fallback also gives sensible ordering to legacy
         // job-number formats.
-        // Optional column sort (?sort=due|designer&dir=asc|desc). Jobs without a due
+        // Optional column sort (?sort=job|due|designer&dir=asc|desc). Non-AMS jobs / jobs without a due
         // date / designer always sink to the bottom; ties fall back to newest first.
-        $sort = in_array($request->input('sort'), ['due', 'designer'], true) ? $request->input('sort') : '';
+        $sort = in_array($request->input('sort'), ['job', 'due', 'designer'], true) ? $request->input('sort') : '';
         $dir = $request->input('dir') === 'desc' ? 'desc' : 'asc';
-        if ($sort === 'due') {
+        if ($sort === 'job') {
+            // Only AMS jobs are sorted, by their number (AMS-0062 → 62); every other job (TCB-…, plain numbers)
+            // stays below them, newest first.
+            $query->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN 0 ELSE 1 END")
+                ->orderByRaw("CASE WHEN job_number REGEXP '^AMS-[0-9]+$' THEN CAST(SUBSTRING(job_number, 5) AS UNSIGNED) END $dir")
+                ->orderByDesc('id');
+        } elseif ($sort === 'due') {
             $query->orderByRaw('due_date IS NULL')
                 ->orderBy('due_date', $dir)
                 ->orderByDesc('id');
@@ -122,7 +128,7 @@ class DesignJobController extends Controller
     {
         $user = $this->requireDesignJobAccess();
         $job = DesignJob::where('workspace_id', \App\Support\CrmWorkspaceContext::id())->findOrFail($id);
-        if (!$user->isAdmin() && (int) $job->designer_id !== (int) $user->id) {
+        if (!$user->canManageDesignJobs() && (int) $job->designer_id !== (int) $user->id) {
             abort(403, 'Only the designer who created this job can update its status.');
         }
         $data = $request->validate([
@@ -143,7 +149,7 @@ class DesignJobController extends Controller
     {
         $user = $this->requireDesignJobAccess();
         $job = DesignJob::where('workspace_id', \App\Support\CrmWorkspaceContext::id())->findOrFail($id);
-        if (!$user->isAdmin() && (int) $job->designer_id !== (int) $user->id) {
+        if (!$user->canManageDesignJobs() && (int) $job->designer_id !== (int) $user->id) {
             abort(403, 'Only the designer who created this job can update its stage.');
         }
         $data = $request->validate([
@@ -161,8 +167,8 @@ class DesignJobController extends Controller
         $user = $this->requireDesignJobAccess();
         $job = DesignJob::where('workspace_id', \App\Support\CrmWorkspaceContext::id())->findOrFail($id);
 
-        if (!$user->isAdmin() && (!$user->isDesigner() || (int) $job->designer_id !== (int) $user->id)) {
-            abort(403, 'Only an admin or the job designer can delete this job.');
+        if (!$user->canManageDesignJobs() && (!$user->isDesigner() || (int) $job->designer_id !== (int) $user->id)) {
+            abort(403, 'Only an admin, accounts or the job designer can delete this job.');
         }
 
         if (Schema::hasTable('crm_inventory_movements') && DB::table('crm_inventory_movements')
@@ -182,8 +188,8 @@ class DesignJobController extends Controller
     protected function requireDesignJobAccess()
     {
         $user = Auth::guard('crm')->user();
-        // Designers/admins manage jobs; sales (CSR) can view job status.
-        if (!$user->isDesigner() && !$user->isAdmin() && !$user->isSales()) {
+        // Designers/admins manage jobs; sales (CSR) and accounts can view job status.
+        if (!$user->isDesigner() && !$user->isAdmin() && !$user->isSales() && !$user->isAccounts()) {
             abort(403, 'You do not have access to design jobs.');
         }
         return $user;
@@ -192,7 +198,7 @@ class DesignJobController extends Controller
     protected function requireDesigner()
     {
         $user = Auth::guard('crm')->user();
-        if (!$user->isDesigner() && !$user->isAdmin()) {
+        if (!$user->isDesigner() && !$user->canManageDesignJobs()) {
             abort(403, 'Only designers can create design jobs.');
         }
         return $user;

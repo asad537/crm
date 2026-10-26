@@ -16,7 +16,7 @@ class DeliveryChallanController extends Controller
     {
         $user = Auth::guard('crm')->user();
         abort_unless($user, 403);
-        if (!$user->isDesigner() && !$user->isAdmin() && !$user->isSales()) {
+        if (!$user->isDesigner() && !$user->isAdmin() && !$user->isSales() && !$user->isAccounts()) {
             abort(403, 'You do not have access to delivery challans.');
         }
         return $user;

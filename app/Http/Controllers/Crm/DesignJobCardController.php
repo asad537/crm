@@ -64,12 +64,12 @@ class DesignJobCardController extends Controller
         'paste_tape', 'paste_glue', 'paste_double', 'paste_pvc_window', 'paste_other',
     ];
 
-    /** View access: designers, admins and sales (mirrors DesignJobController). */
+    /** View access: designers, admins, sales and accounts (mirrors DesignJobController). */
     protected function requireAccess()
     {
         $user = Auth::guard('crm')->user();
         abort_unless($user, 403);
-        if (!$user->isDesigner() && !$user->isAdmin() && !$user->isSales()) {
+        if (!$user->isDesigner() && !$user->isAdmin() && !$user->isSales() && !$user->isAccounts()) {
             abort(403, 'You do not have access to design jobs.');
         }
         return $user;
@@ -186,7 +186,7 @@ class DesignJobCardController extends Controller
     {
         $user = $this->requireAccess();
         $job = $this->findJob($id);
-        abort_unless($user->isAdmin() || $user->isDesigner(), 403, 'Only designers can record the dummy.');
+        abort_unless($user->canManageDesignJobs() || $user->isDesigner(), 403, 'Only designers can record the dummy.');
 
         $data = $request->validate([
             'dummy_sent_on' => 'nullable|date',
@@ -211,7 +211,7 @@ class DesignJobCardController extends Controller
     public function store(Request $request)
     {
         $user = $this->requireAccess();
-        abort_unless($user->isAdmin() || $user->isDesigner(), 403, 'Only designers can create job cards.');
+        abort_unless($user->canManageDesignJobs() || $user->isDesigner(), 403, 'Only designers can create job cards.');
 
         $draft = $request->input('save_mode') === 'draft';
         $enteredJobNumber = $this->nullIfBlank($request->input('job_no'));
@@ -264,7 +264,7 @@ class DesignJobCardController extends Controller
         $user = $this->requireAccess();
         $job = $this->findJob($id);
 
-        if (!$user->isAdmin() && !$user->isDesigner()) {
+        if (!$user->canManageDesignJobs() && !$user->isDesigner()) {
             abort(403, 'Only designers can edit the job card.');
         }
 
@@ -332,7 +332,7 @@ class DesignJobCardController extends Controller
             'wizard_completed_step' => 'nullable|integer|between:-1,15',
             'wizard_current_step' => 'nullable|integer|between:0,15',
         ];
-        if (Auth::guard('crm')->user()->isAdmin()) {
+        if (Auth::guard('crm')->user()->canManageDesignJobs()) {
             $rules['designer_id'] = [
                 'nullable', 'integer',
                 Rule::exists('crm_user_workspace', 'crm_user_id')
@@ -405,7 +405,7 @@ class DesignJobCardController extends Controller
             }
         }
         $user = Auth::guard('crm')->user();
-        if ($user && $user->isAdmin() && $request->has('designer_id')) {
+        if ($user && $user->canManageDesignJobs() && $request->has('designer_id')) {
             $jobUpdates['designer_id'] = $this->nullIfBlank($request->input('designer_id'));
         }
         if ($jobUpdates) {

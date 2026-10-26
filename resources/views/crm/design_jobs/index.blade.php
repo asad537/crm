@@ -3,7 +3,7 @@
 @section('content')
 @php
     $u = Auth::guard('crm')->user();
-    $canCreate = $u->isDesigner() || $u->isAdmin();
+    $canCreate = $u->isDesigner() || $u->canManageDesignJobs();
     $statusColors = [
         'designing'   => ['#1e40af', '#eaf0ff'],
         'mockup'      => ['#6b21a8', '#f4ecfd'],
@@ -209,7 +209,7 @@
         <div class="dj-wrap">
         <table class="dj-table">
             <thead><tr>
-                <th>Job</th>
+                @include('crm.design_jobs._sort_th', ['key' => 'job', 'label' => 'Job', 'ascLabel' => 'AMS jobs, lowest number first', 'descLabel' => 'AMS jobs, highest number first'])
                 {{-- <th>Estimate</th> --}}
                 <th>Title</th>
                 <th>Current Stage</th>
@@ -245,6 +245,10 @@
                         @if($job->details)<div class="sub">{{ \Illuminate\Support\Str::limit($job->details, 60) }}</div>@endif
                     </td>
                     <td>
+                        {{-- Only an admin, accounts or the job's designer can change the stage (same rule as DesignJobController::updateStage). --}}
+                        @if(!$u->canManageDesignJobs() && (int) $job->designer_id !== (int) $u->id)
+                            <span class="dj-stage {{ $job->production_stage ? '' : 'dj-stage-muted' }}">{{ $job->production_stage ? (\App\DesignJob::STAGES[$job->production_stage] ?? $job->production_stage) : 'Not set' }}</span>
+                        @else
                         <form method="POST" action="{{ route('crm.design_jobs.stage', $job->id) }}" class="dj-stage-form">
                             @csrf
                             <select name="production_stage" class="dj-stage-select {{ $job->production_stage ? '' : 'dj-stage-muted' }}"
@@ -260,6 +264,7 @@
                                 @endforeach
                             </select>
                         </form>
+                        @endif
                     </td>
                     <td>
                         <div class="dj-designer">
@@ -309,7 +314,7 @@
                                     <button type="button" class="dj-menu-edit-challan"><i class="fas fa-edit"></i> Edit Challan</button>
                                     <a href="{{ route('crm.challans.print', $challan->id) }}" target="_blank" rel="noopener" data-no-ajax-nav><i class="fas fa-print"></i> Print Challan</a>
                                 @endif
-                                @if($u->isAdmin() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))
+                                @if($u->canManageDesignJobs() || ($u->isDesigner() && (int) $job->designer_id === (int) $u->id))
                                     <form method="POST" action="{{ route('crm.design_jobs.destroy', $job->id) }}" onsubmit="return confirm('Delete this job and its job card? This cannot be undone.');">
                                         @csrf
                                         @method('DELETE')

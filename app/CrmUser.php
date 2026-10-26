@@ -130,6 +130,12 @@ class CrmUser extends Authenticatable
         return $this->activeWorkspaceRole() === 'accounts';
     }
 
+    /** Full control of the Jobs module (any job: create, job card, stage, status, dummy, challan, delete). */
+    public function canManageDesignJobs()
+    {
+        return $this->isAdmin() || $this->isAccounts();
+    }
+
     public function productionFacility()
     {
         return $this->belongsTo(ProductionFacility::class, 'production_facility_id');

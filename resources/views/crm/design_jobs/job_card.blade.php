@@ -288,7 +288,7 @@ textarea.jc-control{min-height:74px;resize:vertical}
         <div class="jc-field jc-4"><label>Job Deadline</label><input class="jc-control" type="date" name="due_date" value="{{ old('due_date', optional($job->due_date)->format('Y-m-d')) }}"></div>
         <div class="jc-field jc-4"><label>Client</label><input class="jc-control" name="client_name" value="{{ old('client_name', $job->client_name) }}"></div>
         <div class="jc-field jc-4"><label>Designer</label>
-            @if(auth('crm')->user()->isAdmin() && !$readOnly)
+            @if(auth('crm')->user()->canManageDesignJobs() && !$readOnly)
                 <select class="jc-control" name="designer_id"><option value="">Unassigned</option>
                     @foreach($designers as $designer)
                         <option value="{{ $designer->id }}" {{ (string) old('designer_id', $job->exists ? $job->designer_id : auth('crm')->id()) === (string) $designer->id ? 'selected' : '' }}>{{ $designer->name }}</option>
