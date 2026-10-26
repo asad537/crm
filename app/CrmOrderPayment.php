@@ -8,6 +8,7 @@ class CrmOrderPayment extends Model
 {
     protected $fillable = [
         'workspace_id', 'amount', 'paid_at', 'method', 'reference', 'note', 'created_by',
+        'bank_account_id',
     ];
 
     protected $casts = [

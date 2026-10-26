@@ -3,6 +3,8 @@
 @section('title', ' Dashboard')
 
 @section('header_actions')
+    {{-- The period toggle only drives the lead cards / charts, which the Business Summary view hides. --}}
+    @if(empty($financeSummary))
     <div
         style="display: flex; gap: 0.5rem; background: #fff; padding: 4px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
         <button class="filter-btn active">Today</button>
@@ -10,6 +12,7 @@
         <button class="filter-btn">Monthly</button>
         <button class="filter-btn">Yearly</button>
     </div>
+    @endif
 @endsection
 
 @section('content')
@@ -324,6 +327,10 @@
 
         <!-- STATS CARDS -->
         @php $__dashUser = Auth::guard('crm')->user(); @endphp
+
+        @if(!empty($financeSummary))
+            @include('crm.financial_reports._dashboard_summary', ['s' => $financeSummary])
+        @endif
 
         @if($__dashUser && $__dashUser->isEstimator())
         {{-- ── ESTIMATOR STATS (3 cards) ── --}}
@@ -840,8 +847,8 @@
             </div>
         </div>
 
-        @else
-        {{-- ── DEFAULT STATS (4 cards for all other roles) ── --}}
+        @elseif(empty($financeSummary))
+        {{-- ── DEFAULT STATS (4 cards for all other roles; replaced by the Business Summary where it shows) ── --}}
         <div class="stats-grid">
             <!-- Card 1: Total -->
             <div class="stat-box s-blue" onclick="window.location='{{ route('crm.emails.index') }}'">
@@ -913,6 +920,7 @@
         </div>
         @endif
 
+        @if(empty($financeSummary))
         <!-- MIDDLE ROW: BAR CHART + LOCATIONS -->
         <div class="middle-grid">
             <!-- Chart 1: Bar -->
@@ -1050,6 +1058,7 @@
                 <canvas id="waveChart"></canvas>
             </div>
         </div>
+        @endif
     </div>
 @endsection
 

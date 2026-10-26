@@ -14,39 +14,51 @@ use Illuminate\Support\Facades\DB;
  */
 class InventoryService
 {
-    /** Apply one movement under a row lock and return it. $type: in | out | adjust. */
+    /**
+     * Apply one movement under a row lock and return it. $type: in | out | adjust.
+     * $extra['reason'] says what it means for the books (see InventoryAccounting); '_revalue' takes stock out at its
+     * own price (a bill edited or removed) so the rest keeps its true average cost.
+     */
     public function move(CrmInventoryItem $item, string $type, float $qty, array $extra, ?int $userId): CrmInventoryMovement
     {
         return DB::transaction(function () use ($item, $type, $qty, $extra, $userId) {
             $locked = CrmInventoryItem::withoutGlobalScopes()->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $signed = $extra['_signed'] ?? ($type === 'out' ? -$qty : $qty);
             $oldQty = (float) $locked->quantity;
+            $oldCost = (float) ($locked->unit_cost ?? 0);
             $balance = round($oldQty + $signed, 3);
             $locked->quantity = $balance;
+            $hasCost = isset($extra['unit_cost']) && $extra['unit_cost'] !== '' && $extra['unit_cost'] !== null;
             // Weighted-average cost: 1000 @ 20 then 1000 @ 18 → the item is carried at 19.00.
             // Each purchase keeps its own price on the movement row; the item holds the average.
-            if ($type === 'in' && isset($extra['unit_cost']) && $extra['unit_cost'] !== '' && $extra['unit_cost'] !== null) {
+            if ($type === 'in' && $hasCost) {
                 $newCost = (float) $extra['unit_cost'];
-                $oldCost = (float) ($locked->unit_cost ?? 0);
                 $locked->unit_cost = ($oldQty > 0 && $oldCost > 0)
                     ? round(($oldQty * $oldCost + $qty * $newCost) / ($oldQty + $qty), 4)
                     : $newCost;
             }
+            if ($type === 'out' && $hasCost && !empty($extra['_revalue']) && $balance > 0.0005) {
+                $locked->unit_cost = max(0, round(($oldQty * $oldCost - $qty * (float) $extra['unit_cost']) / $balance, 4));
+            }
             $locked->save();
             $item->quantity = $balance;
             $item->unit_cost = $locked->unit_cost;
-            if ($type === 'out' && (!isset($extra['unit_cost']) || $extra['unit_cost'] === '' || $extra['unit_cost'] === null)) {
-                $extra['unit_cost'] = $locked->unit_cost; // what this consumption cost the job
+            if (!$hasCost) {
+                $extra['unit_cost'] = $locked->unit_cost; // what this consumption / return / adjustment is worth at average cost
             }
             return CrmInventoryMovement::create([
                 'workspace_id' => $locked->workspace_id,
                 'inventory_item_id' => $locked->id,
                 'type' => $type,
+                'reason' => $extra['reason'] ?? null,
                 'quantity' => abs($qty),
                 'balance_after' => $balance,
                 'job_id' => $extra['job_id'] ?? null,
                 'job_number' => $extra['job_number'] ?? null,
                 'vendor_purchase_id' => $extra['vendor_purchase_id'] ?? null,
+                'purchase_invoice_id' => $extra['purchase_invoice_id'] ?? null,
+                'reversal_of_id' => $extra['reversal_of_id'] ?? null,
+                'entry_date' => $extra['entry_date'] ?? null,
                 'unit_cost' => $extra['unit_cost'] ?? null,
                 'reference' => $extra['reference'] ?? null,
                 'note' => $extra['note'] ?? null,
@@ -103,6 +115,7 @@ class InventoryService
         if (!$item) return null;
         $mv = $this->move($item, 'in', $qty, [
             'unit_cost' => isset($o['unit_cost']) && $o['unit_cost'] !== '' ? (float) $o['unit_cost'] : ($line->actual_price ?: $line->estimated_price),
+            'reason' => 'expensed',
             'reference' => 'Demand #' . $request->request_no . ' received',
             'note' => trim((string) ($o['note'] ?? '')) ?: (trim(implode(' · ', array_filter([$line->vendor_name, $line->vendor_invoice_no ? 'Inv ' . $line->vendor_invoice_no : null]))) ?: null),
         ], $userId);
@@ -122,7 +135,7 @@ class InventoryService
         $request = $line->request()->first();
         $mv = null;
         if ($item) {
-            $mv = $this->move($item, 'out', (float) $extra['inventory_qty'], ['reference' => 'Demand #' . ($request->request_no ?? '?') . ' receipt undone'], $userId);
+            $mv = $this->move($item, 'out', (float) $extra['inventory_qty'], ['reason' => 'expensed', 'reference' => 'Demand #' . ($request->request_no ?? '?') . ' receipt undone'], $userId);
         }
         unset($extra['inventory_item_id'], $extra['inventory_movement_id'], $extra['inventory_qty']);
         $line->forceFill(['extra' => $extra ?: null])->saveQuietly();
@@ -141,7 +154,7 @@ class InventoryService
         $item = CrmInventoryItem::withoutGlobalScopes()->find($extra['inventory_item_id']);
         if (!$item) return;
         $request = $line->request()->first();
-        $this->move($item, $diff > 0 ? 'in' : 'out', abs($diff), ['reference' => 'Demand #' . ($request->request_no ?? '?') . ' qty corrected'], $userId);
+        $this->move($item, $diff > 0 ? 'in' : 'out', abs($diff), ['reason' => 'expensed', 'reference' => 'Demand #' . ($request->request_no ?? '?') . ' qty corrected'], $userId);
         $extra['inventory_qty'] = $new;
         $line->forceFill(['extra' => $extra])->saveQuietly();
     }
@@ -177,7 +190,7 @@ class InventoryService
         }
         foreach ($plan as [$item, $diff]) {
             $this->move($item, $diff > 0 ? 'out' : 'in', abs($diff), [
-                'job_id' => $jobId, 'job_number' => $jobNumber,
+                'reason' => 'job', 'job_id' => $jobId, 'job_number' => $jobNumber,
                 'reference' => ($diff > 0 ? 'Used on job ' : 'Returned from job ') . ($jobNumber ?: '#' . $jobId),
             ], $userId);
         }

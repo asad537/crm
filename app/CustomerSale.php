@@ -12,6 +12,7 @@ class CustomerSale extends Model
         'subtotal', 'discount_amount', 'tax_amount', 'shipping_cost', 'total_amount',
         'paid_amount', 'balance_amount', 'currency', 'payment_status', 'order_status',
         'payment_method', 'notes', 'import_source_key',
+        'bank_account_id',
     ];
 
     protected $casts = [
@@ -39,9 +40,21 @@ class CustomerSale extends Model
         });
     }
 
+    /** Payments received from "Make Receipt" (paid_amount already includes them). */
+    public function payments()
+    {
+        return $this->hasMany(CustomerSalePayment::class, 'customer_sale_id')->orderBy('paid_at')->orderBy('id');
+    }
+
     public function customer()
     {
         return $this->belongsTo(CrmCustomer::class, 'customer_id');
+    }
+
+    /** Files attached on the Customers tab (PO, signed invoice, delivery note...). */
+    public function attachments()
+    {
+        return $this->hasMany(CustomerSaleAttachment::class, 'customer_sale_id')->orderBy('id');
     }
 
     public function crmOrder()

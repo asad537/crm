@@ -150,7 +150,7 @@
     </div>
     @if($summary['credit'] > 0.009)<div class="cs-hero" style="padding:.8rem 1rem"><strong>Customer credit: {{ $selectedCustomer->currency }} {{ number_format($summary['credit'],2) }}</strong><span class="cs-muted">Received above invoice totals; preserved separately from outstanding.</span></div>@endif
     <div class="cs-toolbar"><form method="GET"><input type="hidden" name="customer_id" value="{{ $selectedCustomer->id }}"><input class="cs-control" name="search" value="{{ request('search') }}" placeholder="Search order or item..."><select class="cs-control" name="payment_status" onchange="this.form.submit()"><option value="">All payments</option>@foreach(['Unpaid','Partial','Paid'] as $status)<option {{ request('payment_status')===$status?'selected':'' }}>{{ $status }}</option>@endforeach</select><button class="cs-btn cs-btn-soft">Search</button></form></div>
-    <div class="cs-table-wrap"><table class="cs-table"><thead><tr><th>Date</th><th>Order</th><th>Item</th><th>Qty</th><th>Total</th><th>Paid / Balance</th><th>Order Status</th><th>Payment</th><th>Action</th></tr></thead><tbody>
+    <div class="cs-table-wrap"><table class="cs-table"><thead><tr><th>Date</th><th>Order</th><th>Item</th><th>Qty</th><th>Total</th><th>Paid / Balance</th><th>Order Status</th><th>Payment</th><th>Files</th><th>Action</th></tr></thead><tbody>
     @forelse($sales as $sale)
         <tr><td>{{ $sale->order_date->format('d M Y') }}</td><td><strong>{{ $sale->order_number }}</strong></td><td>{{ $sale->item_name }}</td><td>{{ $sale->quantity === null ? '—' : number_format($sale->quantity,2).' '.$sale->unit }}</td><td>{{ $sale->currency }} {{ number_format($sale->total_amount,2) }}</td><td>{{ number_format($sale->paid_amount,2) }} / {{ number_format($sale->balance_amount,2) }} @if($sale->paid_amount > $sale->total_amount)<div class="cs-muted">Credit {{ number_format($sale->paid_amount-$sale->total_amount,2) }}</div>@endif</td><td><span class="cs-status">{{ $sale->order_status }}</span></td><td>
             @if($sale->crm_email_id)
@@ -158,6 +158,9 @@
             @else
                 <form class="cs-pay" method="POST" action="{{ route('crm.customer_sales.update_payment',$sale->id) }}">{{ csrf_field() }}{{ method_field('PATCH') }}<input class="cs-control" name="paid_amount" type="number" step=".01" min="0" value="{{ $sale->paid_amount }}"><button class="cs-icon-btn"><i class="fas fa-save"></i></button></form>
             @endif
+        </td><td>
+            @php($__files = $sale->attachments->count())
+            <button type="button" class="cs-files-btn {{ $__files ? 'has' : '' }}" onclick="openFiles({{ $sale->id }})" title="{{ $__files ? 'View, add or remove files' : 'Attach a file (PO, invoice copy, receipt…)' }}"><i class="fas fa-paperclip"></i> {{ $__files ? $__files . ' ' . \Illuminate\Support\Str::plural('file', $__files) : 'Attach' }}</button>
         </td><td>
             @if($sale->crm_email_id)
                 <a class="cs-link" href="{{ route('crm.orders.invoice', $sale->crm_email_id) }}">View Invoice</a>
@@ -168,7 +171,7 @@
                 <button class="cs-icon-btn" type="button" onclick="editSale({{ $sale->id }})"><i class="fas fa-edit"></i></button>
             @endif
         </td></tr>
-    @empty<tr><td colspan="9" class="cs-empty">No sales recorded for this customer.</td></tr>@endforelse
+    @empty<tr><td colspan="10" class="cs-empty">No sales recorded for this customer.</td></tr>@endforelse
     </tbody></table></div>
     @if(method_exists($sales,'links')) {{ $sales->links() }} @endif
 @endif
@@ -195,15 +198,41 @@
 </div><div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="closeCustomerModal()">Cancel</button><button class="cs-btn cs-btn-primary">Save Customer</button></div></form></div></div>
 
 @if($selectedCustomer)
-<div class="cs-modal-bg" id="saleModal" onclick="if(event.target===this)closeSaleModal()"><div class="cs-modal"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-file-invoice-dollar"></i></span><div><h3 id="saleModalTitle">Add Customer Sale</h3><div class="cs-muted">{{ $selectedCustomer->name }}</div></div></div><button class="cs-close" onclick="closeSaleModal()"><i class="fas fa-times"></i></button></div><form class="cs-form" id="saleForm" method="POST" action="{{ route('crm.customer_sales.store') }}">{{ csrf_field() }}<input id="saleMethod" type="hidden" name="_method" value="POST"><input type="hidden" name="customer_id" value="{{ $selectedCustomer->id }}"><div class="cs-grid">
+<div class="cs-modal-bg" id="saleModal" onclick="if(event.target===this)closeSaleModal()"><div class="cs-modal"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-file-invoice-dollar"></i></span><div><h3 id="saleModalTitle">Add Customer Sale</h3><div class="cs-muted">{{ $selectedCustomer->name }}</div></div></div><button class="cs-close" onclick="closeSaleModal()"><i class="fas fa-times"></i></button></div><form class="cs-form" id="saleForm" method="POST" action="{{ route('crm.customer_sales.store') }}" enctype="multipart/form-data">{{ csrf_field() }}<input id="saleMethod" type="hidden" name="_method" value="POST"><input type="hidden" name="customer_id" value="{{ $selectedCustomer->id }}"><div class="cs-grid">
     <div class="cs-field"><label>Order Number *</label><input class="cs-control" name="order_number" value="SO-{{ date('ymd-His') }}" required></div><div class="cs-field"><label>Order Date *</label><input class="cs-control" type="date" name="order_date" value="{{ date('Y-m-d') }}" required></div><div class="cs-field"><label>Due Date</label><input class="cs-control" type="date" name="due_date"></div>
     <div class="cs-field-6"><label>Product / Item *</label><input class="cs-control" name="item_name" required></div><div class="cs-field-6"><label>Description</label><input class="cs-control" name="description"></div>
     <div class="cs-field"><label>Quantity *</label><input class="cs-control cs-calc" type="number" step=".01" min=".01" name="quantity" value="1" required></div><div class="cs-field"><label>Unit</label><select class="cs-control" name="unit">@foreach(['Pieces','Boxes','Sheets','Rolls','Kg','Sets','Units'] as $unit)<option>{{ $unit }}</option>@endforeach</select></div><div class="cs-field"><label>Unit Price *</label><input class="cs-control cs-calc" type="number" step=".000001" min="0" name="unit_price" value="0" required></div>
     <div class="cs-field"><label>Discount</label><input class="cs-control cs-calc" type="number" step=".01" min="0" name="discount_amount" value="0"></div><div class="cs-field"><label>Tax</label><input class="cs-control cs-calc" type="number" step=".01" min="0" name="tax_amount" value="0"></div><div class="cs-field"><label>Shipping</label><input class="cs-control cs-calc" type="number" step=".01" min="0" name="shipping_cost" value="0"></div>
     <div class="cs-field"><label>Paid Amount</label><input class="cs-control cs-calc" type="number" step=".01" min="0" name="paid_amount" value="0"></div><div class="cs-field"><label>Currency</label><select class="cs-control" name="currency">@foreach(['AED','USD','GBP','EUR','PKR','SAR','QAR','OMR','KWD','CAD','AUD'] as $currency)<option {{ $selectedCustomer->currency===$currency?'selected':'' }}>{{ $currency }}</option>@endforeach</select></div><div class="cs-field"><label>Payment Method</label><select class="cs-control" name="payment_method"><option value="">Select</option>@foreach(['Cash','Bank Transfer','Card','Cheque','Credit'] as $method)<option>{{ $method }}</option>@endforeach</select></div>
     <div class="cs-field"><label>Order Status</label><select class="cs-control" name="order_status">@foreach(['Draft','Confirmed','In Production','Ready','Dispatched','Delivered','Completed','On Hold','Cancelled'] as $status)<option>{{ $status }}</option>@endforeach</select></div><div class="cs-field-12"><label>Notes</label><textarea class="cs-control" name="notes"></textarea></div>
+    <div class="cs-field-12"><label>Attachments <span class="cs-muted" style="font-weight:600">(optional · PO, invoice copy, receipt… up to 10 files, 10 MB each)</span></label><input class="cs-control" type="file" name="attachments[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt"></div>
     <div class="cs-totals"><div><span>Subtotal</span><strong id="csSubtotal">0.00</strong></div><div><span>Total</span><strong id="csTotal">0.00</strong></div><div><span>Balance</span><strong id="csBalance">0.00</strong></div><div><span>Payment</span><strong id="csPaymentStatus">Unpaid</strong></div></div>
 </div><div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="closeSaleModal()">Cancel</button><button class="cs-btn cs-btn-primary">Save Sale</button></div></form></div></div>
+@if(!$showIncome)
+<style>
+.cs-files-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.42rem .65rem;border:1px dashed #cbd5e1;border-radius:9px;background:#fff;color:#64748b;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;white-space:nowrap}
+.cs-files-btn:hover{border-color:var(--cs-main);color:var(--cs-main)}
+.cs-files-btn.has{border-style:solid;border-color:var(--cs-shadow);color:var(--cs-main);background:#fff7f2}
+.cs-file-list{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem}
+.cs-file{display:flex;align-items:center;gap:.7rem;padding:.6rem .75rem;border:1px solid #e4eaf1;border-radius:11px}
+.cs-file i.ico{font-size:1.15rem;color:var(--cs-main);width:20px;text-align:center}
+.cs-file a{flex:1;min-width:0;color:#1e293b;font-weight:800;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-file a:hover{color:var(--cs-main)}
+.cs-file .meta{font-size:.7rem;color:#94a3b8;white-space:nowrap}
+.cs-file button{border:0;background:#fff1f2;color:#be123c;width:30px;height:30px;border-radius:8px;cursor:pointer}
+.cs-file-empty{padding:1rem;border:1px dashed #e2e8f0;border-radius:11px;color:#94a3b8;text-align:center;font-size:.82rem;margin-bottom:1rem}
+</style>
+<div class="cs-modal-bg" id="filesModal" onclick="if(event.target===this)closeFiles()"><div class="cs-modal" style="max-width:620px"><div class="cs-modal-head"><div class="cs-modal-title"><span class="cs-modal-icon"><i class="fas fa-paperclip"></i></span><div><h3>Attachments</h3><div class="cs-muted" id="filesSub"></div></div></div><button class="cs-close" type="button" onclick="closeFiles()"><i class="fas fa-times"></i></button></div>
+    <div class="cs-form">
+        <div id="filesList"></div>
+        <form id="filesForm" method="POST" enctype="multipart/form-data">{{ csrf_field() }}
+            <div class="cs-field-12"><label>Add files <span class="cs-muted" style="font-weight:600">(PDF, images, Word, Excel, CSV · up to 10 files, 10 MB each)</span></label><input class="cs-control" type="file" name="attachments[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt"></div>
+            <div class="cs-actions"><button class="cs-btn cs-btn-soft" type="button" onclick="closeFiles()">Close</button><button class="cs-btn cs-btn-primary"><i class="fas fa-upload"></i> Upload</button></div>
+        </form>
+        <form id="filesDeleteForm" method="POST" style="display:none">{{ csrf_field() }}{{ method_field('DELETE') }}</form>
+    </div>
+</div></div>
+@endif
 @endif
 @endsection
 
@@ -225,6 +254,12 @@ function closeSaleModal(){document.getElementById('saleModal').style.display='no
 function editSale(id){var data=customerSales[id];if(!data)return;var form=document.getElementById('saleForm');form.reset();form.action='{{ url('/crm/customer-sales') }}/'+id;document.getElementById('saleMethod').value='PUT';document.getElementById('saleModalTitle').textContent='Edit Customer Sale';Object.keys(data).forEach(function(name){var field=form.elements[name];if(!field)return;var value=data[name];if((name==='order_date'||name==='due_date')&&value)value=String(value).substring(0,10);field.value=value===null?'':value});form.elements.quantity.required=!(data.import_source_key && data.quantity===null);document.getElementById('saleModal').style.display='flex';document.body.style.overflow='hidden';calculateSale()}
 function calculateSale(){var f=document.getElementById('saleForm');if(!f)return;var n=function(name){return parseFloat(f.elements[name].value)||0},subtotal=n('quantity')*n('unit_price'),total=Math.max(0,subtotal-n('discount_amount')+n('tax_amount')+n('shipping_cost')),paid=n('paid_amount'),balance=Math.max(0,total-paid);document.getElementById('csSubtotal').textContent=subtotal.toFixed(2);document.getElementById('csTotal').textContent=total.toFixed(2);document.getElementById('csBalance').textContent=balance.toFixed(2);document.getElementById('csPaymentStatus').textContent=paid<=0?'Unpaid':(balance>0?'Partial':'Paid')}
 document.querySelectorAll('.cs-calc').forEach(function(field){field.addEventListener('input',calculateSale)});
+// Files attached to each sale: listed in the Files window, opened through the CRM (stored privately).
+var saleFiles={!! json_encode($sales->getCollection()->mapWithKeys(fn($s)=>[$s->id=>['order'=>$s->order_number,'upload'=>route('crm.customer_sales.attachments.store',$s->id),'files'=>$s->attachments->map(fn($f)=>['name'=>$f->original_name,'meta'=>$f->sizeLabel().' · '.$f->created_at->format('d M Y').($f->uploader ? ' · '.$f->uploader->name : ''),'image'=>str_starts_with((string)$f->mime,'image/'),'pdf'=>$f->mime==='application/pdf','url'=>route('crm.customer_sales.attachments.show',[$s->id,$f->id]),'del'=>route('crm.customer_sales.attachments.destroy',[$s->id,$f->id])])->values()]])) !!};
+function csEsc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function openFiles(id){var s=saleFiles[id];if(!s)return;document.getElementById('filesSub').textContent=s.order;var form=document.getElementById('filesForm');form.reset();form.action=s.upload;var list=document.getElementById('filesList');if(!s.files.length){list.innerHTML='<div class="cs-file-empty"><i class="fas fa-folder-open"></i> No files attached yet.</div>';}else{list.innerHTML='<div class="cs-file-list">'+s.files.map(function(f,i){return '<div class="cs-file"><i class="ico fas '+(f.image?'fa-file-image':(f.pdf?'fa-file-pdf':'fa-file-alt'))+'"></i><a href="'+csEsc(f.url)+'" target="_blank" rel="noopener" title="Open '+csEsc(f.name)+'">'+csEsc(f.name)+'</a><span class="meta">'+csEsc(f.meta)+'</span><button type="button" title="Remove this file" onclick="deleteFile('+id+','+i+')"><i class="fas fa-trash"></i></button></div>'}).join('')+'</div>';}document.getElementById('filesModal').style.display='flex';document.body.style.overflow='hidden'}
+function closeFiles(){document.getElementById('filesModal').style.display='none';document.body.style.overflow=''}
+function deleteFile(id,i){var file=saleFiles[id].files[i];if(!confirm('Remove "'+file.name+'" from this sale?'))return;var f=document.getElementById('filesDeleteForm');f.action=file.del;f.submit()}
 @endif
 </script>
 @endsection

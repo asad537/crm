@@ -9,6 +9,7 @@ class DemandRequestPayment extends Model
     protected $fillable = [
         'demand_request_id', 'item_id', 'category', 'adjust_from', 'pay_type', 'amount', 'method', 'paid_to', 'vendor_invoice_no', 'note', 'paid_at', 'created_by',
         'attachment_path', 'attachment_name', 'attachment_mime',
+        'bank_account_id',
     ];
 
     protected $casts = [

@@ -88,7 +88,7 @@
         .grand-total span:first-child { text-align: right; }
         .payment-panel { width: 210mm; max-width: calc(100% - 24px); margin: 0 auto 20px; padding: 18px; background: white; border-radius: 10px; box-shadow: 0 5px 24px rgba(15,23,42,.12); font-size: 13px; }
         .payment-fields { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .payment-fields input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; min-width: 120px; }
+        .payment-fields input, .payment-fields select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; min-width: 120px; background: #fff; font: inherit; }
         .payment-fields button { background: {{ $primaryColor }}; color: white; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
         .signoff { margin-top: 36mm; }
         .signatory { text-align: right; margin-right: 3mm; }
@@ -218,6 +218,7 @@
                     <input type="number" name="amount" min="0.01" max="{{ number_format($balanceDue, 2, '.', '') }}" step="0.01" placeholder="Amount" required>
                     <input type="date" name="paid_at" value="{{ now()->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}" required>
                     <input name="method" placeholder="Method">
+                    @include('crm.bank_accounts._select', ['baPlain' => true])
                     <input name="reference" placeholder="Reference">
                     <input name="note" placeholder="Note">
                     <button type="submit">Record payment</button>

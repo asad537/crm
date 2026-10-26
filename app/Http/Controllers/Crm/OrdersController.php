@@ -648,7 +648,9 @@ class OrdersController extends Controller
             'note' => 'nullable|string|max:2000',
         ]);
 
-        DB::transaction(function () use ($id, $validated, $user) {
+        $bankAccount = \App\CrmBankAccount::fromRequest($request);
+
+        DB::transaction(function () use ($id, $validated, $user, $bankAccount) {
             $order = CrmEmail::whereKey($id)->lockForUpdate()->firstOrFail();
             if (!$order->workspace || $order->workspace->slug !== 'mybox-packaging-app'
                 || ($order->status !== 'Order Done' && !$order->salesOrder)) {
@@ -658,7 +660,7 @@ class OrdersController extends Controller
             if ($amount < 0.01 || $amount > $order->orderBalanceDue() + 0.009) {
                 throw ValidationException::withMessages(['amount' => 'Payment must be above zero and cannot exceed the remaining balance.']);
             }
-            $order->orderPayments()->create([
+            $order->orderPayments()->create(array_merge([
                 'workspace_id' => $order->workspace_id,
                 'amount' => $amount,
                 'paid_at' => $validated['paid_at'],
@@ -666,11 +668,16 @@ class OrdersController extends Controller
                 'reference' => $validated['reference'] ?? null,
                 'note' => $validated['note'] ?? null,
                 'created_by' => $user->id,
-            ]);
+            ], $bankAccount));
             $order->unsetRelation('orderPayments');
             $order->update(['payment_status' => $order->orderPaymentLabel()]);
             app(\App\Services\CrmOrderCustomerSaleSync::class)->sync($order);
         });
+
+        // "Make Receipt" on the Receipts page sends return_to=receipts so the user lands back there.
+        if ($request->input('return_to') === 'receipts') {
+            return redirect()->route('crm.receipts.index')->with('success', 'Payment of ' . number_format((float) $validated['amount'], 2) . ' recorded on the invoice.');
+        }
 
         return redirect()->route('crm.orders.invoice', $id)->with('success', 'Payment recorded.');
     }

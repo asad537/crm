@@ -869,6 +869,17 @@
             border-color: var(--primary-purple) !important;
             box-shadow: 0 0 0 3px var(--primary-shadow) !important;
         }
+        /* Boxes that draw their own focus ring with :focus-within (search bars, composers): the field inside must stay
+           borderless, otherwise the ring above shows a second box inside the first. */
+        .al-massa-crm .inv-search input:focus, .al-massa-crm .inv-search input:focus-visible,
+        .al-massa-crm .or-ctrl input:focus, .al-massa-crm .or-ctrl input:focus-visible,
+        .al-massa-crm .or-ctrl select:focus, .al-massa-crm .or-ctrl select:focus-visible,
+        .al-massa-crm .composer-box textarea:focus, .al-massa-crm .composer-box textarea:focus-visible,
+        .al-massa-crm .composer-box input:focus, .al-massa-crm .composer-box input:focus-visible,
+        .al-massa-crm .chat-input-container textarea:focus, .al-massa-crm .chat-input-container textarea:focus-visible {
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
         .al-massa-crm input[type="checkbox"]:focus,
         .al-massa-crm input[type="checkbox"]:focus-visible,
         .al-massa-crm input[type="radio"]:focus,
@@ -1155,8 +1166,8 @@
                 </a>
             @endif
 
-            {{-- Design Jobs: Al Massa workspace only. Designer + Admin manage; Sales (CSR) can view. --}}
-            @if($activeCrmWorkspace->slug === 'mybox-packaging-app' && ($__navUser->isDesigner() || $__navUser->isAdmin() || $__navUser->isSales()))
+            {{-- Design Jobs: Al Massa workspace only. Designer + Admin manage; Sales (CSR) and Accounts can view. --}}
+            @if($activeCrmWorkspace->slug === 'mybox-packaging-app' && ($__navUser->isDesigner() || $__navUser->isAdmin() || $__navUser->isSales() || $__navUser->isAccounts()))
             @php
                 $__designJobsCount = $__sidebarCount('design_jobs', function () use ($activeCrmWorkspace) {
                     return \Illuminate\Support\Facades\Schema::hasTable('design_jobs')
@@ -1366,6 +1377,92 @@
                         <i class="fas fa-chevron-right arrow"></i>
                     </span>
                 </a>
+                @if($__isAlMassaWorkspace)
+                @if(Auth::guard('crm')->user()->isAdmin() || Auth::guard('crm')->user()->isAccounts())
+                <a href="{{ route('crm.chart_of_accounts.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.chart_of_accounts.*') ? 'active' : '' }}">
+                    <i class="fas fa-sitemap"></i>
+                    <span class="nav-label">Chart of Accounts</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                @endif
+                <a href="{{ route('crm.bank_accounts.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.bank_accounts.*') ? 'active' : '' }}">
+                    <i class="fas fa-university"></i>
+                    <span class="nav-label">Bank &amp; Cash</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                @if(Auth::guard('crm')->user()->isAdmin() || Auth::guard('crm')->user()->isAccounts())
+                <a href="{{ route('crm.owner_capital.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.owner_capital.*') ? 'active' : '' }}">
+                    <i class="fas fa-user-tie"></i>
+                    <span class="nav-label">Owner's Capital</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                @endif
+                <a href="{{ route('crm.receipts.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.receipts.*') ? 'active' : '' }}">
+                    <i class="fas fa-receipt"></i>
+                    <span class="nav-label">Receipts</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.payments.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.payments.*') ? 'active' : '' }}">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span class="nav-label">Payments</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.fixed_assets.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.fixed_assets.*') ? 'active' : '' }}">
+                    <i class="fas fa-boxes"></i>
+                    <span class="nav-label">Fixed Assets</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.purchase_invoices.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.purchase_invoices.*') ? 'active' : '' }}">
+                    <i class="fas fa-file-invoice"></i>
+                    <span class="nav-label">Purchase Invoices</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.employees.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.employees.*') ? 'active' : '' }}">
+                    <i class="fas fa-id-badge"></i>
+                    <span class="nav-label">Employees</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.payroll.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.payroll.*') ? 'active' : '' }}">
+                    <i class="fas fa-money-check-alt"></i>
+                    <span class="nav-label">Salaries</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                <a href="{{ route('crm.financial_reports.index') }}"
+                    class="nav-item {{ request()->routeIs('crm.financial_reports.*') ? 'active' : '' }}">
+                    <i class="fas fa-chart-line"></i>
+                    <span class="nav-label">Financial Reports</span>
+                    <span class="nav-right">
+                        <i class="fas fa-chevron-right arrow"></i>
+                    </span>
+                </a>
+                @endif
                 <a href="{{ route('crm.customer_sales.index') }}"
                     class="nav-item {{ request()->routeIs('crm.customer_sales.*') ? 'active' : '' }}">
                     <i class="fas fa-users"></i>

@@ -9,9 +9,11 @@ class CrmInventoryMovement extends Model
     protected $table = 'crm_inventory_movements';
 
     protected $fillable = [
-        'workspace_id', 'inventory_item_id', 'type', 'quantity', 'balance_after',
-        'job_id', 'job_number', 'vendor_purchase_id', 'unit_cost', 'reference', 'note', 'created_by',
+        'workspace_id', 'inventory_item_id', 'type', 'reason', 'quantity', 'balance_after',
+        'job_id', 'job_number', 'vendor_purchase_id', 'purchase_invoice_id', 'reversal_of_id', 'entry_date', 'unit_cost', 'reference', 'note', 'created_by',
     ];
+
+    protected $casts = ['entry_date' => 'date'];
 
     protected static function boot()
     {

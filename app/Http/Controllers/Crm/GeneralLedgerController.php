@@ -27,11 +27,13 @@ class GeneralLedgerController extends Controller
                 COALESCE(SUM(balance_amount),0) as balance,
                 COUNT(*) as c
             ')->first();
+        // Purchase invoices (Purchase Invoices tab) are payables too.
+        $purchaseInvoices = \App\CrmPurchaseInvoice::with('payments')->get();
         $payableTotals = [
-            'total'   => (float) $payableAgg->total,
-            'paid'    => (float) $payableAgg->paid,
-            'balance' => (float) $payableAgg->balance,
-            'count'   => (int)   $payableAgg->c,
+            'total'   => (float) $payableAgg->total + (float) $purchaseInvoices->sum('total'),
+            'paid'    => (float) $payableAgg->paid + (float) $purchaseInvoices->sum(fn ($inv) => $inv->paidTotal()),
+            'balance' => (float) $payableAgg->balance + (float) $purchaseInvoices->sum(fn ($inv) => max(0, $inv->balanceDue())),
+            'count'   => (int)   $payableAgg->c + $purchaseInvoices->count(),
         ];
         $receivableAll = $this->receivableRows();
         $income = \App\CrmIncomeEntry::with('customer')->get(); // rent / other income dues
@@ -49,6 +51,7 @@ class GeneralLedgerController extends Controller
         // built from the names that actually appear in the ledger for this tab.
         $vendorNames = $payableTotals ? VendorPurchase::get()->toBase()
                 ->map(fn ($p) => $p->vendor_name ?: optional($p->vendor)->name)
+                ->concat($purchaseInvoices->pluck('vendor_name'))
                 ->filter()->unique()->sort()->values() : collect();
         $customerNames = $receivableAll->toBase()
                 ->map(fn ($r) => $r->lead->client_name ?? null)
@@ -114,6 +117,21 @@ class GeneralLedgerController extends Controller
             ],
         ];
 
+        // No customer/vendor picked: export one totals line per party instead of every entry.
+        if (empty($filters['party'])) {
+            $meta['partyLabel'] = ['all' => 'Customer / Vendor', 'payable' => 'Vendor', 'receivable' => 'Customer'][$tab];
+            $meta['paidLabel'] = ['all' => 'Received / Paid', 'payable' => 'Paid (Out)', 'receivable' => 'Received (In)'][$tab];
+            $summary = $this->partySummary($entries);
+            $filename = 'general-ledger-'.$tab.'-'.($tab === 'payable' ? 'vendors' : ($tab === 'receivable' ? 'customers' : 'parties')).'-summary-'.now()->format('Y-m-d');
+            if ($request->input('format') === 'pdf') {
+                return \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.general_ledger.export_summary_pdf', ['rows' => $summary, 'meta' => $meta])
+                    ->setPaper('a4', 'landscape')->download($filename.'.pdf');
+            }
+            return response()->view('crm.general_ledger.export_summary_excel', ['rows' => $summary, 'meta' => $meta])
+                ->header('Content-Type', 'application/vnd.ms-excel')
+                ->header('Content-Disposition', 'attachment; filename="'.$filename.'.xls"');
+        }
+
         $filename = 'general-ledger-'.$tab.'-'.now()->format('Y-m-d');
         if ($request->input('format') === 'pdf') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('crm.general_ledger.export_pdf', ['entries' => $entries, 'meta' => $meta])
@@ -123,6 +141,27 @@ class GeneralLedgerController extends Controller
         return response()->view('crm.general_ledger.export_excel', ['entries' => $entries, 'meta' => $meta])
             ->header('Content-Type', 'application/vnd.ms-excel')
             ->header('Content-Disposition', 'attachment; filename="'.$filename.'.xls"');
+    }
+
+    /** One row per customer/vendor: how many entries, total, paid/received and balance. */
+    protected function partySummary($entries)
+    {
+        return $entries->groupBy(fn ($entry) => $entry->type.'|'.$entry->party)
+            ->map(function ($group) {
+                $first = $group->first();
+                return (object) [
+                    'type' => $first->type,
+                    'party' => $first->party,
+                    'count' => $group->count(),
+                    'total' => (float) $group->sum('total'),
+                    'paid' => (float) $group->sum('paid'),
+                    'balance' => (float) $group->sum('balance'),
+                    'currency' => $group->pluck('currency')->filter()->unique()->implode(' / ') ?: 'AED',
+                    'last_date' => $group->max(fn ($entry) => \Carbon\Carbon::parse($entry->date)),
+                ];
+            })
+            ->sortBy(fn ($row) => [$row->type, mb_strtolower($row->party)])
+            ->values();
     }
 
     protected function authorizeLedger()
@@ -207,6 +246,29 @@ class GeneralLedgerController extends Controller
                     'status_tone' => $status === 'paid' ? 'ok' : ($status === 'partial' ? 'part' : 'due'),
                     'term' => $purchase->payment_method ?: null,
                     'settled_at' => null,
+                ]);
+            }
+            foreach (\App\CrmPurchaseInvoice::with(['items', 'payments'])->get() as $invoice) {
+                if ($filters['date_from'] && $invoice->issue_date->lt(\Carbon\Carbon::parse($filters['date_from'])->startOfDay())) continue;
+                if ($filters['date_to'] && $invoice->issue_date->gt(\Carbon\Carbon::parse($filters['date_to'])->endOfDay())) continue;
+                $paid = $invoice->paidTotal();
+                $balance = max(0, $invoice->balanceDue());
+                $status = $balance <= 0.009 ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
+                $entries->push((object) [
+                    'type' => 'payable',
+                    'date' => $invoice->issue_date,
+                    'party' => $invoice->vendor_name ?: '—',
+                    'ref' => $invoice->number . ($invoice->reference ? ' · ' . $invoice->reference : ''),
+                    'detail' => 'Purchase Invoice — ' . ($invoice->description ?: $invoice->items->pluck('name')->implode(', ')),
+                    'total' => (float) $invoice->total,
+                    'paid' => $paid,
+                    'balance' => $balance,
+                    'currency' => $invoice->currency ?: 'AED',
+                    'status' => $status,
+                    'status_label' => ucfirst($status),
+                    'status_tone' => $status === 'paid' ? 'ok' : ($status === 'partial' ? 'part' : 'due'),
+                    'term' => $invoice->payments->pluck('method')->filter()->unique()->implode(', ') ?: null,
+                    'settled_at' => $balance <= 0.009 ? optional($invoice->payments->last())->paid_at : null,
                 ]);
             }
         }

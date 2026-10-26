@@ -810,7 +810,16 @@ class DashboardController extends Controller
         }
         // ─────────────────────────────────────────────────────────────────────────
 
+        // Al Massa business summary (money in/out, profit, what is owed, salaries) for finance-facing roles.
+        $financeSummary = null;
+        $workspace = view()->shared('activeCrmWorkspace');
+        if ($workspace && $workspace->slug === 'mybox-packaging-app' && $currentUser
+            && ($currentUser->isAdmin() || $currentUser->isSalesManager() || $currentUser->isAccounts())) {
+            $financeSummary = Cache::remember('crm:dashboard:finance:v7:' . $workspaceId, 60, fn () => \App\Services\FinancialReportService::dashboardSummary());
+        }
+
         return view('crm.dashboard', compact(
+            'financeSummary',
             'totalEmails', 'spamEmails', 'repliedEmails', 'ordersDone', 'trends',
             'chartTrends', 'recentEmails', 'followUps', 
             'sourceChartData', 'locationData',

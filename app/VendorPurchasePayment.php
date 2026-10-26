@@ -9,6 +9,7 @@ class VendorPurchasePayment extends Model
     protected $fillable = [
         'workspace_id', 'vendor_id', 'vendor_purchase_id', 'demand_id', 'demand_no', 'amount',
         'method', 'paid_at', 'note', 'receipt_path', 'receipt_name', 'receipt_mime', 'created_by',
+        'bank_account_id',
     ];
 
     protected $casts = [

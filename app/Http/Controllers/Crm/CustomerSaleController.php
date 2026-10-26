@@ -8,6 +8,7 @@ use App\CustomerSale;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerSaleController extends Controller
 {
@@ -59,7 +60,7 @@ class CustomerSaleController extends Controller
         $summary = ['total' => 0, 'paid' => 0, 'balance' => 0, 'credit' => 0, 'open_count' => 0];
 
         if ($selectedCustomer) {
-            $query = CustomerSale::where('customer_id', $selectedCustomer->id)
+            $query = CustomerSale::with('attachments.uploader:id,name')->where('customer_id', $selectedCustomer->id)
                 ->orderBy('order_date', 'desc')->orderBy('id', 'desc');
 
             if ($request->filled('search')) {
@@ -175,10 +176,12 @@ class CustomerSaleController extends Controller
         $customer = CrmCustomer::findOrFail($data['customer_id']);
         $this->calculateSale($data);
         $data['created_by'] = \Auth::guard('crm')->id();
-        CustomerSale::create($data);
+        $files = $this->validateAttachments($request);
+        $sale = CustomerSale::create($data);
+        $this->storeAttachments($sale, $files);
 
         return redirect()->route('crm.customer_sales.index', ['customer_id' => $customer->id])
-            ->with('success', 'Customer sale added successfully.');
+            ->with('success', 'Customer sale added successfully.' . ($files ? ' ' . count($files) . ' file(s) attached.' : ''));
     }
 
     public function updateSale(Request $request, $id)
@@ -190,11 +193,82 @@ class CustomerSaleController extends Controller
                 ->with('error', 'This sale is linked to an order. Edit its invoice instead.');
         }
         $data = $this->validateSale($request, $sale);
+        CrmCustomer::findOrFail($data['customer_id']);   // only a customer of this workspace
+        $files = $this->validateAttachments($request);
         $this->calculateSale($data);
         $sale->update($data);
+        $this->storeAttachments($sale, $files);
 
         return redirect()->route('crm.customer_sales.index', ['customer_id' => $sale->customer_id])
-            ->with('success', 'Customer sale updated successfully.');
+            ->with('success', 'Customer sale updated successfully.' . ($files ? ' ' . count($files) . ' file(s) attached.' : ''));
+    }
+
+    /** Add files to a sale from its Files window (works for every sale, order-linked ones too). */
+    public function uploadAttachments(Request $request, $id)
+    {
+        $this->authorizeAccess();
+        $sale = CustomerSale::findOrFail($id);
+        $files = $this->validateAttachments($request, true);
+        $this->storeAttachments($sale, $files);
+
+        return back()->with('success', count($files) . ' file(s) attached to ' . $sale->order_number . '.');
+    }
+
+    /** Open an attached file in the browser (images / PDFs show inline, others download). */
+    public function attachment($id, $attachmentId)
+    {
+        $this->authorizeAccess();
+        $sale = CustomerSale::findOrFail($id);
+        $file = $sale->attachments()->whereKey($attachmentId)->firstOrFail();
+        abort_unless(Storage::disk('local')->exists($file->path), 404);
+
+        return response()->file(Storage::disk('local')->path($file->path), [
+            'Content-Type' => $file->mime ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="' . str_replace('"', '', $file->original_name) . '"',
+        ]);
+    }
+
+    public function deleteAttachment($id, $attachmentId)
+    {
+        $this->authorizeAccess();
+        $sale = CustomerSale::findOrFail($id);
+        $file = $sale->attachments()->whereKey($attachmentId)->firstOrFail();
+        \App\CrmDeletionLog::record('customer_sale_attachment', $file, $sale->order_number . ' file ' . $file->original_name,
+            $file->only(['original_name', 'path', 'size']));
+        Storage::disk('local')->delete($file->path);
+        $file->delete();
+
+        return back()->with('success', 'File removed from ' . $sale->order_number . '.');
+    }
+
+    /** @return \Illuminate\Http\UploadedFile[] */
+    private function validateAttachments(Request $request, bool $required = false): array
+    {
+        $request->validate([
+            'attachments' => ($required ? 'required' : 'nullable') . '|array|max:10',
+            'attachments.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,csv,txt',
+        ], [
+            'attachments.required' => 'Choose at least one file.',
+            'attachments.max' => 'Attach up to 10 files at a time.',
+            'attachments.*.max' => 'Each file can be up to 10 MB.',
+            'attachments.*.mimes' => 'Files can be PDF, images (JPG, PNG, WEBP, GIF), Word, Excel, CSV or text.',
+        ]);
+
+        return array_values(array_filter((array) $request->file('attachments', [])));
+    }
+
+    private function storeAttachments(CustomerSale $sale, array $files): void
+    {
+        foreach ($files as $file) {
+            $sale->attachments()->create([
+                'workspace_id' => $sale->workspace_id,
+                'path' => $file->store('customer-sale-attachments/' . $sale->workspace_id, 'local'),
+                'original_name' => mb_substr($file->getClientOriginalName(), 0, 250),
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by' => \Auth::guard('crm')->id(),
+            ]);
+        }
     }
 
     public function updatePayment(Request $request, $id)

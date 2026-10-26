@@ -316,6 +316,18 @@ class VendorPurchaseController extends Controller
 
         $vendors = $vendorsQuery->paginate(20)->appends($request->all());
 
+        // Purchase invoices (Purchase Invoices tab) count towards the vendor totals too.
+        $invoiceTotals = \App\CrmPurchaseInvoice::whereIn('vendor_id', $vendorIds)->with('payments')->get()->groupBy('vendor_id')
+            ->map(fn ($group) => ['count' => $group->count(), 'total' => (float) $group->sum('total'), 'due' => (float) $group->sum(fn ($inv) => max(0, $inv->balanceDue()))]);
+        $directorySummary['purchases'] += $invoiceTotals->sum('count');
+        $directorySummary['pending'] += $invoiceTotals->sum('due');
+        $directorySummary['paid'] += $invoiceTotals->sum(fn ($t) => $t['total'] - $t['due']);
+        foreach ($vendors as $vendor) {
+            $vendor->pi_count = $invoiceTotals[$vendor->id]['count'] ?? 0;
+            $vendor->pi_total = $invoiceTotals[$vendor->id]['total'] ?? 0.0;
+            $vendor->pi_due = $invoiceTotals[$vendor->id]['due'] ?? 0.0;
+        }
+
         $query = VendorPurchase::with(['creator', 'items', 'payments'])->orderBy('purchase_date', 'desc')->orderBy('id', 'desc');
         if ($selectedVendor) $query->where('vendor_id', $selectedVendor->id);
 
@@ -403,6 +415,8 @@ class VendorPurchaseController extends Controller
             $summary['total'] = round($ledger->sum('debit'), 2);
             $summary['paid'] = round($ledger->where('kind', 'payment')->sum('credit'), 2);
             $summary['balance'] = $ledgerBalance;
+            $summary['unpaid_count'] += \App\CrmPurchaseInvoice::where('vendor_id', $selectedVendor->id)->with('payments')->get()
+                ->filter(fn ($inv) => $inv->balanceDue() > 0.009)->count();
 
             // Live search across the whole ledger (each row keeps its true running balance).
             $search = trim((string) $request->input('search', ''));
@@ -461,6 +475,25 @@ class VendorPurchaseController extends Controller
             ->get();
         foreach ($vpays as $pay) {
             $entries->push((object) ['ts' => optional($pay->paid_at)->timestamp ?? 0, 'seq' => 2, 'date' => $pay->paid_at, 'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : ''), 'sub' => $pay->note, 'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'receipt' => $pay->receipt_url, 'del' => route('crm.vendor_purchases.delete_vendor_payment', [$vendorId, $pay->id])]);
+        }
+        // Purchase invoices (Purchase Invoices tab) for this vendor: the invoice is a debit, each payment against it a credit.
+        // They are paid and edited on the invoice page, so these rows only link there.
+        $invoices = \App\CrmPurchaseInvoice::where('vendor_id', $vendorId)->with(['items', 'payments'])
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('issue_date', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('issue_date', '<=', $request->date_to))
+            ->get();
+        foreach ($invoices as $inv) {
+            $url = route('crm.purchase_invoices.show', $inv->id);
+            $entries->push((object) ['ts' => $inv->issue_date->timestamp, 'seq' => 0, 'date' => $inv->issue_date,
+                'desc' => 'Purchase Invoice '.$inv->number.' — '.($inv->description ?: $inv->items->pluck('name')->implode(', ')),
+                'sub' => collect([$inv->reference ? 'Inv '.$inv->reference : null, $inv->items->pluck('category')->filter()->unique()->implode(', ') ?: null, $inv->statusLabel()])->filter()->implode(' · '),
+                'debit' => (float) $inv->total, 'credit' => 0.0, 'kind' => 'invoice', 'url' => $url,
+                'receipt' => $inv->attachment_path ? route('crm.purchase_invoices.attachment', $inv->id) : null]);
+            foreach ($inv->payments as $pay) {
+                $entries->push((object) ['ts' => $pay->paid_at->timestamp, 'seq' => 2, 'date' => $pay->paid_at,
+                    'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : '').' · '.$inv->number, 'sub' => trim($pay->reference.' '.$pay->note),
+                    'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'url' => $url]);
+            }
         }
         $run = 0.0;
         $ledger = $entries->sortBy([['ts', 'asc'], ['seq', 'asc']])->values()->map(function ($e) use (&$run) {
@@ -784,7 +817,7 @@ class VendorPurchaseController extends Controller
             'paid_at' => $validated['paid_at'] ?? now()->toDateString(),
             'note' => $validated['note'] ?? null,
             'created_by' => \Auth::guard('crm')->id(),
-        ];
+        ] + \App\CrmBankAccount::fromRequest($request);
         if ($request->hasFile('receipt')) {
             $payload = array_merge($payload, $this->storeReceipt($request->file('receipt')));
         }
@@ -829,7 +862,7 @@ class VendorPurchaseController extends Controller
             'paid_at' => $validated['paid_at'] ?? now()->toDateString(),
             'note' => $validated['note'] ?? null,
             'created_by' => \Auth::guard('crm')->id(),
-        ];
+        ] + \App\CrmBankAccount::fromRequest($request);
         if ($request->hasFile('receipt')) {
             $payload = array_merge($payload, $this->storeReceipt($request->file('receipt')));
         }

@@ -153,6 +153,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('inventory/{id}/consume', 'InventoryController@consume')->name('crm.inventory.consume');
         Route::post('inventory/{id}/adjust', 'InventoryController@adjust')->name('crm.inventory.adjust');
         Route::get('inventory/{id}/movements', 'InventoryController@movements')->name('crm.inventory.movements')->where('id', '[0-9]+');
+        Route::post('inventory/{id}/movements/{movementId}/revert', 'InventoryController@revert')->name('crm.inventory.revert')->whereNumber('id')->whereNumber('movementId');
         Route::put('inventory/{id}', 'InventoryController@update')->name('crm.inventory.update')->where('id', '[0-9]+');
         Route::delete('inventory/{id}', 'InventoryController@destroy')->name('crm.inventory.destroy');
 
@@ -280,6 +281,101 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         // Vendor packaging purchases (Admin, Sales Manager, and Accounts)
         Route::get('general-ledger', 'GeneralLedgerController@index')->name('crm.general_ledger.index');
         Route::get('general-ledger/export', 'GeneralLedgerController@export')->name('crm.general_ledger.export');
+        // Al Massa receipts: every customer payment received (Admin, Sales Manager, and Accounts)
+        Route::get('receipts', 'ReceiptController@index')->name('crm.receipts.index')->middleware('crm.workspace.slug:mybox-packaging-app');
+        // "Make Receipt" → Other income (money received without an invoice)
+        Route::group(['middleware' => 'crm.workspace.slug:mybox-packaging-app'], function () {
+            Route::post('receipts/direct', 'DirectReceiptController@store')->name('crm.direct_receipts.store');
+            Route::post('receipts/receive', 'ReceiptController@receive')->name('crm.receipts.receive');
+            Route::get('receipts/direct/{id}', 'DirectReceiptController@show')->whereNumber('id')->name('crm.direct_receipts.show');
+            Route::put('receipts/direct/{id}', 'DirectReceiptController@update')->whereNumber('id')->name('crm.direct_receipts.update');
+            Route::delete('receipts/direct/{id}', 'DirectReceiptController@destroy')->whereNumber('id')->name('crm.direct_receipts.destroy');
+            Route::get('receipts/direct/{id}/proof', 'DirectReceiptController@proof')->whereNumber('id')->name('crm.direct_receipts.proof');
+        });
+        // Al Massa payments: every payment the company made (vendor payments + demand expenses)
+        Route::get('payments', 'PaymentController@index')->name('crm.payments.index')->middleware('crm.workspace.slug:mybox-packaging-app');
+        // Al Massa expense payments ("Make Payment" on the Payments page)
+        Route::group(['middleware' => 'crm.workspace.slug:mybox-packaging-app'], function () {
+            Route::get('expenses', 'ExpenseController@index')->name('crm.expenses.index');
+            Route::post('expenses', 'ExpenseController@store')->name('crm.expenses.store');
+            Route::get('expenses/{id}', 'ExpenseController@show')->whereNumber('id')->name('crm.expenses.show');
+            Route::put('expenses/{id}', 'ExpenseController@update')->whereNumber('id')->name('crm.expenses.update');
+            Route::delete('expenses/{id}', 'ExpenseController@destroy')->whereNumber('id')->name('crm.expenses.destroy');
+            Route::get('expenses/{id}/proof', 'ExpenseController@proof')->whereNumber('id')->name('crm.expenses.proof');
+
+            // Fixed assets (paid ones also listed under Payments)
+            Route::get('fixed-assets', 'FixedAssetController@index')->name('crm.fixed_assets.index');
+            Route::post('fixed-assets', 'FixedAssetController@store')->name('crm.fixed_assets.store');
+            Route::put('fixed-assets/{id}', 'FixedAssetController@update')->whereNumber('id')->name('crm.fixed_assets.update');
+            Route::delete('fixed-assets/{id}', 'FixedAssetController@destroy')->whereNumber('id')->name('crm.fixed_assets.destroy');
+            Route::get('fixed-assets/{id}/receipt', 'FixedAssetController@receipt')->whereNumber('id')->name('crm.fixed_assets.receipt');
+
+            // Purchase invoices (fully paid ones also listed under Payments)
+            Route::get('purchase-invoices', 'PurchaseInvoiceController@index')->name('crm.purchase_invoices.index');
+            Route::get('purchase-invoices/create', 'PurchaseInvoiceController@create')->name('crm.purchase_invoices.create');
+            Route::post('purchase-invoices', 'PurchaseInvoiceController@store')->name('crm.purchase_invoices.store');
+            Route::get('purchase-invoices/{id}', 'PurchaseInvoiceController@show')->whereNumber('id')->name('crm.purchase_invoices.show');
+            Route::get('purchase-invoices/{id}/edit', 'PurchaseInvoiceController@edit')->whereNumber('id')->name('crm.purchase_invoices.edit');
+            Route::put('purchase-invoices/{id}', 'PurchaseInvoiceController@update')->whereNumber('id')->name('crm.purchase_invoices.update');
+            Route::delete('purchase-invoices/{id}', 'PurchaseInvoiceController@destroy')->whereNumber('id')->name('crm.purchase_invoices.destroy');
+            Route::get('purchase-invoices/{id}/attachment', 'PurchaseInvoiceController@attachment')->whereNumber('id')->name('crm.purchase_invoices.attachment');
+            Route::post('purchase-invoices/{id}/payments', 'PurchaseInvoiceController@addPayment')->whereNumber('id')->name('crm.purchase_invoices.payments.store');
+            Route::delete('purchase-invoices/{id}/payments/{paymentId}', 'PurchaseInvoiceController@deletePayment')->whereNumber('id')->whereNumber('paymentId')->name('crm.purchase_invoices.payments.destroy');
+
+            // Employees, salary advances and monthly salary sheets (paid salaries + advances listed under Payments)
+            Route::get('employees', 'EmployeeController@index')->name('crm.employees.index');
+            Route::post('employees', 'EmployeeController@store')->name('crm.employees.store');
+            Route::put('employees/{id}', 'EmployeeController@update')->whereNumber('id')->name('crm.employees.update');
+            Route::delete('employees/{id}', 'EmployeeController@destroy')->whereNumber('id')->name('crm.employees.destroy');
+            Route::post('employees/{id}/advances', 'EmployeeController@storeAdvance')->whereNumber('id')->name('crm.employees.advances.store');
+            Route::delete('employee-advances/{id}', 'EmployeeController@destroyAdvance')->whereNumber('id')->name('crm.employees.advances.destroy');
+            Route::get('salaries', 'PayrollController@index')->name('crm.payroll.index');
+            Route::post('salaries', 'PayrollController@store')->name('crm.payroll.store');
+            Route::get('salaries/{id}', 'PayrollController@show')->whereNumber('id')->name('crm.payroll.show');
+            Route::put('salaries/{id}', 'PayrollController@update')->whereNumber('id')->name('crm.payroll.update');
+            Route::delete('salaries/{id}', 'PayrollController@destroy')->whereNumber('id')->name('crm.payroll.destroy');
+            Route::post('salaries/{id}/add-missing', 'PayrollController@addMissing')->whereNumber('id')->name('crm.payroll.add_missing');
+            Route::post('salaries/{id}/approve', 'PayrollController@approve')->whereNumber('id')->name('crm.payroll.approve');
+            Route::post('salaries/{id}/reopen', 'PayrollController@reopen')->whereNumber('id')->name('crm.payroll.reopen');
+            Route::post('salaries/{id}/pay-all', 'PayrollController@payAll')->whereNumber('id')->name('crm.payroll.pay_all');
+            // No ".pdf" suffix: nginx serves *.pdf paths as static files and would 404 before reaching Laravel.
+            Route::get('salaries/{id}/sheet-pdf', 'PayrollController@sheetPdf')->whereNumber('id')->name('crm.payroll.sheet_pdf');
+            Route::post('salaries/{id}/wps', 'PayrollController@wps')->whereNumber('id')->name('crm.payroll.wps');
+            Route::delete('salaries/{id}/lines/{lineId}', 'PayrollController@removeLine')->whereNumber('id')->whereNumber('lineId')->name('crm.payroll.remove_line');
+            Route::post('salaries/{id}/lines/{lineId}/pay', 'PayrollController@payLine')->whereNumber('id')->whereNumber('lineId')->name('crm.payroll.pay_line');
+            Route::delete('salaries/{id}/lines/{lineId}/pay', 'PayrollController@unpayLine')->whereNumber('id')->whereNumber('lineId')->name('crm.payroll.unpay_line');
+            Route::get('salaries/{id}/lines/{lineId}/payslip', 'PayrollController@payslip')->whereNumber('id')->whereNumber('lineId')->name('crm.payroll.payslip');
+
+            // Bank & cash accounts: opening balances, statements, transfers, booking receipts / payments to accounts
+            Route::get('bank-accounts', 'BankAccountController@index')->name('crm.bank_accounts.index');
+            Route::post('bank-accounts', 'BankAccountController@store')->name('crm.bank_accounts.store');
+            Route::get('bank-accounts/unassigned', 'BankAccountController@unassigned')->name('crm.bank_accounts.unassigned');
+            Route::post('bank-accounts/assign', 'BankAccountController@assign')->name('crm.bank_accounts.assign');
+            Route::post('bank-accounts/transfers', 'BankAccountController@storeTransfer')->name('crm.bank_accounts.transfers.store');
+            Route::delete('bank-accounts/transfers/{id}', 'BankAccountController@destroyTransfer')->whereNumber('id')->name('crm.bank_accounts.transfers.destroy');
+            Route::get('bank-accounts/{id}', 'BankAccountController@show')->whereNumber('id')->name('crm.bank_accounts.show');
+            Route::put('bank-accounts/{id}', 'BankAccountController@update')->whereNumber('id')->name('crm.bank_accounts.update');
+            Route::delete('bank-accounts/{id}', 'BankAccountController@destroy')->whereNumber('id')->name('crm.bank_accounts.destroy');
+            Route::get('bank-accounts/{id}/reconcile', 'BankAccountController@reconcile')->whereNumber('id')->name('crm.bank_accounts.reconcile');
+            Route::post('bank-accounts/{id}/reconcile', 'BankAccountController@saveReconciliation')->whereNumber('id')->name('crm.bank_accounts.reconcile.save');
+            // Budget for the Budget vs Actual report
+            Route::get('budgets', 'BudgetController@edit')->name('crm.budgets.edit');
+            Route::post('budgets', 'BudgetController@update')->name('crm.budgets.update');
+            // Chart of Accounts and Owner's Capital
+            Route::get('chart-of-accounts', 'ChartOfAccountsController@index')->name('crm.chart_of_accounts.index');
+            Route::get('owner-capital', 'OwnerCapitalController@index')->name('crm.owner_capital.index');
+            Route::post('owner-capital/owners', 'OwnerCapitalController@storeOwner')->name('crm.owner_capital.owners.store');
+            Route::put('owner-capital/owners/{id}', 'OwnerCapitalController@updateOwner')->whereNumber('id')->name('crm.owner_capital.owners.update');
+            Route::delete('owner-capital/owners/{id}', 'OwnerCapitalController@destroyOwner')->whereNumber('id')->name('crm.owner_capital.owners.destroy');
+            Route::post('owner-capital/entries', 'OwnerCapitalController@storeEntry')->name('crm.owner_capital.entries.store');
+            Route::put('owner-capital/entries/{id}', 'OwnerCapitalController@updateEntry')->whereNumber('id')->name('crm.owner_capital.entries.update');
+            Route::delete('owner-capital/entries/{id}', 'OwnerCapitalController@destroyEntry')->whereNumber('id')->name('crm.owner_capital.entries.destroy');
+
+            // Financial reports (P&L, cash flow, aging, sales, salaries, VAT, jobs, assets) with Excel / PDF export
+            Route::get('financial-reports/entries', 'FinancialReportController@entries')->name('crm.financial_reports.entries');
+            Route::get('financial-reports/{report}/export', 'FinancialReportController@export')->where('report', '[a-z-]+')->name('crm.financial_reports.export');
+            Route::get('financial-reports/{report?}', 'FinancialReportController@index')->where('report', '[a-z-]+')->name('crm.financial_reports.index');
+        });
         Route::get('vendor-purchases', 'VendorPurchaseController@index')->name('crm.vendor_purchases.index');
         Route::get('vendor-purchases/jobs', 'VendorPurchaseController@jobs')->name('crm.vendor_purchases.jobs');
         Route::get('vendor-purchases/due-reminders', 'VendorPurchaseController@dueReminders')->name('crm.vendor_purchases.due_reminders');
@@ -313,6 +409,9 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('customer-sales', 'CustomerSaleController@storeSale')->name('crm.customer_sales.store');
         Route::put('customer-sales/{id}', 'CustomerSaleController@updateSale')->name('crm.customer_sales.update');
         Route::patch('customer-sales/{id}/payment', 'CustomerSaleController@updatePayment')->name('crm.customer_sales.update_payment');
+        Route::post('customer-sales/{id}/attachments', 'CustomerSaleController@uploadAttachments')->whereNumber('id')->name('crm.customer_sales.attachments.store');
+        Route::get('customer-sales/{id}/attachments/{attachmentId}', 'CustomerSaleController@attachment')->whereNumber('id')->whereNumber('attachmentId')->name('crm.customer_sales.attachments.show');
+        Route::delete('customer-sales/{id}/attachments/{attachmentId}', 'CustomerSaleController@deleteAttachment')->whereNumber('id')->whereNumber('attachmentId')->name('crm.customer_sales.attachments.destroy');
 
         // Demand Requests (procurement request -> approve -> receive)
         Route::get('demand-requests', 'DemandRequestController@index')->name('crm.demand_requests.index');
