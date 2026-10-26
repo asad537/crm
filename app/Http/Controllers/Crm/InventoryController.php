@@ -307,19 +307,33 @@ class InventoryController extends Controller
         }
 
         $type = $m->type === 'adjust' ? 'adjust' : ($undo > 0 ? 'in' : 'out');
-        $this->applyMovement($item, $type, abs($undo), [
-            'reason' => InventoryAccounting::reasonOf($m),
-            'reversal_of_id' => $m->id,
-            'unit_cost' => $m->unit_cost,
-            '_revalue' => $type === 'out',          // stock taken back out at the entry's own price
-            '_signed' => $undo,
-            'job_id' => $m->job_id,
-            'job_number' => $m->job_number,
-            'reference' => 'Reverted: ' . ($m->reference ?: 'entry of ' . $m->created_at->format('d M Y')),
-            'note' => 'Reversal of the entry of ' . $m->created_at->format('d M Y, h:i A'),
-        ], $this->user());
+        // An entry from before stock was in the books is already inside the opening stock: undoing it corrects the
+        // opening stock (Inventory and equity), not the Profit & Loss.
+        $booked = InventoryAccounting::isBooked($m);
+        $demandLine = InventoryAccounting::demandLineFor($m);
+        DB::transaction(function () use ($item, $m, $type, $undo, $booked, $demandLine) {
+            $this->applyMovement($item, $type, abs($undo), [
+                'reason' => $booked ? InventoryAccounting::reasonOf($m) : 'opening',
+                'reversal_of_id' => $m->id,
+                'unit_cost' => $m->unit_cost,
+                '_revalue' => $type === 'out',          // stock taken back out at the entry's own price
+                '_signed' => $undo,
+                'job_id' => $m->job_id,
+                'job_number' => $m->job_number,
+                'reference' => 'Reverted: ' . ($m->reference ?: 'entry of ' . $m->created_at->format('d M Y')),
+                'note' => 'Reversal of the entry of ' . $m->created_at->format('d M Y, h:i A') . ($booked ? '' : ' (opening stock corrected)'),
+            ], $this->user());
+            // The demand line no longer holds this stock: undoing "received" there won't take it out again,
+            // and it can be stocked in again from the demand request.
+            if ($demandLine) {
+                $extra = (array) $demandLine->extra;
+                unset($extra['inventory_item_id'], $extra['inventory_movement_id'], $extra['inventory_qty']);
+                $demandLine->forceFill(['extra' => $extra ?: null])->saveQuietly();
+            }
+        });
 
-        return back()->with('success', 'Entry reverted: ' . ($undo > 0 ? '+' : '−') . $n(abs($undo)) . ' ' . $item->unit . ' — ' . $item->name . ' now ' . $n((float) $item->quantity) . ' ' . $item->unit . '.');
+        return back()->with('success', 'Entry reverted: ' . ($undo > 0 ? '+' : '−') . $n(abs($undo)) . ' ' . $item->unit . ' — ' . $item->name . ' now ' . $n((float) $item->quantity) . ' ' . $item->unit
+            . ($booked ? '.' : ' (opening stock corrected).'));
     }
 
     private function canManage(): bool

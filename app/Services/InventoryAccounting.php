@@ -118,9 +118,10 @@ class InventoryAccounting
     }
 
     /**
-     * Why a stock entry can't be reverted from the stock history, or null when it can. Entries made from a bill, a job
-     * card or a demand request are changed there (reverting here would leave that page out of step), and entries from
-     * before stock was in the books are part of the opening stock.
+     * Why a stock entry can't be reverted from the stock history, or null when it can. Entries made from a bill or a
+     * job card are changed there (reverting here would leave that page out of step). A demand request's stock-in can
+     * be reverted while its line still holds exactly that stock (the line is then unlinked, see demandLineFor()).
+     * Entries from before stock was in the books can be reverted too: that corrects the opening stock.
      */
     public static function revertProblem(CrmInventoryMovement $m, bool $alreadyReverted): ?string
     {
@@ -128,11 +129,23 @@ class InventoryAccounting
         if ($m->reversal_of_id) return 'This entry is itself a reversal.';
         if ($alreadyReverted) return 'This entry was already reverted.';
         if ($m->purchase_invoice_id || self::reasonOf($m) === 'bill') return 'This stock came from a purchase invoice: change or remove the line on that bill instead.';
-        if (str_starts_with($reference, 'Demand #')) return 'This entry came from a demand request: undo it on that demand request instead.';
         if (str_starts_with($reference, 'Used on job ') || str_starts_with($reference, 'Returned from job ')) return 'This entry came from a job card: change its materials on the job card instead.';
-        if (!self::isBooked($m)) return 'This entry is from before stock was in the books (' . self::from()->format('d M Y') . ') and is part of the opening stock.';
+        if (str_starts_with($reference, 'Demand #')) {
+            if (!str_ends_with($reference, ' received')) return 'This entry was made by a change on a demand request: change it on that demand request instead.';
+            $line = self::demandLineFor($m);
+            if (!$line) return 'This demand receipt was already undone on its demand request.';
+            if (abs((float) (((array) $line->extra)['inventory_qty'] ?? 0) - (float) $m->quantity) > 0.0005) {
+                return 'The quantity of this demand line was corrected later: undo it on the demand request instead.';
+            }
+        }
 
         return null;
+    }
+
+    /** The demand request line whose stock-in is this movement (while it is still linked to it). */
+    public static function demandLineFor(CrmInventoryMovement $m): ?\App\DemandRequestItem
+    {
+        return \App\DemandRequestItem::where('extra->inventory_movement_id', $m->id)->first();
     }
 
     /** "Art Card 20x30 300gsm": the name plus size and GSM when the name doesn't already say them. */

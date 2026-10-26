@@ -135,7 +135,7 @@ class InventoryService
         $request = $line->request()->first();
         $mv = null;
         if ($item) {
-            $mv = $this->move($item, 'out', (float) $extra['inventory_qty'], ['reason' => 'expensed', 'reference' => 'Demand #' . ($request->request_no ?? '?') . ' receipt undone'], $userId);
+            $mv = $this->move($item, 'out', (float) $extra['inventory_qty'], ['reason' => $this->demandReason($extra), 'reference' => 'Demand #' . ($request->request_no ?? '?') . ' receipt undone'], $userId);
         }
         unset($extra['inventory_item_id'], $extra['inventory_movement_id'], $extra['inventory_qty']);
         $line->forceFill(['extra' => $extra ?: null])->saveQuietly();
@@ -154,9 +154,21 @@ class InventoryService
         $item = CrmInventoryItem::withoutGlobalScopes()->find($extra['inventory_item_id']);
         if (!$item) return;
         $request = $line->request()->first();
-        $this->move($item, $diff > 0 ? 'in' : 'out', abs($diff), ['reason' => 'expensed', 'reference' => 'Demand #' . ($request->request_no ?? '?') . ' qty corrected'], $userId);
+        $this->move($item, $diff > 0 ? 'in' : 'out', abs($diff), ['reason' => $this->demandReason($extra), 'reference' => 'Demand #' . ($request->request_no ?? '?') . ' qty corrected'], $userId);
         $extra['inventory_qty'] = $new;
         $line->forceFill(['extra' => $extra])->saveQuietly();
+    }
+
+    /**
+     * What undoing / correcting a demand line's stock means for the books: like its receipt. A receipt from before stock
+     * was in the books is part of the opening stock (its bill was already an expense), so the change corrects the opening
+     * stock instead of expensing the same purchase twice.
+     */
+    private function demandReason(array $extra): string
+    {
+        $received = !empty($extra['inventory_movement_id']) ? CrmInventoryMovement::find($extra['inventory_movement_id']) : null;
+
+        return $received && \App\Support\CrmWorkspaceContext::id() && !InventoryAccounting::isBooked($received) ? 'opening' : 'expensed';
     }
 
     /** Items whose stock cannot cover the extra usage ($after − $before): [name => available]. Read-only. */

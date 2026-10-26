@@ -4,6 +4,7 @@ namespace Tests\Feature\Accounting;
 
 use App\CrmInventoryItem;
 use App\CrmInventoryMovement;
+use App\DemandRequest;
 use App\Services\FinancialReportService;
 use App\Services\InventoryAccounting;
 use App\Support\CrmWorkspaceContext;
@@ -115,12 +116,77 @@ class StockHistoryRevertTest extends AccountingTestCase
         }
     }
 
-    public function test_entries_from_before_stock_was_in_the_books_cannot_be_reverted(): void
+    public function test_reverting_an_entry_from_before_the_books_corrects_the_opening_stock(): void
     {
-        $old = $this->newItem('Revert Old', 25, 1);       // made before the cut-off starts (nothing has read it yet)
+        $old = $this->newItem('Revert Old', 25, 2);       // made before the cut-off starts (nothing has read it yet): 50 of opening stock
         $this->startBooks();
-        $this->revert($old, $this->lastMovement($old))->assertSessionHas('error', fn ($m) => str_contains($m, 'before stock was in the books'));
-        $this->assertSame(25.0, (float) $old->fresh()->quantity);
+        $this->assertMoney(50, $this->books()['opening_stock']);
+        $entry = $this->lastMovement($old);
+        $this->assertFalse(InventoryAccounting::isBooked($entry));
+
+        $this->revert($old, $entry)->assertSessionHas('success', fn ($m) => str_contains($m, 'opening stock corrected'));
+
+        $this->assertSame(0.0, (float) $old->fresh()->quantity);
+        $reversal = $this->lastMovement($old);
+        $this->assertSame(['opening', $entry->id], [$reversal->reason, (int) $reversal->reversal_of_id]);
+        $books = $this->books();
+        $this->assertMoney(0, $books['inventory']);
+        $this->assertMoney(0, $books['opening_stock'], 'the opening stock is corrected');
+        $this->assertMoney(0, $books['balancing']);
+        $pl = $this->pl();
+        $this->assertMoney(0, array_sum($pl['cos']) + array_sum($pl['opex']), 'nothing goes to the Profit & Loss');
+        $this->get(route('crm.inventory.movements', $old->id))->assertOk()->assertSee('Reversed: Opening stock (equity)');
+    }
+
+    public function test_a_demand_request_stock_in_can_be_reverted_and_the_demand_line_is_unlinked(): void
+    {
+        [$demand, $line, $item] = $this->stockedDemandLine('Demand Revert Paper', 300, 0.5);
+        $entry = $this->lastMovement($item);
+        $this->assertSame('Demand #'.$demand->request_no.' received', $entry->reference);
+
+        $this->revert($item, $entry)->assertSessionHas('success');
+
+        $this->assertSame(0.0, (float) $item->fresh()->quantity);
+        $this->assertArrayNotHasKey('inventory_movement_id', (array) $line->fresh()->extra);
+        $this->assertMoney(0, $this->books()['balancing']);
+        // Undoing "received" on the demand request now doesn't take the stock out a second time.
+        $this->postJson(route('crm.demand_requests.item_receive', [$demand->id, $line->id]))->assertOk()->assertJson(['received' => false]);
+        $this->assertSame(0.0, (float) $item->fresh()->quantity);
+    }
+
+    public function test_a_demand_stock_in_already_undone_or_corrected_on_the_demand_request_stays_locked(): void
+    {
+        [$demand, $line, $item] = $this->stockedDemandLine('Demand Locked Paper', 200, 1);
+        $entry = $this->lastMovement($item);
+        $this->postJson(route('crm.demand_requests.item_receive', [$demand->id, $line->id]))->assertOk()->assertJson(['received' => false]);
+
+        $this->revert($item, $entry)->assertSessionHas('error', 'Cannot revert: This demand receipt was already undone on its demand request.');
+        $this->assertSame(0.0, (float) $item->fresh()->quantity);
+        // The "receipt undone" entry itself belongs to the demand request too.
+        $undone = $this->lastMovement($item);
+        $this->assertStringContainsString('receipt undone', $undone->reference);
+        $this->assertStringContainsString('change on a demand request', InventoryAccounting::revertProblem($undone, false));
+
+        // A line whose quantity was corrected after the stock-in is undone there, not here.
+        [, $corrected, $paper] = $this->stockedDemandLine('Demand Corrected Paper', 100, 1);
+        $receipt = $this->lastMovement($paper);
+        $corrected->forceFill(['extra' => array_merge((array) $corrected->extra, ['inventory_qty' => 80])])->saveQuietly();
+        $this->assertStringContainsString('corrected later', InventoryAccounting::revertProblem($receipt, false));
+    }
+
+    public function test_undoing_a_demand_receipt_from_before_the_books_does_not_expense_it_again(): void
+    {
+        [$demand, $line, $item] = $this->stockedDemandLine('Old Demand Paper', 100, 2, false);   // received before the cut-off
+        $this->startBooks();
+        $this->assertMoney(200, $this->books()['opening_stock']);
+
+        $this->postJson(route('crm.demand_requests.item_receive', [$demand->id, $line->id]))->assertOk()->assertJson(['received' => false]);
+
+        $this->assertSame('opening', $this->lastMovement($item)->reason);
+        $books = $this->books();
+        $this->assertMoney(0, $books['opening_stock']);
+        $this->assertMoney(0, $books['balancing']);
+        $this->assertMoney(0, $this->pl()['cos'][InventoryAccounting::MOVED_IN] ?? 0, 'the old bill is not expensed a second time');
     }
 
     public function test_only_admins_and_accounts_can_revert(): void
@@ -169,6 +235,21 @@ class StockHistoryRevertTest extends AccountingTestCase
     }
 
     // ───────────── helpers ─────────────
+
+    /** A demand request line received and stocked in through the demand request routes: [request, line, item]. */
+    private function stockedDemandLine(string $name, float $qty, float $cost, bool $startBooks = true): array
+    {
+        if ($startBooks) $this->startBooks();
+        $name .= ' '.uniqid();
+        $demand = DemandRequest::create(['workspace_id' => $this->workspace->id, 'created_by' => $this->admin->id, 'request_no' => random_int(900000, 999999),
+            'request_date' => '2026-10-20', 'status' => 'Approved', 'estimated_total' => 0]);
+        $line = $demand->items()->create(['category' => 'Stock / Inventory', 'description' => $name, 'qty' => (string) $qty, 'estimated_price' => $cost,
+            'vendor_name' => 'Silver Star', 'position' => 1, 'pay_by' => 'Company', 'estimated_total' => 0]);
+        $this->postJson(route('crm.demand_requests.item_receive', [$demand->id, $line->id]))->assertOk()->assertJson(['received' => true]);
+        $this->postJson(route('crm.demand_requests.item_stock_in', [$demand->id, $line->id]), ['name' => $name, 'unit' => 'sheets', 'qty' => $qty, 'unit_cost' => $cost])->assertOk();
+
+        return [$demand, $line->fresh(), CrmInventoryItem::where('name', $name)->firstOrFail()];
+    }
 
     private function startBooks(): void
     {
