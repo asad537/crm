@@ -418,18 +418,7 @@ class VendorPurchaseController extends Controller
             $summary['unpaid_count'] += \App\CrmPurchaseInvoice::where('vendor_id', $selectedVendor->id)->with('payments')->get()
                 ->filter(fn ($inv) => $inv->balanceDue() > 0.009)->count();
 
-            // Live search across the whole ledger (each row keeps its true running balance).
-            $search = trim((string) $request->input('search', ''));
-            if ($search !== '') {
-                $needle = mb_strtolower($search);
-                $ledger = $ledger->filter(function ($e) use ($needle) {
-                    $p = $e->purchase ?? null;
-                    $hay = $p
-                        ? optional($e->date)->format('d M Y').' '.$p->invoice_number.' '.$p->job_id.' '.$p->demand_no.' '.$p->vendor_name.' '.($p->items->pluck('item_name')->filter()->implode(' ') ?: $p->item_name).' '.$p->category.' '.$p->material.' '.number_format((float) $p->total_amount, 2)
-                        : optional($e->date)->format('d M Y').' '.$e->desc.' '.($e->sub ?? '');
-                    return strpos(mb_strtolower($hay), $needle) !== false;
-                })->values();
-            }
+            $ledger = $this->filterVendorLedger($ledger, $selectedVendor->id, $request);
 
             // Records-per-page (running balance stays correct: computed on the full set above).
             $perPage = (int) $request->input('per_page', 50);
@@ -461,12 +450,12 @@ class VendorPurchaseController extends Controller
             ->get();
         $entries = collect();
         foreach ($lp as $p) {
-            $entries->push((object) ['ts' => optional($p->purchase_date)->timestamp ?? 0, 'seq' => 0, 'date' => $p->purchase_date, 'desc' => $p->item_name ?: ($p->invoice_number ?: 'Purchase'), 'sub' => trim(($p->invoice_number ? 'Inv '.$p->invoice_number : '').($p->job_id ? ' · Job '.$p->job_id : '')), 'debit' => (float) $p->total_amount, 'credit' => 0.0, 'kind' => 'purchase', 'edit' => route('crm.vendor_purchases.edit', $p->id), 'purchase' => $p]);
+            $entries->push((object) ['ts' => optional($p->purchase_date)->timestamp ?? 0, 'seq' => 0, 'date' => $p->purchase_date, 'desc' => $p->item_name ?: ($p->invoice_number ?: 'Purchase'), 'sub' => trim(($p->invoice_number ? 'Inv '.$p->invoice_number : '').($p->job_id ? ' · Job '.$p->job_id : '')), 'debit' => (float) $p->total_amount, 'credit' => 0.0, 'kind' => 'purchase', 'edit' => route('crm.vendor_purchases.edit', $p->id), 'purchase' => $p, 'owner' => 'vp:'.$p->id]);
             if ((float) $p->deduction > 0.009) {
-                $entries->push((object) ['ts' => optional($p->purchase_date)->timestamp ?? 0, 'seq' => 1, 'date' => $p->purchase_date, 'desc' => 'Deduction', 'sub' => $p->invoice_number ? 'Inv '.$p->invoice_number : '', 'debit' => 0.0, 'credit' => (float) $p->deduction, 'kind' => 'deduction']);
+                $entries->push((object) ['ts' => optional($p->purchase_date)->timestamp ?? 0, 'seq' => 1, 'date' => $p->purchase_date, 'desc' => 'Deduction', 'sub' => $p->invoice_number ? 'Inv '.$p->invoice_number : '', 'debit' => 0.0, 'credit' => (float) $p->deduction, 'kind' => 'deduction', 'owner' => 'vp:'.$p->id]);
             }
             foreach ($p->payments as $pay) {
-                $entries->push((object) ['ts' => optional($pay->paid_at)->timestamp ?? 0, 'seq' => 2, 'date' => $pay->paid_at, 'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : ''), 'sub' => $pay->note, 'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'receipt' => $pay->receipt_url, 'del' => route('crm.vendor_purchases.delete_vendor_payment', [$vendorId, $pay->id])]);
+                $entries->push((object) ['ts' => optional($pay->paid_at)->timestamp ?? 0, 'seq' => 2, 'date' => $pay->paid_at, 'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : ''), 'sub' => $pay->note, 'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'receipt' => $pay->receipt_url, 'del' => route('crm.vendor_purchases.delete_vendor_payment', [$vendorId, $pay->id]), 'owner' => 'vp:'.$p->id]);
             }
         }
         $vpays = VendorPurchasePayment::where('vendor_id', $vendorId)->whereNull('vendor_purchase_id')
@@ -487,12 +476,12 @@ class VendorPurchaseController extends Controller
             $entries->push((object) ['ts' => $inv->issue_date->timestamp, 'seq' => 0, 'date' => $inv->issue_date,
                 'desc' => 'Purchase Invoice '.$inv->number.' — '.($inv->description ?: $inv->items->pluck('name')->implode(', ')),
                 'sub' => collect([$inv->reference ? 'Inv '.$inv->reference : null, $inv->items->pluck('category')->filter()->unique()->implode(', ') ?: null, $inv->statusLabel()])->filter()->implode(' · '),
-                'debit' => (float) $inv->total, 'credit' => 0.0, 'kind' => 'invoice', 'url' => $url,
+                'debit' => (float) $inv->total, 'credit' => 0.0, 'kind' => 'invoice', 'url' => $url, 'owner' => 'pi:'.$inv->id,
                 'receipt' => $inv->attachment_path ? route('crm.purchase_invoices.attachment', $inv->id) : null]);
             foreach ($inv->payments as $pay) {
                 $entries->push((object) ['ts' => $pay->paid_at->timestamp, 'seq' => 2, 'date' => $pay->paid_at,
                     'desc' => 'Payment'.($pay->method ? ' — '.$pay->method : '').' · '.$inv->number, 'sub' => trim($pay->reference.' '.$pay->note),
-                    'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'url' => $url]);
+                    'debit' => 0.0, 'credit' => (float) $pay->amount, 'kind' => 'payment', 'url' => $url, 'owner' => 'pi:'.$inv->id]);
             }
         }
         $run = 0.0;
@@ -503,6 +492,52 @@ class VendorPurchaseController extends Controller
         });
 
         return [$ledger->reverse()->values(), round($run, 2)];
+    }
+
+    /** The vendor page's filters and search applied to its ledger (each row keeps its true running balance). */
+    private function filterVendorLedger($ledger, $vendorId, Request $request)
+    {
+        // Payment status / category / expense type: keep only the matching purchases and invoices with their own
+        // deductions and payments. Payments not tied to a purchase drop out.
+        if ($request->filled('payment_status') || $request->filled('category') || $request->filled('expense_type')) {
+            $keep = VendorPurchase::where('vendor_id', $vendorId);
+            if ($request->filled('payment_status')) $keep->where('payment_status', $request->payment_status);
+            if ($request->filled('category')) {
+                $keep->where(fn ($q) => $q->where('category', $request->category)
+                    ->orWhereHas('items', fn ($i) => $i->where('category', $request->category)));
+            }
+            if ($request->filled('expense_type')) $this->applyExpenseTypeFilter($keep, $request->expense_type);
+            $owners = $keep->pluck('id')->map(fn ($id) => 'vp:'.$id);
+
+            // Purchase invoices have no expense type, so they only show without that filter.
+            if (!$request->filled('expense_type')) {
+                $invoices = \App\CrmPurchaseInvoice::where('vendor_id', $vendorId)->with(['items', 'payments'])->get()
+                    ->filter(function ($inv) use ($request) {
+                        if ($request->filled('category') && !$inv->items->contains('category', $request->category)) return false;
+                        if (!$request->filled('payment_status')) return true;
+                        $status = $inv->paidTotal() <= 0.009 ? 'Unpaid' : ($inv->balanceDue() > 0.009 ? 'Partial' : 'Paid');
+                        return $status === $request->payment_status;
+                    });
+                $owners = $owners->concat($invoices->map(fn ($inv) => 'pi:'.$inv->id));
+            }
+            $owners = $owners->flip();
+            $ledger = $ledger->filter(fn ($e) => isset($e->owner) && $owners->has($e->owner))->values();
+        }
+
+        // Live search across the whole ledger.
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $ledger = $ledger->filter(function ($e) use ($needle) {
+                $p = $e->purchase ?? null;
+                $hay = $p
+                    ? optional($e->date)->format('d M Y').' '.$p->invoice_number.' '.$p->job_id.' '.$p->demand_no.' '.$p->vendor_name.' '.($p->items->pluck('item_name')->filter()->implode(' ') ?: $p->item_name).' '.$p->category.' '.$p->material.' '.number_format((float) $p->total_amount, 2)
+                    : optional($e->date)->format('d M Y').' '.$e->desc.' '.($e->sub ?? '');
+                return strpos(mb_strtolower($hay), $needle) !== false;
+            })->values();
+        }
+
+        return $ledger;
     }
 
     /**
@@ -1236,7 +1271,8 @@ class VendorPurchaseController extends Controller
         // (Skipped when specific rows are ticked: those go through the purchases-only export below.)
         if ($request->filled('vendor_id') && !$request->filled('ids')) {
             [$ledger, $ledgerBalance] = $this->buildVendorLedger($request->vendor_id, $request);
-            if ($ledger->isEmpty()) return redirect()->back()->with('error', 'No records match the selected date range.');
+            $ledger = $this->filterVendorLedger($ledger, $request->vendor_id, $request);
+            if ($ledger->isEmpty()) return redirect()->back()->with('error', 'No records match the selected filters.');
             $vendor = Vendor::find($request->vendor_id);
             $ledger = $ledger->reverse()->values(); // oldest first for a statement
             $ledgerData = [
