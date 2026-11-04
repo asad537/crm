@@ -669,6 +669,8 @@ class VendorPurchaseController extends Controller
             'vendor_phone' => 'nullable|string|max:50',
             'vendor_email' => 'nullable|email|max:255',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
+            // Short CSVs are detected as plain text ("txt"), so mimes allows it while extensions keeps .txt itself out.
+            'payment_attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv,txt|extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
             'purchase_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
             'invoice_number' => ['nullable','string','max:100'],
@@ -713,6 +715,10 @@ class VendorPurchaseController extends Controller
         unset($validated['attachment']);
         if ($request->hasFile('attachment')) {
             $validated = array_merge($validated, $this->storeAttachment($request->file('attachment')));
+        }
+        unset($validated['payment_attachment']);
+        if ($request->hasFile('payment_attachment')) {
+            $validated = array_merge($validated, $this->storePaymentAttachment($request->file('payment_attachment')));
         }
         $firstItem = $items[0];
         $validated = array_merge($validated, [
@@ -945,6 +951,18 @@ class VendorPurchaseController extends Controller
         ];
     }
 
+    /** Same storage as payment receipts, kept on the purchase record itself. */
+    private function storePaymentAttachment($file)
+    {
+        $stored = $this->storeReceipt($file);
+
+        return [
+            'payment_attachment_path' => $stored['receipt_path'],
+            'payment_attachment_name' => $stored['receipt_name'],
+            'payment_attachment_mime' => $stored['receipt_mime'],
+        ];
+    }
+
     public function update(Request $request, $id)
     {
         $this->authorizeAccess();
@@ -955,6 +973,8 @@ class VendorPurchaseController extends Controller
             'vendor_phone' => 'nullable|string|max:50',
             'vendor_email' => 'nullable|email|max:255',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
+            // Short CSVs are detected as plain text ("txt"), so mimes allows it while extensions keeps .txt itself out.
+            'payment_attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv,txt|extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,csv|max:20480',
             'purchase_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:purchase_date',
             'invoice_number' => ['nullable','string','max:100'],
@@ -999,6 +1019,10 @@ class VendorPurchaseController extends Controller
         if ($request->hasFile('attachment')) {
             $validated = array_merge($validated, $this->storeAttachment($request->file('attachment')));
         }
+        unset($validated['payment_attachment']);
+        if ($request->hasFile('payment_attachment')) {
+            $validated = array_merge($validated, $this->storePaymentAttachment($request->file('payment_attachment')));
+        }
         $firstItem = $items[0];
         $validated = array_merge($validated, [
             'category' => $firstItem['category'], 'item_name' => $firstItem['item_name'],
@@ -1028,6 +1052,7 @@ class VendorPurchaseController extends Controller
         $validated['gp_status'] = trim((string) $request->input('gp_status')) ?: null;
         // Payments table is the source of truth; don't let the form paid_amount override recorded payments.
         unset($validated['paid_amount']);
+        $replacedPaymentAttachment = isset($validated['payment_attachment_path']) ? $purchase->payment_attachment_path : null;
         DB::transaction(function () use ($purchase, $validated, $items, $payment) {
             $purchase->update($validated);
             $purchase->items()->delete();
@@ -1044,6 +1069,9 @@ class VendorPurchaseController extends Controller
             }
             $purchase->recomputePayments();
         });
+        if ($replacedPaymentAttachment && is_file(public_path($replacedPaymentAttachment))) {
+            @unlink(public_path($replacedPaymentAttachment));
+        }
         return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $validated['vendor_id']])->with('success', 'Vendor purchase updated successfully.');
     }
 
@@ -1053,6 +1081,7 @@ class VendorPurchaseController extends Controller
         $purchase = VendorPurchase::findOrFail($id);
         $vendorId = $purchase->vendor_id;
         $attachment = $purchase->attachment_path ? public_path($purchase->attachment_path) : null;
+        $paymentAttachment = $purchase->payment_attachment_path ? public_path($purchase->payment_attachment_path) : null;
         $label = ($purchase->invoice_number ?: '#'.$purchase->id) . ' — ' . ($purchase->vendor_name ?: 'Vendor');
         $snapshot = [
             'invoice_number' => $purchase->invoice_number,
@@ -1066,6 +1095,7 @@ class VendorPurchaseController extends Controller
         \App\CrmDeletionLog::record('vendor_purchase', $purchase, $label, $snapshot);
         $purchase->delete();
         if ($attachment && is_file($attachment)) @unlink($attachment);
+        if ($paymentAttachment && is_file($paymentAttachment)) @unlink($paymentAttachment);
 
         return redirect()->route('crm.vendor_purchases.index', ['vendor_id' => $vendorId])
             ->with('success', 'Vendor purchase deleted (logged).');

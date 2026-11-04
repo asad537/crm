@@ -132,6 +132,10 @@ return [
         'attribute-name' => [
             'rule-name' => 'custom-message',
         ],
+        'payment_attachment' => [
+            'mimes' => 'The payment attachment must be a PDF, image, Word, Excel or CSV file.',
+            'extensions' => 'The payment attachment must be a PDF, image, Word, Excel or CSV file.',
+        ],
     ],
 
     /*

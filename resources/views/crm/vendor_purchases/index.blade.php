@@ -319,6 +319,7 @@
                         'balance' => (float) $p->balance_amount,
                         'status' => $p->payment_status,
                         'attachment' => $p->attachment_path ? asset(ltrim(preg_replace('#^public/#','',$p->attachment_path),'/')) : null,
+                        'payment_attachment' => $p->payment_attachment_path ? asset($p->payment_attachment_path) : null,
                         'items' => $p->items->map(fn($it) => ['name'=>$it->item_name,'material'=>$it->material,'gsm'=>$it->gsm,'size'=>$it->size,'color'=>$it->color,'unit'=>$it->unit,'qty'=>(float)$it->quantity,'rate'=>(float)$it->unit_price,'vat'=>(float)$it->vat_percentage,'total'=>(float)$it->line_total,'expense'=>$it->expense_type])->all(),
                     ]) }}" onclick="openVpView(JSON.parse(this.dataset.view))"><i class="fas fa-eye"></i></button><a class="vp-edit-btn" href="{{ route('crm.vendor_purchases.edit',$p->id) }}" title="Edit purchase" aria-label="Edit purchase"><i class="fas fa-pen"></i></a>@if($canDeleteVendors)<form method="POST" action="{{ route('crm.vendor_purchases.destroy',$p->id) }}" data-delete-target="{{ $p->item_name }}" onsubmit="return openVendorDeleteDialog(this,'purchase',this.dataset.deleteTarget);">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="vp-delete-btn" type="submit" title="Delete purchase"><i class="fas fa-trash"></i></button></form>@endif</div>
                     @elseif($e->kind==='payment' && !empty($e->del))
@@ -381,6 +382,7 @@
             rows+='</tbody>';
             document.getElementById('vpvItems').innerHTML=rows;
             document.getElementById('vpvAttach').innerHTML = d.attachment ? ('<a href="'+d.attachment+'" target="_blank" style="color:var(--primary-purple);font-weight:700"><i class="fas fa-paperclip"></i> View attachment</a>') : '';
+            if(d.payment_attachment) document.getElementById('vpvAttach').innerHTML += '<a href="'+d.payment_attachment+'" target="_blank" style="color:var(--primary-purple);font-weight:700;margin-left:'+(d.attachment?'1rem':'0')+'"><i class="fas fa-paperclip"></i> View payment attachment</a>';
             document.getElementById('vpViewModal').style.display='flex';document.body.style.overflow='hidden';
         }
         function closeVpView(){document.getElementById('vpViewModal').style.display='none';document.body.style.overflow='';}

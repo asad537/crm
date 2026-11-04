@@ -13,6 +13,7 @@ class VendorPurchase extends Model
         'unit_price', 'subtotal', 'vat_percentage', 'tax_amount', 'shipping_cost', 'deduction', 'total_amount',
         'paid_amount', 'balance_amount', 'payment_status', 'payment_method',
         'currency', 'notes', 'attachment_path', 'attachment_name', 'attachment_mime',
+        'payment_attachment_path', 'payment_attachment_name', 'payment_attachment_mime',
     ];
 
     protected $casts = [
