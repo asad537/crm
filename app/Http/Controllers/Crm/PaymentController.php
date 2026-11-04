@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\VendorPurchase;
 use App\VendorPurchasePayment;
 use App\Support\CrmWorkspaceContext;
+use App\Support\PartyLinks;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -112,6 +113,9 @@ class PaymentController extends Controller
     {
         $rows = collect();
         $userNames = CrmUser::pluck('name', 'id');
+        // Payees typed by hand open a vendor's ledger when the name is a saved vendor, otherwise everything paid to that name.
+        $vendorIds = \App\Vendor::pluck('id', 'name')->mapWithKeys(fn ($id, $name) => [mb_strtolower(trim($name)) => $id]);
+        $namedVendor = fn ($name) => PartyLinks::vendor($vendorIds[mb_strtolower(trim((string) $name))] ?? null) ?: PartyLinks::payee($name);
 
         // 1) Vendor payments: against a purchase, or on the vendor's account (no purchase).
         $vendorPayments = VendorPurchasePayment::with(['purchase', 'vendor'])
@@ -126,6 +130,7 @@ class PaymentController extends Controller
                 'date' => $payment->paid_at ?: $payment->created_at,
                 'source' => 'vendor',
                 'party' => $vendorName,
+                'party_url' => PartyLinks::vendor($vendorId),
                 'ref' => $purchase ? ($purchase->invoice_number ?: 'Purchase #'.$purchase->id) : 'On account',
                 'detail' => $purchase ? ($purchase->item_name ?: $purchase->category) : $payment->note,
                 'category' => $purchase ? ($purchase->expense_type ?: $purchase->category) : null,
@@ -161,6 +166,7 @@ class PaymentController extends Controller
                 'date' => $payment->paid_at ?: $payment->created_at,
                 'source' => $payment->pay_type === 'Direct' ? 'direct' : 'account',
                 'party' => $payment->paid_to ?: optional($item)->vendor_name,
+                'party_url' => $namedVendor($payment->paid_to ?: optional($item)->vendor_name),
                 'ref' => 'Demand #'.str_pad($demand->request_no, 3, '0', STR_PAD_LEFT).($invoiceNo !== '' ? ' · Inv '.$invoiceNo : ''),
                 'detail' => $payment->note ?: optional($item)->description,
                 'category' => $payment->category ?: optional($item)->category,
@@ -182,6 +188,7 @@ class PaymentController extends Controller
                 'date' => $expense->expense_date,
                 'source' => 'expense',
                 'party' => $expense->payee_name ?: $expense->payee_type_label,
+                'party_url' => $namedVendor($expense->payee_name),
                 'ref' => $expense->number,
                 'detail' => $expense->name,
                 'category' => $expense->category,
@@ -208,6 +215,7 @@ class PaymentController extends Controller
                     'date' => $payment->paid_at,
                     'source' => 'purchase',
                     'party' => $invoice->vendor_name,
+                    'party_url' => PartyLinks::vendor($invoice->vendor_id),
                     'ref' => $invoice->number.($invoice->reference ? ' · '.$invoice->reference : ''),
                     'detail' => $invoice->description ?: $invoice->items->pluck('name')->implode(', '),
                     'category' => $invoice->items->pluck('category')->filter()->unique()->implode(', ') ?: $invoice->project,
@@ -238,6 +246,7 @@ class PaymentController extends Controller
                 'date' => $line->paid_at,
                 'source' => 'salary',
                 'party' => $line->employee_name,
+                'party_url' => PartyLinks::employee($line->employee_id),
                 'ref' => 'Salary '.$line->run->periodStart()->format('M Y'),
                 'detail' => trim(($line->designation ?: 'Salary').($line->advance_deduction > 0 ? ' · advance cut '.number_format((float) $line->advance_deduction, 2) : '')),
                 'category' => $line->department,
@@ -257,6 +266,7 @@ class PaymentController extends Controller
                 'date' => $advance->given_date,
                 'source' => 'advance',
                 'party' => optional($advance->employee)->name,
+                'party_url' => PartyLinks::employee($advance->employee_id),
                 'ref' => 'Advance',
                 'detail' => $advance->note ?: 'Salary advance',
                 'category' => optional($advance->employee)->department,
@@ -277,7 +287,7 @@ class PaymentController extends Controller
     protected function row(array $data)
     {
         return (object) array_merge([
-            'category' => null, 'method' => null, 'note' => null, 'paid_by' => null, 'url' => null,
+            'category' => null, 'method' => null, 'note' => null, 'paid_by' => null, 'url' => null, 'party_url' => null,
             'proof_url' => null, 'proof_count' => 0, 'duplicate_of' => null, 'sort_id' => 0,
             'link_type' => null, 'link_id' => null, 'bank_account_id' => null, 'form' => null, 'invoice_status' => null, 'invoice_due' => null,
         ], $data, [
@@ -306,7 +316,7 @@ class PaymentController extends Controller
             $rows = $rows->filter(fn ($r) => strcasecmp((string) $r->method, $filters['method']) === 0);
         }
         if ($filters['party']) {
-            $rows = $rows->where('party', $filters['party']);
+            $rows = $rows->filter(fn ($r) => trim($r->party) === $filters['party']);
         }
         if ($filters['search'] !== '') {
             $search = $filters['search'];

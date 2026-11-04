@@ -59,7 +59,8 @@
                     <tr class="{{ $e->transfer_id ? 'ba-transfer' : '' }}">
                         <td class="gl-date" data-label="Date">{{ $e->date->format('d M Y') }}</td>
                         <td data-label="Type">{{ $e->type }}@if($e->method)<span class="ex-sub">{{ $e->method }}</span>@endif</td>
-                        <td data-label="Party"><span class="gl-name">{{ $e->party }}</span>@if(!empty($e->note))<span class="ex-sub">{{ $e->note }}</span>@endif</td>
+                        <td data-label="Party">@if($e->party_url)<a class="gl-name" href="{{ $e->party_url }}" title="Open ledger">{{ $e->party }}</a>@else<span class="gl-name">{{ $e->party }}</span>@endif
+                            @if(!empty($e->note))<span class="ex-sub">{{ $e->note }}</span>@endif</td>
                         <td data-label="Ref">@if($e->url)<a href="{{ $e->url }}" style="color:var(--brand);font-weight:700;text-decoration:none">{{ $e->ref ?: 'Open' }}</a>@else<span class="gl-mutedtext">{{ $e->ref ?: '—' }}</span>@endif</td>
                         <td class="gl-r gl-num gl-green" data-label="In">{{ $e->in > 0 ? $fmt($e->in) : '' }}</td>
                         <td class="gl-r gl-num gl-red" data-label="Out">{{ $e->out > 0 ? $fmt($e->out) : '' }}</td>

@@ -15,6 +15,7 @@ use App\Http\Controllers\Crm\PaymentController;
 use App\Http\Controllers\Crm\ReceiptController;
 use App\SalesOrder;
 use App\Support\CrmWorkspaceContext;
+use App\Support\PartyLinks;
 use App\VendorPurchase;
 use App\VendorPurchasePayment;
 use Carbon\Carbon;
@@ -403,7 +404,7 @@ class FinancialReportService
     {
         $items = collect();
         foreach (VendorPurchase::where('balance_amount', '>', 0.009)->get() as $p) {
-            $items->push((object) ['party' => $p->vendor_name ?: '—', 'date' => Carbon::parse($p->purchase_date ?: $p->created_at), 'due' => $p->due_date ? Carbon::parse($p->due_date) : null,
+            $items->push((object) ['party' => $p->vendor_name ?: '—', 'party_url' => PartyLinks::vendor($p->vendor_id), 'date' => Carbon::parse($p->purchase_date ?: $p->created_at), 'due' => $p->due_date ? Carbon::parse($p->due_date) : null,
                 'ref' => $p->invoice_number ?: 'Purchase #' . $p->id, 'url' => route('crm.vendor_purchases.index', array_filter(['vendor_id' => $p->vendor_id, 'search' => $p->invoice_number])),
                 'type' => 'Vendor Purchase', 'total' => (float) $p->total_amount, 'paid' => (float) $p->paid_amount, 'balance' => (float) $p->balance_amount]);
         }
@@ -416,7 +417,7 @@ class FinancialReportService
             $balance = round(($issued ? (float) $inv->total : 0) - $paid, 2);
             if ($balance < -0.009) $advances[$inv->vendor_name] = ($advances[$inv->vendor_name] ?? 0) - $balance;
             if (!$issued || $balance <= 0.009) continue;
-            $items->push((object) ['party' => $inv->vendor_name, 'date' => $inv->issue_date, 'due' => $inv->due_date, 'ref' => $inv->number . ($inv->reference ? ' · ' . $inv->reference : ''),
+            $items->push((object) ['party' => $inv->vendor_name, 'party_url' => PartyLinks::vendor($inv->vendor_id), 'date' => $inv->issue_date, 'due' => $inv->due_date, 'ref' => $inv->number . ($inv->reference ? ' · ' . $inv->reference : ''),
                 'url' => route('crm.purchase_invoices.show', $inv->id), 'type' => 'Purchase Invoice', 'total' => (float) $inv->total, 'paid' => $paid, 'balance' => $balance]);
         }
         $items = $items->filter(fn ($i) => $i->date->lte($this->to));
@@ -522,6 +523,11 @@ class FinancialReportService
         }
         $output = (float) $sales->sum('vat');
         $input = (float) $purchases->sum('tax_amount');
+        // The invoices and bills behind the months, each opening its customer / vendor and its document.
+        $entryRows = $sales->filter(fn ($l) => abs($l->vat) > 0.004)->map(fn ($l) => [$l->date, 'Output (sale)', $this->link($l->party, PartyLinks::customer($l->party, $this->from, $this->to)), $this->link($l->ref, $l->url), $l->net, $l->vat])
+            ->concat($purchases->filter(fn ($p) => abs((float) $p->tax_amount) > 0.004)->map(fn ($p) => [Carbon::parse($p->purchase_date), 'Input (purchase)', $this->link($p->vendor_name ?: '—', PartyLinks::vendor($p->vendor_id)),
+                $this->link($p->invoice_number ?: 'Purchase #' . $p->id, route('crm.vendor_purchases.index', array_filter(['vendor_id' => $p->vendor_id, 'search' => $p->invoice_number]))), (float) $p->total_amount - (float) $p->tax_amount, (float) $p->tax_amount]))
+            ->sortBy(fn ($r) => $r[0]->timestamp)->values()->map(fn ($r) => array_replace($r, [0 => $r[0]->format('d M Y')]))->all();
 
         return [
             'subtitle' => 'Output VAT on sales minus input VAT on vendor purchases, by invoice date — a helper for the FTA VAT return.',
@@ -534,6 +540,7 @@ class FinancialReportService
             'tables' => [
                 ['title' => 'VAT by Month', 'columns' => [['Month', 'text'], ['Sales (without VAT)', 'money'], ['Output VAT', 'money'], ['Purchases (without VAT)', 'money'], ['Input VAT', 'money'], ['Net VAT', 'money']],
                     'rows' => $rows, 'footer' => ['Total', (float) $sales->sum('net'), $output, (float) $purchases->sum(fn ($x) => (float) $x->total_amount - (float) $x->tax_amount), $input, $output - $input]],
+                ['title' => 'VAT Entries', 'columns' => [['Date', 'text'], ['VAT', 'text'], ['Customer / Vendor', 'text'], ['Invoice / Ref', 'text'], ['Without VAT', 'money'], ['VAT Amount', 'money']], 'rows' => $entryRows],
             ],
             'notes' => [
                 'Output VAT comes from Al Massa invoices (their VAT %) and the tax amount on customer sales.',
@@ -663,18 +670,18 @@ class FinancialReportService
 
         if ($isIncome) {
             $columns = [['Date', 'text'], ['Customer', 'text'], ['Invoice / Ref', 'text'], ['Category', 'text'], ['Without VAT', 'money'], ['VAT', 'money'], ['With VAT', 'money'], ['Paid', 'money']];
-            $rows = $lines->map(fn ($l) => [$l->date->format('d M Y'), $l->party, $this->link($l->ref, $l->url), $l->category, $l->net, $l->vat, $l->gross, $l->paid])->all();
+            $rows = $lines->map(fn ($l) => [$l->date->format('d M Y'), $this->link($l->party, $l->source === 'direct' ? PartyLinks::payer($l->party) : PartyLinks::customer($l->party, $this->from, $this->to)), $this->link($l->ref, $l->url), $l->category, $l->net, $l->vat, $l->gross, $l->paid])->all();
             $footer = ['Total', null, null, null, $total, (float) $lines->sum('vat'), (float) $lines->sum('gross'), (float) $lines->sum('paid')];
         } else {
             $columns = [['Date', 'text'], ['Paid To / Vendor', 'text'], ['Invoice / Ref', 'text'], ['Type', 'text'], ['Category', 'text'], ['Amount', 'money']];
-            $rows = $lines->map(fn ($l) => [$l->date->format('d M Y'), $l->party, $this->link($l->ref, $l->url), $l->type, $l->category, $l->net])->all();
+            $rows = $lines->map(fn ($l) => [$l->date->format('d M Y'), $this->link($l->party, $l->party_url), $this->link($l->ref, $l->url), $l->type, $l->category, $l->net])->all();
             $footer = ['Total', null, null, null, null, $total];
         }
 
         return [
             'key' => 'entries',
             'title' => ($category !== '' ? $category : $groupLabel) . ' — Entries',
-            'subtitle' => 'Every entry behind this line for the period' . ($isIncome ? ' (amounts without VAT count in Profit & Loss)' : ' (amounts without VAT)') . '. Click an invoice / ref to open it.',
+            'subtitle' => 'Every entry behind this line for the period' . ($isIncome ? ' (amounts without VAT count in Profit & Loss)' : ' (amounts without VAT)') . '. Click a name to open its ledger, or an invoice / ref to open it.',
             'cards' => [
                 ['label' => 'Total', 'value' => $total, 'tone' => $isIncome ? 'green' : 'red', 'icon' => 'fa-coins'],
                 ['label' => 'Entries', 'value' => $lines->count(), 'format' => 'number', 'tone' => 'brand', 'icon' => 'fa-list'],
@@ -847,7 +854,9 @@ class FinancialReportService
             }
             foreach (CustomerSale::with(['customer', 'payments'])->whereNull('crm_email_id')->get() as $sale) {
                 $line = $this->line('sale', $sale->order_date, 'Customer Sales', optional($sale->customer)->name, $sale->order_number,
-                    (float) $sale->total_amount - (float) $sale->tax_amount, (float) $sale->tax_amount, (float) $sale->paid_amount, route('crm.orders.historical_invoice', $sale->id));
+                    (float) $sale->total_amount - (float) $sale->tax_amount, (float) $sale->tax_amount, (float) $sale->paid_amount,
+                    // Only imported sales have the historical invoice page; a sale added by hand opens under its customer.
+                    $sale->import_source_key ? route('crm.orders.historical_invoice', $sale->id) : route('crm.customer_sales.index', ['customer_id' => $sale->customer_id]));
                 // Payments from "Make Receipt" on their own date; the rest of paid_amount was paid on the sale date.
                 $onSaleDate = round((float) $sale->paid_amount - (float) $sale->payments->sum('amount'), 2);
                 if ($onSaleDate > 0.009) {
@@ -891,7 +900,7 @@ class FinancialReportService
             foreach (VendorPurchase::all() as $p) {
                 $lines->push($this->cost($p->purchase_date ?: $p->created_at, $p->expense_type ?: 'Production Expense', $p->vendor_name, (float) $p->total_amount - (float) $p->tax_amount,
                     'Vendor Purchase', $p->invoice_number ?: 'Purchase #' . $p->id,
-                    route('crm.vendor_purchases.index', array_filter(['vendor_id' => $p->vendor_id, 'search' => $p->invoice_number])), $p->job_id));
+                    route('crm.vendor_purchases.index', array_filter(['vendor_id' => $p->vendor_id, 'search' => $p->invoice_number])), $p->job_id, PartyLinks::vendor($p->vendor_id)));
             }
             // One cost line per item category on the invoice; items without a category stay under "Supplier Invoices".
             // Fixed-asset and stock lines are not costs (they are on the balance sheet under Fixed Assets / Inventory).
@@ -901,19 +910,19 @@ class FinancialReportService
                 if ($inv->items->isEmpty()) $byCategory = collect(['Supplier Invoices' => (float) $inv->total]);
                 foreach ($byCategory as $category => $amount) {
                     $lines->push($this->cost($inv->issue_date, $category, $inv->vendor_name, $amount,
-                        'Purchase Invoice', $inv->number . ($inv->reference ? ' · ' . $inv->reference : ''), route('crm.purchase_invoices.show', $inv->id)));
+                        'Purchase Invoice', $inv->number . ($inv->reference ? ' · ' . $inv->reference : ''), route('crm.purchase_invoices.show', $inv->id), null, PartyLinks::vendor($inv->vendor_id)));
                 }
             }
             // Demand-request and general expenses come from the Payments register so duplicates stay excluded.
             foreach ($this->payments()->whereIn('source', ['direct', 'account', 'expense'])->whereNull('duplicate_of') as $row) {
                 $lines->push($this->cost($row->date, $row->category ?: ($row->source === 'expense' ? 'Other' : 'Demand Requests'), $row->party, (float) $row->amount,
-                    $row->source === 'expense' ? 'Expense' : 'Demand Request', $row->ref, $row->url));
+                    $row->source === 'expense' ? 'Expense' : 'Demand Request', $row->ref, $row->url, null, $row->party_url));
             }
             $salaryLines = CrmPayrollLine::with('run')
                 ->whereHas('run', fn ($q) => $q->where('workspace_id', CrmWorkspaceContext::id())->whereIn('status', ['approved', 'paid']))->get();
             foreach ($salaryLines as $l) {
                 $lines->push($this->cost($l->run->periodStart(), 'Salaries & Wages', $l->employee_name, (float) $l->net + (float) $l->advance_deduction,
-                    'Salary', 'Salary ' . $l->run->periodStart()->format('M Y'), route('crm.payroll.show', $l->payroll_run_id)));
+                    'Salary', 'Salary ' . $l->run->periodStart()->format('M Y'), route('crm.payroll.show', $l->payroll_run_id), null, PartyLinks::employee($l->employee_id)));
             }
             // Stock in the books: materials used on jobs, purchases moved into stock, wastage (see InventoryAccounting).
             foreach ($this->stock()->costEvents() as $e) {
@@ -921,7 +930,7 @@ class FinancialReportService
                 $m = $e->movement;
                 $ref = $e->kind === 'correction' ? 'Stock cost correction' : ($m->reference ?: 'Stock movement #' . $m->id);
                 $lines->push($this->cost($e->date, $e->category, InventoryAccounting::itemLabel($e->item), $e->amount, 'Inventory', $ref,
-                    route('crm.inventory.movements', $e->item->id), $m->job_number ?: null));
+                    route('crm.inventory.movements', $e->item->id), $m->job_number ?: null, route('crm.inventory.movements', $e->item->id)));
             }
             return $lines;
         })();
@@ -952,7 +961,7 @@ class FinancialReportService
             ->filter(fn ($l) => $l->date->lte($this->to))
             ->map(fn ($l) => [$l, $this->paidAsOf($l, $this->to)])
             ->filter(fn ($pair) => $pair[0]->gross - $pair[1] > 0.009)
-            ->map(fn ($pair) => (object) ['party' => $pair[0]->party ?: '—', 'date' => $pair[0]->date, 'due' => null, 'ref' => $pair[0]->ref, 'url' => $pair[0]->url,
+            ->map(fn ($pair) => (object) ['party' => $pair[0]->party ?: '—', 'party_url' => PartyLinks::customer($pair[0]->party, $this->from, $this->to), 'date' => $pair[0]->date, 'due' => null, 'ref' => $pair[0]->ref, 'url' => $pair[0]->url,
                 'type' => ['invoice' => 'Invoice', 'order' => 'Sales Order', 'sale' => 'Customer Sale', 'income' => 'Other Income'][$pair[0]->source],
                 'total' => $pair[0]->gross, 'paid' => $pair[1], 'balance' => round($pair[0]->gross - $pair[1], 2)])
             ->values();
@@ -967,17 +976,19 @@ class FinancialReportService
             return $days <= 30 ? 0 : ($days <= 60 ? 1 : ($days <= 90 ? 2 : 3));
         };
         $parties = [];
+        $partyUrls = [];
         $bucketTotals = [0, 0, 0, 0];
         foreach ($items as $item) {
             $b = $bucketOf($item);
             $parties[$item->party] ??= [0, 0, 0, 0];
+            $partyUrls[$item->party] ??= $item->party_url;
             $parties[$item->party][$b] += $item->balance;
             $bucketTotals[$b] += $item->balance;
         }
         $partyRows = [];
         $onAccountTotal = 0.0;
         foreach ($parties as $party => $buckets) {
-            $row = [$party, ...$buckets];
+            $row = [$this->link($party, $partyUrls[$party]), ...$buckets];
             if ($onAccount) {
                 $paid = min((float) ($onAccount[$party] ?? 0), array_sum($buckets));
                 $onAccountTotal += $paid;
@@ -999,7 +1010,7 @@ class FinancialReportService
         if ($onAccount) $footer[] = $onAccountTotal;
         $footer[] = $total;
 
-        $itemRows = $items->sortByDesc('days')->map(fn ($i) => [$i->date->format('d M Y'), $i->party, $i->type, $this->link($i->ref, $i->url ?? null), $i->total, $i->paid, $i->balance, $i->days, $i->due ? $i->due->format('d M Y') : '—'])->values();
+        $itemRows = $items->sortByDesc('days')->map(fn ($i) => [$i->date->format('d M Y'), $this->link($i->party, $i->party_url), $i->type, $this->link($i->ref, $i->url ?? null), $i->total, $i->paid, $i->balance, $i->days, $i->due ? $i->due->format('d M Y') : '—'])->values();
 
         return [
             'subtitle' => $subtitle,
@@ -1087,12 +1098,12 @@ class FinancialReportService
         return $this->memo['stock'] ??= new InventoryAccounting();
     }
 
-    protected function cost($date, string $category, $party, float $net, string $type, $ref, ?string $url, $job = null)
+    protected function cost($date, string $category, $party, float $net, string $type, $ref, ?string $url, $job = null, ?string $partyUrl = null)
     {
         $category = $this->category($category);
 
         return (object) ['date' => Carbon::parse($date), 'category' => $category, 'group' => in_array($category, self::COST_OF_SALES, true) ? 'cos' : 'opex',
-            'party' => $party ?: '—', 'net' => round($net, 2), 'type' => $type, 'ref' => $ref, 'url' => $url, 'job' => $job];
+            'party' => $party ?: '—', 'party_url' => $partyUrl, 'net' => round($net, 2), 'type' => $type, 'ref' => $ref, 'url' => $url, 'job' => $job];
     }
 
     /** A table cell that opens a page: rendered as a link on screen, plain text in Excel / PDF. */

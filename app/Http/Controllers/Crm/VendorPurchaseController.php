@@ -556,6 +556,7 @@ class VendorPurchaseController extends Controller
         $this->authorizeAccess();
         $search = trim((string) $request->input('search', ''));
         $selectedJob = trim((string) $request->input('job_id', ''));
+        $dir = $request->input('dir') === 'desc' ? 'desc' : 'asc';
         // Older purchases used "General"/"Genral" as a placeholder Job ID. They are
         // valid expenses, but must not become a job in the Job Expenses report.
         $isJobId = static function ($value): bool {
@@ -640,7 +641,19 @@ class VendorPurchaseController extends Controller
                     'currency' => optional($rows->first())->currency ?: 'AED',
                     'last_date' => $rows->max('purchase_date'),
                 ];
-            })->sortByDesc('last_date')->values();
+            });
+        // By AMS number (AMS-0009 before AMS-0010), either way; anything that is not an AMS number stays at the end.
+        $amsNumber = static function ($jobId) {
+            return preg_match('/^AMS-(\d+)/i', $jobId, $match) ? (int) $match[1] : null;
+        };
+        $jobGroups = $jobGroups->sort(function ($a, $b) use ($amsNumber, $dir) {
+            $numberA = $amsNumber($a->job_id);
+            $numberB = $amsNumber($b->job_id);
+            if ($numberA === null || $numberB === null) {
+                return ($numberA === null) <=> ($numberB === null) ?: strnatcasecmp($a->job_id, $b->job_id);
+            }
+            return ($dir === 'desc' ? $numberB <=> $numberA : $numberA <=> $numberB) ?: strnatcasecmp($a->job_id, $b->job_id);
+        })->values();
 
         $overall = [
             'jobs' => $jobGroups->count(),
@@ -656,6 +669,7 @@ class VendorPurchaseController extends Controller
             'jobGroups' => $jobGroups,
             'overall' => $overall,
             'search' => $search,
+            'dir' => $dir,
         ]);
     }
 

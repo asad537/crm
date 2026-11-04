@@ -87,7 +87,7 @@
                 @forelse($employees as $employee)
                     @php $balance = $employee->advanceBalance(); @endphp
                     <tr class="{{ $employee->status === 'left' ? 'em-left' : '' }}">
-                        <td data-label="Employee"><span class="ex-name">{{ $employee->name }}</span><span class="ex-sub">{{ trim(($employee->employee_code ? $employee->employee_code . ' · ' : '') . ($employee->designation ?: '')) ?: '—' }}{{ $employee->phone ? ' · ' . $employee->phone : '' }}</span></td>
+                        <td data-label="Employee"><a class="ex-name" href="{{ route('crm.employees.show', $employee->id) }}" title="Open ledger">{{ $employee->name }}</a><span class="ex-sub">{{ trim(($employee->employee_code ? $employee->employee_code . ' · ' : '') . ($employee->designation ?: '')) ?: '—' }}{{ $employee->phone ? ' · ' . $employee->phone : '' }}</span></td>
                         <td data-label="Department">{{ $employee->department ?: '—' }}</td>
                         <td data-label="Salary Type">{{ $salaryTypes[$employee->salary_type] ?? 'Monthly' }}</td>
                         <td class="gl-r gl-num" data-label="Salary">{{ $employee->packageLabel() }}@if(!$employee->isDaily() && $employee->allowancesTotal() > 0)<span class="ex-sub">basic {{ $fmt($employee->basic_salary) }} + allow. {{ $fmt($employee->allowancesTotal()) }}</span>@endif</td>
@@ -129,7 +129,8 @@
                 @forelse($advances as $advance)
                     <tr>
                         <td class="gl-date" data-label="Date">{{ $advance->given_date->format('d M Y') }}</td>
-                        <td data-label="Employee"><span class="gl-name">{{ optional($advance->employee)->name ?: '—' }}</span>@if($advance->employee)<span class="ex-sub">open balance {{ $fmt($advance->employee->advanceBalance()) }}</span>@endif</td>
+                        <td data-label="Employee">@if($advance->employee)<a class="gl-name" href="{{ route('crm.employees.show', $advance->employee_id) }}" title="Open ledger">{{ $advance->employee->name }}</a>@else<span class="gl-name">—</span>@endif
+                            @if($advance->employee)<span class="ex-sub">open balance {{ $fmt($advance->employee->advanceBalance()) }}</span>@endif</td>
                         <td class="gl-r gl-num" data-label="Amount">{{ $fmt($advance->amount) }}</td>
                         <td class="gl-r gl-mutedtext" data-label="Cut Per Month">{{ $advance->installment ? $fmt($advance->installment) : 'All at once' }}</td>
                         <td class="gl-mutedtext" data-label="Given As">{{ $advance->method ?: '—' }}</td>

@@ -85,6 +85,8 @@
     .gl-avatar { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; flex: none;
         background: var(--brand-soft); color: var(--brand); font-size: .74rem; font-weight: 800; }
     .gl-name { font-weight: 700; color: var(--ink); line-height: 1.25; }
+    a.gl-name, a.ex-name { color: var(--brand); text-decoration: none; }
+    a.gl-name:hover, a.ex-name:hover { text-decoration: underline; }
     .gl-num { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); white-space: nowrap; }
     .gl-num.gl-green { color: var(--green); }
     .gl-num.gl-red { color: var(--red); }

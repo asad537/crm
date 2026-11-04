@@ -791,6 +791,17 @@
             cursor: pointer;
         }
 
+        /* Export dropdown (crm.partials.export_menu) */
+        .crm-export { position: relative; display: inline-block; }
+        .crm-export summary { list-style: none; display: inline-flex; align-items: center; gap: .45rem; border: 1px solid #e2e8f0; background: #fff; color: #334155; border-radius: 9px; padding: .55rem 1rem; font-size: .8rem; font-weight: 700; cursor: pointer; box-shadow: 0 1px 2px rgba(15,23,42,.04); white-space: nowrap; user-select: none; }
+        .crm-export summary::-webkit-details-marker { display: none; }
+        .crm-export summary > i:first-child { color: var(--primary-purple, #f45a24); }
+        .crm-export summary:hover, .crm-export[open] summary { border-color: var(--primary-purple, #f45a24); color: var(--primary-purple, #f45a24); }
+        .crm-export-caret { font-size: .62rem; transition: transform .14s; }
+        .crm-export[open] .crm-export-caret { transform: rotate(180deg); }
+        .crm-export-options { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 120px; padding: .3rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 14px 30px -8px rgba(15,23,42,.25); }
+        .crm-export-options a { display: flex; align-items: center; gap: .55rem; padding: .55rem .7rem; border-radius: 7px; color: #334155; font-size: .82rem; font-weight: 700; text-decoration: none; }
+        .crm-export-options a:hover { background: #f4f6f9; color: #0f172a; }
 
         @yield('styles')
 
@@ -876,7 +887,9 @@
         .al-massa-crm .or-ctrl select:focus, .al-massa-crm .or-ctrl select:focus-visible,
         .al-massa-crm .composer-box textarea:focus, .al-massa-crm .composer-box textarea:focus-visible,
         .al-massa-crm .composer-box input:focus, .al-massa-crm .composer-box input:focus-visible,
-        .al-massa-crm .chat-input-container textarea:focus, .al-massa-crm .chat-input-container textarea:focus-visible {
+        .al-massa-crm .chat-input-container textarea:focus, .al-massa-crm .chat-input-container textarea:focus-visible,
+        .al-massa-crm .tc-search input:not([type="checkbox"]):not([type="radio"]):focus, .al-massa-crm .tc-search input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+        .al-massa-crm .tc-msg-search input:not([type="checkbox"]):not([type="radio"]):focus, .al-massa-crm .tc-msg-search input:not([type="checkbox"]):not([type="radio"]):focus-visible {
             border-color: transparent !important;
             box-shadow: none !important;
         }
@@ -2197,6 +2210,19 @@
     new MutationObserver(function(){ autoDismiss(); }).observe(document.body, {childList: true, subtree: true});
 })();
 </script>
+<script>
+// Export dropdown: a choice, a click elsewhere or Escape closes it.
+document.addEventListener('click', function (event) {
+    document.querySelectorAll('details.crm-export[open]').forEach(function (menu) {
+        if (!menu.contains(event.target) || event.target.closest('.crm-export-options a')) menu.removeAttribute('open');
+    });
+});
+document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    document.querySelectorAll('details.crm-export[open]').forEach(function (menu) { menu.removeAttribute('open'); });
+});
+</script>
+@include('crm.team_chat._call_widget')
 </body>
 
 </html>

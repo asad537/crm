@@ -23,6 +23,7 @@ yarn-error.log
 # Legacy site assets & user uploads — served locally/from server, NOT tracked in git
 # (repo stays code-only; deploy copies these separately)
 /public/uploads/
+/public/chat_attachments/
 /public/adminassets/
 /public/assets/
 /public/box_assets/

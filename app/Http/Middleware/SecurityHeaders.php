@@ -26,7 +26,8 @@ class SecurityHeaders
         $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->header(
             'Permissions-Policy',
-            'camera=(), microphone=(), geolocation=(), usb=(), payment=(self)'
+            // Camera and microphone are for Team Chat calls, on this site only.
+            'camera=(self), microphone=(self), geolocation=(), usb=(), payment=(self)'
         );
         $response->header('X-Permitted-Cross-Domain-Policies', 'none');
         $response->header('X-Download-Options', 'noopen');

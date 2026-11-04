@@ -93,7 +93,7 @@
                         <td class="gl-date" data-label="Issue Date">{{ $invoice->issue_date->format('d M Y') }}</td>
                         <td class="gl-date" data-label="Due Date">{{ $invoice->due_date ? $invoice->due_date->format('d M Y') : '—' }}</td>
                         <td data-label="Reference"><span class="ex-name">{{ $invoice->number }}</span>@if($invoice->reference)<span class="ex-sub">{{ $invoice->reference }}</span>@endif</td>
-                        <td data-label="Supplier"><span class="gl-name">{{ $invoice->vendor_name }}</span></td>
+                        <td data-label="Supplier">@if($invoice->vendor_id)<a class="gl-name" href="{{ route('crm.vendor_purchases.index', ['vendor_id' => $invoice->vendor_id]) }}" title="Open this vendor's ledger">{{ $invoice->vendor_name }}</a>@else<span class="gl-name">{{ $invoice->vendor_name }}</span>@endif</td>
                         <td data-label="Description">{{ $invoice->description ? \Illuminate\Support\Str::limit($invoice->description, 60) : \Illuminate\Support\Str::limit($invoice->items->pluck('name')->implode(', '), 60) }}
                             @if($invoice->items->whereNotNull('category')->isNotEmpty())<span class="ex-sub">{{ $invoice->items->pluck('category')->filter()->unique()->implode(', ') }}</span>@endif
                         </td>

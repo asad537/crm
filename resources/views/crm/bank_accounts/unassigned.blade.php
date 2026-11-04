@@ -22,7 +22,7 @@
                     <tr>
                         <td class="gl-date">{{ $m->date->format('d M Y') }}</td>
                         <td>{{ $m->type }}</td>
-                        <td><span class="gl-name">{{ $m->party }}</span></td>
+                        <td>@if($m->party_url)<a class="gl-name" href="{{ $m->party_url }}" title="Open ledger">{{ $m->party }}</a>@else<span class="gl-name">{{ $m->party }}</span>@endif</td>
                         <td>@if($m->url)<a href="{{ $m->url }}" style="color:var(--brand);font-weight:700;text-decoration:none">{{ $m->ref ?: 'Open' }}</a>@else{{ $m->ref ?: '—' }}@endif</td>
                         <td class="gl-mutedtext">{{ $m->method ?: '—' }}</td>
                         <td class="gl-r gl-num gl-green">{{ $m->dir === 'in' ? $fmt($m->amount) : '' }}</td>

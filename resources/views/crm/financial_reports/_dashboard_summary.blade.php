@@ -49,7 +49,7 @@
     .fs-bar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .fs-track { display: block; height: 9px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
     .fs-fill { display: block; height: 100%; border-radius: 99px; }
-    .fs-fill.neg { background: repeating-linear-gradient(45deg, #dc2626 0 5px, #f87171 5px 10px); }
+    .fs-fill.neg { background: #dc2626; }
     .fs-bar-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: #0f172a; white-space: nowrap; }
     .fs-bar-val.neg { color: #dc2626; }
     .fs-bar.big { font-size: .86rem; font-weight: 800; color: #0f172a; }
@@ -230,7 +230,7 @@
                 <div class="fs-viz-title" style="--c:{{ $colors[$key] }}"><i></i>{{ $title }}<b class="{{ $bs[$key . '_total'] < -0.004 ? 'neg' : '' }}">{{ $signed($bs[$key . '_total']) }}</b></div>
                 @foreach($bs[$key] as [$label, $value, $url]){!! $bar($label, $value, $url, $colors[$key], $bsLineMax) !!}@endforeach
             @endforeach
-            <div class="fs-legend"><span><i style="background:repeating-linear-gradient(45deg,#dc2626 0 4px,#f87171 4px 8px)"></i> negative amount</span></div>
+            <div class="fs-legend"><span><i style="background:#dc2626"></i> negative amount</span></div>
             @if(!empty($bs['has_bank_accounts']))
                 <div class="fs-footnote">Bank &amp; cash lines are each account's actual balance (opening balance + money in − money out ± transfers). <a href="{{ route('crm.bank_accounts.index') }}" style="color:inherit;font-weight:700">Bank &amp; Cash →</a></div>
             @else

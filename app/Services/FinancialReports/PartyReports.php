@@ -23,8 +23,14 @@ trait PartyReports
         $balances = $lines->groupBy('party')->map(fn ($g) => (float) $g->sum(fn ($l) => $l->gross - $l->paid));
         foreach ($credits as $name => $amount) $balances[$name] = ($balances[$name] ?? 0) - $amount;
         $customers = $lines->pluck('party')->merge($credits->keys())->filter(fn ($p) => $p && $p !== '—')->unique()->sort(SORT_NATURAL | SORT_FLAG_CASE)->values();
-        $customer = $this->params['customer'] ?? null;
-        if (!$customer || !$customers->contains($customer)) {
+        $wanted = trim((string) ($this->params['customer'] ?? ''));
+        $customer = $customers->first(fn ($c) => trim($c) === $wanted);
+        if ($wanted !== '' && !$customer) {
+            // A name opened from a link with nothing on its account gets its own empty statement, never somebody else's.
+            $customer = $wanted;
+            $customers = $customers->push($wanted)->sort(SORT_NATURAL | SORT_FLAG_CASE)->values();
+        }
+        if (!$customer) {
             // Start on the customer who owes the most.
             $customer = $balances->only($customers->all())->sortDesc()->keys()->first() ?? $customers->first();
         }

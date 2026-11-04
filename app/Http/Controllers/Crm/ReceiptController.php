@@ -334,6 +334,8 @@ class ReceiptController extends Controller
             'date' => Carbon::parse($data['date'])->startOfDay(),
             'source_label' => self::SOURCES[$data['source']],
             'customer' => $data['customer'] ?: '—',
+            // Other income received without an invoice is not on a customer's account.
+            'party_url' => $data['source'] === 'direct' ? \App\Support\PartyLinks::payer($data['customer']) : \App\Support\PartyLinks::customer($data['customer']),
             'amount' => round((float) $data['amount'], 2),
             'currency' => ($data['currency'] ?? null) ?: 'AED',
         ]);
@@ -356,7 +358,7 @@ class ReceiptController extends Controller
             $rows = $rows->filter(fn ($r) => strcasecmp((string) $r->method, $filters['method']) === 0);
         }
         if ($filters['customer']) {
-            $rows = $rows->where('customer', $filters['customer']);
+            $rows = $rows->filter(fn ($r) => trim($r->customer) === $filters['customer']);
         }
         if ($filters['search'] !== '') {
             $search = $filters['search'];

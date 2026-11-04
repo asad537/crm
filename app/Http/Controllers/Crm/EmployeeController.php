@@ -60,6 +60,48 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /** One employee's ledger: salary earned on approved sheets, salary paid and advances given, with what is left between them. */
+    public function show($id)
+    {
+        $this->authorizeAccess();
+        $employee = CrmEmployee::with(['advances', 'payrollLines.run'])->findOrFail($id);
+
+        $events = collect();
+        foreach ($employee->payrollLines as $line) {
+            if (!$line->run || !in_array($line->run->status, ['approved', 'paid'], true)) continue;
+            $period = $line->run->periodStart();
+            $sheet = route('crm.payroll.show', $line->payroll_run_id);
+            $cut = (float) $line->advance_deduction;
+            $events->push((object) ['date' => $period, 'order' => 0, 'type' => 'Salary earned', 'ref' => 'Salary ' . $period->format('M Y'), 'url' => $sheet,
+                'detail' => $cut > 0 ? 'advance cut ' . number_format($cut, 2) . ' from this salary' : null, 'earned' => (float) $line->net + $cut, 'paid' => 0.0]);
+            if ($line->paid_at) {
+                $events->push((object) ['date' => $line->paid_at, 'order' => 1, 'type' => 'Salary paid', 'ref' => 'Salary ' . $period->format('M Y'), 'url' => $sheet,
+                    'detail' => trim($line->paid_method . ' ' . $line->paid_reference) ?: null, 'earned' => 0.0, 'paid' => (float) $line->net]);
+            }
+        }
+        foreach ($employee->advances as $advance) {
+            $events->push((object) ['date' => $advance->given_date, 'order' => 1, 'type' => 'Salary advance', 'ref' => 'Advance', 'url' => route('crm.employees.index', ['tab' => 'advances']),
+                'detail' => trim($advance->method . ' ' . $advance->note) ?: null, 'earned' => 0.0, 'paid' => (float) $advance->amount]);
+        }
+
+        $balance = 0.0;
+        $rows = $events->sortBy(fn ($e) => [$e->date->timestamp, $e->order])->values()->map(function ($e) use (&$balance) {
+            $balance = round($balance + $e->earned - $e->paid, 2);
+            $e->balance = $balance;
+
+            return $e;
+        });
+
+        return view('crm.employees.show', [
+            'employee' => $employee,
+            'rows' => $rows,
+            'earned' => (float) $rows->sum('earned'),
+            'paid' => (float) $rows->where('type', 'Salary paid')->sum('paid'),
+            'advanced' => (float) $rows->where('type', 'Salary advance')->sum('paid'),
+            'balance' => $balance,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $this->authorizeAccess();

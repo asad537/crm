@@ -90,7 +90,7 @@
                         <tbody>
                         @foreach($lines as $line)
                             <tr class="py-row" data-type="{{ $line->salary_type }}" data-rate="{{ (float) $line->basic_rate }}" data-allowances="{{ (float) $line->allowances }}">
-                                <td data-label="Employee"><span class="ex-name">{{ $line->employee_name }}</span><span class="ex-sub">{{ $line->isDaily() ? 'Daily wage' : 'Monthly' }}{{ $line->designation ? ' · ' . $line->designation : '' }}</span></td>
+                                <td data-label="Employee"><a class="ex-name" href="{{ route('crm.employees.show', $line->employee_id) }}" title="Open ledger">{{ $line->employee_name }}</a><span class="ex-sub">{{ $line->isDaily() ? 'Daily wage' : 'Monthly' }}{{ $line->designation ? ' · ' . $line->designation : '' }}</span></td>
                                 <td class="gl-r gl-num" data-label="Basic">{{ $fmt($line->basic_rate) }}<span class="ex-sub">{{ $line->isDaily() ? 'per day' : 'per month' }}</span></td>
                                 <td class="gl-r gl-num" data-label="Allowances">{{ $fmt($line->allowances) }}</td>
                                 <td data-label="Days">
@@ -152,7 +152,7 @@
                     <tbody>
                     @foreach($lines as $line)
                         <tr>
-                            <td data-label="Employee"><span class="ex-name">{{ $line->employee_name }}</span><span class="ex-sub">{{ $line->isDaily() ? $num($line->days_worked) . ' days × ' . $fmt($line->basic_rate) : ((float) $line->absent_days > 0 ? $num($line->absent_days) . ' day(s) absent' : 'Monthly') }}{{ $line->note ? ' · ' . $line->note : '' }}</span></td>
+                            <td data-label="Employee"><a class="ex-name" href="{{ route('crm.employees.show', $line->employee_id) }}" title="Open ledger">{{ $line->employee_name }}</a><span class="ex-sub">{{ $line->isDaily() ? $num($line->days_worked) . ' days × ' . $fmt($line->basic_rate) : ((float) $line->absent_days > 0 ? $num($line->absent_days) . ' day(s) absent' : 'Monthly') }}{{ $line->note ? ' · ' . $line->note : '' }}</span></td>
                             <td class="gl-r gl-num" data-label="Basic Pay">{{ $fmt($line->basicPay()) }}</td>
                             <td class="gl-r gl-num" data-label="Allowances">{{ $fmt($line->allowances) }}</td>
                             <td class="gl-r gl-num" data-label="Overtime">{{ $fmt($line->overtimeAmount()) }}</td>

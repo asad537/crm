@@ -85,7 +85,7 @@
                         <tr>
                             <td class="gl-date" data-label="Date">{{ $e->entry_date->format('d M Y') }}</td>
                             <td data-label="No." class="gl-mutedtext">{{ $e->number }}</td>
-                            <td data-label="Owner"><span class="gl-name">{{ optional($e->owner)->name ?: '—' }}</span></td>
+                            <td data-label="Owner">@if($e->owner)<a class="gl-name" href="{{ route('crm.owner_capital.index', ['owner' => $e->owner_id]) }}" title="Open ledger">{{ $e->owner->name }}</a>@else<span class="gl-name">—</span>@endif</td>
                             <td data-label="Type"><span class="oc-type {{ $e->type }}">{{ $types[$e->type] }}</span></td>
                             <td data-label="Method / Account">{{ $e->method ?: '—' }}
                                 <span class="ex-sub">@if(!$e->isCash())no money moved (opening / non-cash)@elseif($e->bankAccount){{ $e->bankAccount->name }}@else auto: account that picks up "{{ $e->method }}"@endif</span></td>

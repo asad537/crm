@@ -104,7 +104,7 @@
                 @forelse($entries as $entry)
                     <tr>
                         <td class="gl-date" data-label="Date">{{ $entry->date->format('d M Y') }}@if($entry->date_note)<span class="rc-datenote">{{ $entry->date_note }}</span>@endif</td>
-                        <td data-label="Customer"><div class="gl-party"><span class="gl-avatar">{{ strtoupper(substr($entry->customer, 0, 1)) }}</span><span class="gl-name">{{ $entry->customer }}</span></div></td>
+                        <td data-label="Customer"><div class="gl-party"><span class="gl-avatar">{{ strtoupper(substr($entry->customer, 0, 1)) }}</span>@if($entry->party_url)<a class="gl-name" href="{{ $entry->party_url }}" title="Open ledger">{{ $entry->customer }}</a>@else<span class="gl-name">{{ $entry->customer }}</span>@endif</div></td>
                         <td class="gl-mutedtext rc-ref" data-label="Invoice / Ref">@if($entry->url)<a href="{{ $entry->url }}">{{ $entry->ref }}</a>@else{{ $entry->ref }}@endif</td>
                         <td data-label="Type"><span class="gl-badge {{ $sourceTone[$entry->source] }}">{{ $entry->source_label }}</span></td>
                         <td class="gl-mutedtext" data-label="Method">{{ $entry->method ?: '—' }}</td>

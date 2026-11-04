@@ -494,14 +494,10 @@
             @endif
             @if(Auth::guard('crm')->user()->isAdmin() || Auth::guard('crm')->user()->isSalesManager() || Auth::guard('crm')->user()->isAccounts())
             @php $__exportParams = array_filter(request()->only(['start_date','end_date','agent','search'])); @endphp
-            <a href="{{ route('crm.orders.export', array_merge($__exportParams, ['format'=>'excel'])) }}"
-               style="display:inline-flex;align-items:center;gap:5px;padding:0.4rem 0.85rem;background:#fff;color:#15803d;border:1px solid #e2e8f0;border-radius:9px;font-size:0.75rem;font-weight:700;text-decoration:none;">
-                <i class="fas fa-file-excel"></i> Excel
-            </a>
-            <a href="{{ route('crm.orders.export', array_merge($__exportParams, ['format'=>'pdf'])) }}"
-               style="display:inline-flex;align-items:center;gap:5px;padding:0.4rem 0.85rem;background:#fff;color:#b91c1c;border:1px solid #e2e8f0;border-radius:9px;font-size:0.75rem;font-weight:700;text-decoration:none;">
-                <i class="fas fa-file-pdf"></i> PDF
-            </a>
+            @include('crm.partials.export_menu', [
+                'excelUrl' => route('crm.orders.export', array_merge($__exportParams, ['format' => 'excel'])),
+                'pdfUrl' => route('crm.orders.export', array_merge($__exportParams, ['format' => 'pdf'])),
+            ])
             @endif
             @endif
         </div>

@@ -35,7 +35,7 @@
         </div>
         <div class="pi-card-body">
             <div class="pi-meta">
-                <div><div class="k">Supplier</div><div class="v">{{ $invoice->vendor_name }}</div></div>
+                <div><div class="k">Supplier</div><div class="v">@if($invoice->vendor_id)<a href="{{ route('crm.vendor_purchases.index', ['vendor_id' => $invoice->vendor_id]) }}" title="Open ledger" style="color:var(--brand);text-decoration:none">{{ $invoice->vendor_name }}</a>@else{{ $invoice->vendor_name }}@endif</div></div>
                 <div><div class="k">Issue Date</div><div class="v">{{ $invoice->issue_date->format('d M Y') }}</div></div>
                 <div><div class="k">Due Date</div><div class="v">{{ $invoice->due_date ? $invoice->due_date->format('d M Y') : '—' }}</div></div>
                 <div><div class="k">Reference</div><div class="v">{{ $invoice->reference ?: '—' }}</div></div>

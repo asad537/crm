@@ -33,6 +33,10 @@
     .jb-table { width:100%; border-collapse:collapse; min-width:760px; }
     .jb-table thead th { font-size:.63rem; text-transform:uppercase; letter-spacing:.09em; font-weight:800; color:var(--muted); text-align:left; padding:.8rem 1.15rem; background:var(--well); border-bottom:1px solid var(--line); }
     .jb-table th.r, .jb-table td.r { text-align:right; }
+    .jb-sort { color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; }
+    .jb-sort:hover { color:var(--ink,#111827); }
+    .jb-sort-icons { display:inline-flex; flex-direction:column; line-height:.55; font-size:.7rem; color:#c3cbd6; }
+    .jb-sort-icons i.on { color:var(--brand); }
     .jb-table tbody td { padding:.85rem 1.15rem; border-bottom:1px solid var(--line-soft); font-size:.87rem; vertical-align:middle; }
     .jb-table tbody tr:last-child td { border-bottom:none; }
     .jb-table tbody tr.link { cursor:pointer; transition:background .12s; }
@@ -155,6 +159,7 @@
             <div class="jb-muted">Every job with its total vendor purchase expense. Click a job to see its purchases.</div>
             <form class="jb-search" method="GET" action="{{ route('crm.vendor_purchases.jobs') }}">
                 <input name="search" value="{{ $search }}" placeholder="Search Job ID…" autocomplete="off" oninput="jbLiveSearch(this.value)">
+                <input type="hidden" name="dir" value="{{ $dir }}">
                 <button type="submit">Search</button>
             </form>
         </div>
@@ -162,7 +167,7 @@
         <div class="jb-card">
             <div class="jb-wrap">
             <table class="jb-table">
-                <thead><tr><th>Job ID</th><th class="r">Purchases</th><th class="r">Vendors</th><th class="r">Total Expense</th><th class="r">Paid</th><th class="r">Balance</th><th>Last Purchase</th><th></th></tr></thead>
+                <thead><tr><th><a class="jb-sort" href="{{ route('crm.vendor_purchases.jobs', array_filter(['search' => $search, 'dir' => $dir === 'asc' ? 'desc' : 'asc'])) }}" title="Sort Job ID {{ $dir === 'asc' ? 'descending' : 'ascending' }}">Job ID <span class="jb-sort-icons"><i class="fas fa-caret-up {{ $dir === 'asc' ? 'on' : '' }}"></i><i class="fas fa-caret-down {{ $dir === 'desc' ? 'on' : '' }}"></i></span></a></th><th class="r">Purchases</th><th class="r">Vendors</th><th class="r">Total Expense</th><th class="r">Paid</th><th class="r">Balance</th><th>Last Purchase</th><th></th></tr></thead>
                 <tbody>
                 @forelse($jobGroups as $j)
                     <tr class="link" data-jobsearch="{{ strtolower($j->job_id) }}" onclick="window.location='{{ route('crm.vendor_purchases.jobs', ['job_id' => $j->job_id]) }}'">

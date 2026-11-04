@@ -116,7 +116,7 @@
                 @forelse($entries as $entry)
                     <tr class="{{ $entry->duplicate_of ? 'pm-dup' : '' }}">
                         <td class="gl-date" data-label="Date">{{ $entry->date->format('d M Y') }}</td>
-                        <td data-label="Paid To"><div class="gl-party"><span class="gl-avatar">{{ strtoupper(substr($entry->party, 0, 1)) }}</span><span class="gl-name">{{ $entry->party }}</span></div></td>
+                        <td data-label="Paid To"><div class="gl-party"><span class="gl-avatar">{{ strtoupper(substr($entry->party, 0, 1)) }}</span>@if($entry->party_url)<a class="gl-name" href="{{ $entry->party_url }}" title="Open ledger">{{ $entry->party }}</a>@else<span class="gl-name">{{ $entry->party }}</span>@endif</div></td>
                         <td class="gl-mutedtext rc-ref" data-label="Invoice / Ref">@if($entry->url)<a href="{{ $entry->url }}">{{ $entry->ref }}</a>@else{{ $entry->ref }}@endif</td>
                         <td data-label="Type"><span class="gl-badge {{ $sourceTone[$entry->source] }}">{{ $entry->source_label }}</span></td>
                         <td data-label="Detail">{{ $entry->detail ?: '—' }}@if($entry->category)<span class="rc-sub">{{ $entry->category }}</span>@endif

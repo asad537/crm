@@ -121,8 +121,11 @@
         </form>
         @php $__exportHint = $party ? 'Every entry for '.$party : 'One line per '.strtolower($partyLabel).' with total, paid/received and balance (pick one to export its entries)'; @endphp
         <div class="gl-exports">
-            <a class="gl-export" title="{{ $__exportHint }}" href="{{ route('crm.general_ledger.export', array_merge($exportParams, ['format' => 'excel'])) }}"><i class="fas fa-file-excel"></i> Excel</a>
-            <a class="gl-export" title="{{ $__exportHint }}" href="{{ route('crm.general_ledger.export', array_merge($exportParams, ['format' => 'pdf'])) }}"><i class="fas fa-file-pdf"></i> PDF</a>
+            @include('crm.partials.export_menu', [
+                'excelUrl' => route('crm.general_ledger.export', array_merge($exportParams, ['format' => 'excel'])),
+                'pdfUrl' => route('crm.general_ledger.export', array_merge($exportParams, ['format' => 'pdf'])),
+                'hint' => $__exportHint,
+            ])
         </div>
     </div>
 

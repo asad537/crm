@@ -77,13 +77,13 @@ class BankLedgerService
             $accountIds = $this->accounts()->pluck('id')->all();
             $map = $this->methodMap();
             $rows = collect();
-            $push = function (string $dir, $date, float $amount, $party, string $type, $ref, $method, $url, ?string $linkType, $linkId, $explicit) use (&$rows, $accountIds, $map) {
+            $push = function (string $dir, $date, float $amount, $party, string $type, $ref, $method, $url, ?string $linkType, $linkId, $explicit, ?string $partyUrl = null) use (&$rows, $accountIds, $map) {
                 $explicit = $explicit && in_array((int) $explicit, $accountIds, true) ? (int) $explicit : null;
                 $rows->push((object) [
                     // Stable across requests (bank reconciliation stores it); rows without a source record get a content hash.
                     'key' => $linkType ? $linkType . ':' . $linkId : 'h:' . substr(md5($dir . '|' . $type . '|' . $ref . '|' . Carbon::parse($date)->toDateString() . '|' . round($amount, 2) . '|' . $party), 0, 20),
                     'dir' => $dir, 'date' => Carbon::parse($date)->startOfDay(), 'amount' => round($amount, 2),
-                    'party' => $party ?: '—', 'type' => $type, 'ref' => $ref, 'method' => $method, 'url' => $url,
+                    'party' => $party ?: '—', 'party_url' => $partyUrl, 'type' => $type, 'ref' => $ref, 'method' => $method, 'url' => $url,
                     'link_type' => $linkType, 'link_id' => $linkId,
                     'account_id' => $explicit ?: ($map[self::methodGroup($method)] ?? null),
                     'auto' => !$explicit,
@@ -91,23 +91,23 @@ class BankLedgerService
             };
 
             foreach (app(ReceiptController::class)->receipts() as $r) {
-                $push('in', $r->date, $r->amount, $r->customer, $r->source_label, $r->ref, $r->method, $r->url, $r->link_type, $r->link_id, $r->bank_account_id);
+                $push('in', $r->date, $r->amount, $r->customer, $r->source_label, $r->ref, $r->method, $r->url, $r->link_type, $r->link_id, $r->bank_account_id, $r->party_url);
             }
             // Purchase invoices come in per payment (part payments too), the same rows the Payments tab lists.
             foreach (app(PaymentController::class)->payments()->whereNull('duplicate_of') as $p) {
-                $push('out', $p->date, $p->amount, $p->party, $p->source_label, $p->ref, $p->method, $p->url, $p->link_type, $p->link_id, $p->bank_account_id);
+                $push('out', $p->date, $p->amount, $p->party, $p->source_label, $p->ref, $p->method, $p->url, $p->link_type, $p->link_id, $p->bank_account_id, $p->party_url);
             }
             // Fixed assets bought outright are real cash out. Bought on credit are not paid yet; those on a
             // purchase invoice are paid through the invoice's payments (already above).
             foreach (CrmFixedAsset::whereNotIn('payment_method', CrmFixedAsset::NOT_PAID_DIRECTLY)->get() as $a) {
                 $push('out', $a->purchase_date, (float) $a->amount, $a->supplier_name, 'Fixed Asset', $a->number, $a->payment_method,
-                    route('crm.fixed_assets.index', ['search' => $a->name]), 'fixed_asset', $a->id, $a->bank_account_id);
+                    route('crm.fixed_assets.index', ['search' => $a->name]), 'fixed_asset', $a->id, $a->bank_account_id, \App\Support\PartyLinks::vendor(\App\Vendor::where('name', trim((string) $a->supplier_name))->value('id')));
             }
             // Owner's capital put in (money in) and drawings taken out (money out). Opening / non-cash capital moves no money.
             foreach (CrmCapitalEntry::with('owner')->get()->filter->isCash() as $c) {
                 $push($c->type === 'drawing' ? 'out' : 'in', $c->entry_date, (float) $c->amount, optional($c->owner)->name,
                     $c->type === 'drawing' ? "Owner's Drawing" : "Owner's Capital", $c->number, $c->method,
-                    route('crm.owner_capital.index', ['owner' => $c->owner_id]), 'capital', $c->id, $c->bank_account_id);
+                    route('crm.owner_capital.index', ['owner' => $c->owner_id]), 'capital', $c->id, $c->bank_account_id, \App\Support\PartyLinks::owner($c->owner_id));
             }
 
             return $rows->sortByDesc(fn ($m) => $m->date->timestamp)->values();
@@ -161,16 +161,16 @@ class BankLedgerService
     {
         $since = $account->opening_date->copy()->startOfDay();
         $entries = $this->movements()->where('account_id', $account->id)->filter(fn ($m) => $m->date->gte($since))
-            ->map(fn ($m) => (object) ['key' => $m->key, 'date' => $m->date, 'type' => $m->type, 'party' => $m->party, 'ref' => $m->ref, 'url' => $m->url,
+            ->map(fn ($m) => (object) ['key' => $m->key, 'date' => $m->date, 'type' => $m->type, 'party' => $m->party, 'party_url' => $m->party_url, 'ref' => $m->ref, 'url' => $m->url,
                 'method' => $m->method, 'in' => $m->dir === 'in' ? $m->amount : 0.0, 'out' => $m->dir === 'out' ? $m->amount : 0.0,
                 'auto' => $m->auto, 'link_type' => $m->link_type, 'link_id' => $m->link_id, 'transfer_id' => null]);
         foreach ($this->transfers() as $t) {
             if ($t->transfer_date->lt($since)) continue;
             if ((int) $t->from_account_id === (int) $account->id) {
-                $entries->push((object) ['key' => 'transfer:' . $t->id, 'date' => $t->transfer_date, 'type' => 'Transfer', 'party' => 'To ' . optional($t->to)->name, 'ref' => $t->reference, 'url' => null,
+                $entries->push((object) ['key' => 'transfer:' . $t->id, 'date' => $t->transfer_date, 'type' => 'Transfer', 'party' => 'To ' . optional($t->to)->name, 'party_url' => route('crm.bank_accounts.show', $t->to_account_id), 'ref' => $t->reference, 'url' => null,
                     'method' => null, 'in' => 0.0, 'out' => (float) $t->amount, 'auto' => false, 'link_type' => null, 'link_id' => null, 'transfer_id' => $t->id, 'note' => $t->note]);
             } elseif ((int) $t->to_account_id === (int) $account->id) {
-                $entries->push((object) ['key' => 'transfer:' . $t->id, 'date' => $t->transfer_date, 'type' => 'Transfer', 'party' => 'From ' . optional($t->from)->name, 'ref' => $t->reference, 'url' => null,
+                $entries->push((object) ['key' => 'transfer:' . $t->id, 'date' => $t->transfer_date, 'type' => 'Transfer', 'party' => 'From ' . optional($t->from)->name, 'party_url' => route('crm.bank_accounts.show', $t->from_account_id), 'ref' => $t->reference, 'url' => null,
                     'method' => null, 'in' => (float) $t->amount, 'out' => 0.0, 'auto' => false, 'link_type' => null, 'link_id' => null, 'transfer_id' => $t->id, 'note' => $t->note]);
             }
         }

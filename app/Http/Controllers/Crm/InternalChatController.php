@@ -6,9 +6,24 @@ use App\Http\Controllers\Controller;
 use App\CrmUser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class InternalChatController extends Controller
 {
+    /**
+     * What can be sent in a chat. An allow-list on purpose: svg and html are left out (they run scripts when opened),
+     * and anything executable with them. Design files are in because Al Massa's teams pass them around.
+     */
+    const ATTACHMENT_TYPES = 'jpg,jpeg,png,gif,webp,bmp,heic,tif,tiff,mp4,webm,mov,mkv,mp3,wav,m4a,ogg,aac,pdf,doc,docx,xls,xlsx,ppt,pptx,csv,txt,rtf,odt,ods,zip,rar,7z,ai,psd,eps,cdr,indd,dxf';
+    const ATTACHMENT_MAX_KB = 51200;
+    /** Opened in the browser; every other type downloads. */
+    const INLINE_TYPES = [
+        'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp',
+        'pdf' => 'application/pdf', 'mp4' => 'video/mp4', 'webm' => 'video/webm', 'mov' => 'video/quicktime',
+        'mp3' => 'audio/mpeg', 'wav' => 'audio/wav', 'm4a' => 'audio/mp4', 'ogg' => 'audio/ogg', 'aac' => 'audio/aac',
+    ];
+
     public function index()
     {
         $response = $this->getAgents();
@@ -17,11 +32,9 @@ class InternalChatController extends Controller
         return view('crm.team_chat.index', compact('initialAgents'));
     }
 
-    public function getAgents()
+    /** The teammates this user can see in Team Chat, and call. */
+    public static function teammates(CrmUser $currentUser, $workspaceId)
     {
-        $currentUser = Auth::guard('crm')->user();
-
-        $workspaceId = session('crm_workspace_id');
         $query = CrmUser::inWorkspace($workspaceId)->where('id', '!=', $currentUser->id);
 
         if ($currentUser->isAdmin()) {
@@ -34,7 +47,15 @@ class InternalChatController extends Controller
             $query->whereIn('role', ['admin', 'super_admin', 'accounts']);
         }
 
-        $agents = $query->orderByRaw("role = 'admin' DESC")->get(['id', 'name', 'role', 'last_seen_at']);
+        return $query;
+    }
+
+    public function getAgents()
+    {
+        $currentUser = Auth::guard('crm')->user();
+
+        $workspaceId = session('crm_workspace_id');
+        $agents = self::teammates($currentUser, $workspaceId)->orderByRaw("role = 'admin' DESC")->get(['id', 'name', 'role', 'last_seen_at']);
 
         $agentIds = $agents->pluck('id')->all();
 
@@ -59,7 +80,7 @@ class InternalChatController extends Controller
                 });
             })
             ->orderBy('created_at', 'desc')
-            ->get(['sender_id', 'receiver_id', 'message_body', 'created_at']);
+            ->get(['sender_id', 'receiver_id', 'message_body', 'attachment_name', 'call_id', 'created_at']);
         // Reduce to latest per counterpart id.
         $lastMsgByAgent = [];
         foreach ($lastMsgs as $m) {
@@ -73,6 +94,10 @@ class InternalChatController extends Controller
             $lastMsg = $lastMsgByAgent[$agent->id] ?? null;
             $agent->last_message    = $lastMsg ? $lastMsg->message_body : null;
             $agent->last_message_at = $lastMsg ? $lastMsg->created_at   : null;
+            $agent->last_attachment = $lastMsg ? $lastMsg->attachment_name : null;
+            $agent->last_is_call    = $lastMsg ? (bool) $lastMsg->call_id : false;
+            $agent->last_from_me    = $lastMsg ? (int) $lastMsg->sender_id === (int) $currentUser->id : false;
+            $agent->role_label      = $agent->role === 'super_admin' ? 'Owner' : ucwords(str_replace('_', ' ', (string) $agent->role));
 
             // Online status
             if ($agent->last_seen_at) {
@@ -158,7 +183,8 @@ class InternalChatController extends Controller
             return $timeB <=> $timeA;
         });
 
-        return response()->json($mergedAgents);
+        // Lets an open tab notice when another login in this browser has replaced its user.
+        return response()->json($mergedAgents)->header('X-Crm-User', $currentUser->id);
     }
 
     public function ping()
@@ -222,7 +248,7 @@ class InternalChatController extends Controller
                 $msg->sender_id = $chat->sender_type === 'customer' ? $agentId : $chat->crm_user_id;
                 $msg->receiver_id = $chat->sender_type === 'customer' ? $currentUser->id : $agentId;
                 $msg->message_body = $chat->message_body;
-                $msg->attachment_path = null;
+                $msg->attachment_url = null;
                 $msg->attachment_name = null;
                 $msg->is_forwarded = 0;
                 $msg->is_read = $chat->is_read;
@@ -252,7 +278,17 @@ class InternalChatController extends Controller
                 });
             })
             ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
+
+        $callTypes = \App\CrmTeamCall::whereIn('id', $messages->pluck('call_id')->filter()->all())->pluck('type', 'id');
+        $messages = $messages->map(function ($message) use ($callTypes) {
+            $message->attachment_url = $message->attachment_path ? route('crm.internal_chat.attachment', $message->id) : null;
+            $message->call_type = $message->call_id ? ($callTypes[$message->call_id] ?? 'audio') : null;
+            unset($message->attachment_path);
+
+            return $message;
+        });
 
         // Mark as read
         DB::table('crm_internal_messages')
@@ -264,6 +300,31 @@ class InternalChatController extends Controller
         return response()->json($messages);
     }
 
+    /** A chat file, for the two people in that conversation only. */
+    public function attachment(Request $request, $id)
+    {
+        $user = Auth::guard('crm')->user();
+        $message = DB::table('crm_internal_messages')->where('workspace_id', session('crm_workspace_id'))->where('id', $id)->first();
+        abort_unless($message && $message->attachment_path, 404);
+        abort_unless(in_array((int) $user->id, [(int) $message->sender_id, (int) $message->receiver_id], true), 403);
+
+        // New files live outside the web root; older ones were saved under public/.
+        $path = $message->attachment_path;
+        if (Storage::disk('local')->exists($path)) {
+            $fullPath = Storage::disk('local')->path($path);
+        } else {
+            $fullPath = collect([public_path($path), public_path('storage/' . $path)])->first(fn ($candidate) => is_file($candidate));
+        }
+        abort_unless($fullPath, 404);
+
+        $name = str_replace(['/', '\\'], '-', $message->attachment_name ?: basename($path));
+        $type = self::INLINE_TYPES[strtolower(pathinfo($path, PATHINFO_EXTENSION))] ?? null;
+        $inline = $type && !$request->boolean('download');
+
+        return response()->file($fullPath, ['Content-Type' => $type ?: 'application/octet-stream'])
+            ->setContentDisposition($inline ? 'inline' : 'attachment', $name);
+    }
+
     public function sendMessage(Request $request)
     {
         $receiverId = $request->receiver_id;
@@ -271,8 +332,8 @@ class InternalChatController extends Controller
 
         $rules = [
             'receiver_id' => 'required',
-            'message_body' => 'nullable|string',
-            'attachment' => 'nullable|file|max:10240', // Max 10MB
+            'message_body' => 'nullable|string|max:10000|required_without:attachment',
+            'attachment' => 'nullable|file|extensions:' . self::ATTACHMENT_TYPES . '|max:' . self::ATTACHMENT_MAX_KB,
         ];
 
         if (!$isCustomer) {
@@ -285,14 +346,22 @@ class InternalChatController extends Controller
         $workspaceId = session('crm_workspace_id');
         $attachmentPath = null;
         $attachmentName = null;
+        $attachmentMime = null;
+        $attachmentSize = null;
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $attachmentName = $file->getClientOriginalName();
-            // Store directly in public folder to avoid symlink issues on server
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $file->move('chat_attachments', $fileName);
-            $attachmentPath = 'chat_attachments/' . $fileName;
+            $attachmentMime = substr((string) $file->getMimeType(), 0, 100);
+            $attachmentSize = $file->getSize();
+            $fileName = Str::random(40) . '.' . strtolower($file->getClientOriginalExtension());
+            if ($isCustomer) {
+                // The customer portal opens this without a CRM login, so it has to be public.
+                $file->move(public_path('chat_attachments'), $fileName);
+                $attachmentPath = 'chat_attachments/' . $fileName;
+            } else {
+                $attachmentPath = $file->storeAs('chat_attachments', $fileName, 'local');
+            }
         }
 
         if ($isCustomer) {
@@ -302,7 +371,7 @@ class InternalChatController extends Controller
             $body = $request->message_body ?? '';
             if ($attachmentPath) {
                 $url = url($attachmentPath);
-                $body .= "\n\n📎 Attachment: <a href='{$url}' target='_blank'>{$attachmentName}</a>";
+                $body .= "\n\n📎 Attachment: <a href='{$url}' target='_blank'>" . e($attachmentName) . "</a>";
             }
 
             $id = DB::table('customer_chats')->insertGetId([
@@ -320,7 +389,7 @@ class InternalChatController extends Controller
             $message->sender_id = $currentUser->id;
             $message->receiver_id = $receiverId;
             $message->message_body = $body;
-            $message->attachment_path = null;
+            $message->attachment_url = null;
             $message->attachment_name = null;
             $message->is_forwarded = 0;
             $message->is_read = 0;
@@ -361,6 +430,8 @@ class InternalChatController extends Controller
             'message_body' => $request->message_body ?? '',
             'attachment_path' => $attachmentPath,
             'attachment_name' => $attachmentName,
+            'attachment_mime' => $attachmentMime,
+            'attachment_size' => $attachmentSize,
             'is_forwarded' => 0,
             'created_at' => now(),
             'updated_at' => now(),
@@ -385,12 +456,7 @@ class InternalChatController extends Controller
             }
         }
 
-        $message = DB::table('crm_internal_messages')->where('workspace_id', $workspaceId)->where('id', $id)->first();
-
-        return response()->json([
-            'success' => true,
-            'data' => $message
-        ]);
+        return response()->json(['success' => true, 'id' => $id]);
     }
 
     public function forwardMessage(Request $request)
@@ -401,7 +467,11 @@ class InternalChatController extends Controller
         ]);
 
         $workspaceId = session('crm_workspace_id');
-        $original = DB::table('crm_internal_messages')->where('workspace_id', $workspaceId)->where('id', $request->message_id)->first();
+        $userId = (int) Auth::guard('crm')->id();
+        $original = DB::table('crm_internal_messages')->where('workspace_id', $workspaceId)->where('id', $request->message_id)
+            ->whereNull('call_id')
+            ->where(fn ($q) => $q->where('sender_id', $userId)->orWhere('receiver_id', $userId))
+            ->first();
         if (!$original)
             return response()->json(['success' => false, 'message' => 'Message not found']);
 
@@ -415,6 +485,8 @@ class InternalChatController extends Controller
                 'message_body' => $original->message_body,
                 'attachment_path' => $original->attachment_path,
                 'attachment_name' => $original->attachment_name,
+                'attachment_mime' => $original->attachment_mime,
+                'attachment_size' => $original->attachment_size,
                 'is_forwarded' => 1,
                 'is_read' => 0,
                 'created_at' => now(),
@@ -438,6 +510,10 @@ class InternalChatController extends Controller
         }
 
         DB::table('crm_internal_messages')->where('workspace_id', $workspaceId)->where('id', $id)->delete();
+        // Forwarded copies share the file: remove it only with the last message using it.
+        if ($message->attachment_path && !DB::table('crm_internal_messages')->where('attachment_path', $message->attachment_path)->exists()) {
+            Storage::disk('local')->delete($message->attachment_path);
+        }
         return response()->json(['success' => true]);
     }
 
@@ -450,7 +526,7 @@ class InternalChatController extends Controller
         if (!$message)
             return response()->json(['success' => false, 'message' => 'Message not found']);
 
-        if ($message->sender_id != Auth::guard('crm')->id()) {
+        if ($message->sender_id != Auth::guard('crm')->id() || $message->call_id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized']);
         }
 

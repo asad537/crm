@@ -12,4 +12,16 @@ return [
         */
         'imap_login_fallback' => env('CRM_IMAP_LOGIN_FALLBACK', true),
     ],
+
+    'calls' => [
+        /*
+        | Team Chat calls go browser to browser. STUN lets two browsers find each other across networks;
+        | a TURN server relays the call for the networks that block direct connections (some offices
+        | and mobile networks). Without one, those calls ring but cannot connect.
+        */
+        'ice_servers' => array_values(array_filter([
+            env('CRM_CALL_STUN_URL', 'stun:stun.l.google.com:19302') ? ['urls' => env('CRM_CALL_STUN_URL', 'stun:stun.l.google.com:19302')] : null,
+            env('CRM_CALL_TURN_URL') ? ['urls' => env('CRM_CALL_TURN_URL'), 'username' => env('CRM_CALL_TURN_USERNAME'), 'credential' => env('CRM_CALL_TURN_CREDENTIAL')] : null,
+        ])),
+    ],
 ];

@@ -99,8 +99,10 @@
             @foreach($report['actions'] ?? [] as $action)
                 <a class="gl-export" href="{{ $action['url'] }}"><i class="fas {{ $action['icon'] }}"></i> {{ $action['label'] }}</a>
             @endforeach
-            <a class="gl-export" href="{{ route('crm.financial_reports.export', array_merge($exportParams, ['format' => 'excel'])) }}"><i class="fas fa-file-excel"></i> Excel</a>
-            <a class="gl-export" href="{{ route('crm.financial_reports.export', array_merge($exportParams, ['format' => 'pdf'])) }}"><i class="fas fa-file-pdf"></i> PDF</a>
+            @include('crm.partials.export_menu', [
+                'excelUrl' => route('crm.financial_reports.export', array_merge($exportParams, ['format' => 'excel'])),
+                'pdfUrl' => route('crm.financial_reports.export', array_merge($exportParams, ['format' => 'pdf'])),
+            ])
         </div>
     </div>
     @if($errors->any())<div class="ex-errors" style="margin-bottom:1rem;background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d;padding:.7rem 1rem;border-radius:10px">{{ $errors->first() }}</div>@endif

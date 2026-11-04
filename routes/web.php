@@ -325,6 +325,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
             // Employees, salary advances and monthly salary sheets (paid salaries + advances listed under Payments)
             Route::get('employees', 'EmployeeController@index')->name('crm.employees.index');
             Route::post('employees', 'EmployeeController@store')->name('crm.employees.store');
+            Route::get('employees/{id}', 'EmployeeController@show')->whereNumber('id')->name('crm.employees.show');
             Route::put('employees/{id}', 'EmployeeController@update')->whereNumber('id')->name('crm.employees.update');
             Route::delete('employees/{id}', 'EmployeeController@destroy')->whereNumber('id')->name('crm.employees.destroy');
             Route::post('employees/{id}/advances', 'EmployeeController@storeAdvance')->whereNumber('id')->name('crm.employees.advances.store');
@@ -555,6 +556,14 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::post('internal-chat/forward', 'InternalChatController@forwardMessage')->name('crm.internal_chat.forward');
         Route::post('internal-chat/delete/{id}', 'InternalChatController@deleteMessage')->name('crm.internal_chat.delete');
         Route::post('internal-chat/edit/{id}', 'InternalChatController@editMessage')->name('crm.internal_chat.edit');
+        Route::get('internal-chat/attachment/{id}', 'InternalChatController@attachment')->whereNumber('id')->name('crm.internal_chat.attachment');
+        // Team Chat voice / video calls (WebRTC; these routes only pass the offer / answer and keep the call's status)
+        Route::post('internal-chat/calls', 'TeamCallController@start')->name('crm.team_calls.start');
+        Route::get('internal-chat/calls/incoming', 'TeamCallController@incoming')->name('crm.team_calls.incoming');
+        Route::get('internal-chat/calls/{id}', 'TeamCallController@show')->whereNumber('id')->name('crm.team_calls.show');
+        Route::post('internal-chat/calls/{id}/answer', 'TeamCallController@answer')->whereNumber('id')->name('crm.team_calls.answer');
+        Route::post('internal-chat/calls/{id}/decline', 'TeamCallController@decline')->whereNumber('id')->name('crm.team_calls.decline');
+        Route::post('internal-chat/calls/{id}/end', 'TeamCallController@end')->whereNumber('id')->name('crm.team_calls.end');
         Route::post('internal-chat/ping', 'InternalChatController@ping')->name('crm.internal_chat.ping');
         });
     });
