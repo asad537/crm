@@ -1554,6 +1554,11 @@
                 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;" id="productDisplayArea">
                     <div>
                         <div class="product-highlight-value">{{ $email->product_name ?: 'General Inquiry' }}</div>
+                        @if(!empty($email->quantity))
+                            <div style="font-size:0.9rem; color:#475569; font-weight:600; margin-top:6px;">
+                                <i class="fas fa-cubes" style="font-size:0.8rem; opacity:0.7; margin-right:4px;"></i>Quantity: {{ number_format((int) $email->quantity) }} pcs
+                            </div>
+                        @endif
                         @if(isset($productDetails) && $productDetails->prod_url)
                             <a href="{{ url($productDetails->prod_url) }}" target="_blank"
                                 style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; margin-top: 6px; color: var(--primary-color); font-weight: 500; text-decoration: none;">
