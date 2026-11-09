@@ -71,6 +71,17 @@ class CrmLeadController extends Controller
             $created = true;
         }
 
+        // Welcome email to the client the moment a NEW (non-spam) lead lands (e.g. from the AI chat).
+        if ($created && !(bool) ($data['is_spam'] ?? false) && filter_var($lead->client_email, FILTER_VALIDATE_EMAIL)) {
+            try {
+                $agent = \App\CrmUser::where('email', 'sara@myboxprinting.com')->first();
+                \Mail::to($lead->client_email)->send(new \App\Mail\LeadWelcomeMail($lead, $agent));
+                \Log::info('Lead welcome email sent', ['lead_id' => $lead->id, 'to' => $lead->client_email]);
+            } catch (\Throwable $e) {
+                \Log::warning('Lead welcome email failed: ' . $e->getMessage(), ['lead_id' => $lead->id]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'lead_id' => $lead->id,
