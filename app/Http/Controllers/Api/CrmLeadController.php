@@ -76,21 +76,37 @@ class CrmLeadController extends Controller
         if ($created && !(bool) ($data['is_spam'] ?? false) && filter_var($lead->client_email, FILTER_VALIDATE_EMAIL)) {
             try {
                 $agent = \App\CrmUser::where('email', 'sara@myboxprinting.com')->first();
-                $mailer = 'smtp';
-                if ($agent && $agent->smtp_host && $agent->email_user && $agent->email_pass) {
-                    config(['mail.mailers.agent_welcome' => [
-                        'transport' => 'smtp',
-                        'host' => $agent->smtp_host,
-                        'port' => (int) ($agent->smtp_port ?: 587),
-                        'encryption' => $agent->smtp_encryption ?: 'tls',
-                        'username' => $agent->email_user,
-                        'password' => $agent->email_pass,
-                        'timeout' => 15,
-                    ]]);
-                    $mailer = 'agent_welcome';
+                $saraBox = \App\CrmMailAccount::withoutGlobalScopes()
+                    ->where('email_address', 'sara@myboxprinting.com')->where('is_active', 1)->first();
+                $welcomeHtml = (new \App\Mail\LeadWelcomeMail($lead, $agent))->render();
+                $welcomeSubject = "Thanks for reaching out to Premium Boxes \u{2014} I'm here to help!";
+                if ($saraBox) {
+                    // Send through Sara's CONNECTED mailbox so the copy lands in her CRM "Sent" folder (DB + IMAP append).
+                    app(\App\Services\Mail\OutgoingMailService::class)->send($saraBox, [
+                        'to' => $lead->client_email,
+                        'subject' => $welcomeSubject,
+                        'html' => $welcomeHtml,
+                        'crm_email_id' => $lead->id,
+                    ]);
+                    \Log::error('Lead welcome email SENT', ['lead_id' => $lead->id, 'to' => $lead->client_email, 'via' => 'mailbox#' . $saraBox->id]);
+                } else {
+                    // Fallback: no connected mailbox -> agent raw SMTP (will NOT appear in the Sent folder).
+                    $mailer = 'smtp';
+                    if ($agent && $agent->smtp_host && $agent->email_user && $agent->email_pass) {
+                        config(['mail.mailers.agent_welcome' => [
+                            'transport' => 'smtp',
+                            'host' => $agent->smtp_host,
+                            'port' => (int) ($agent->smtp_port ?: 587),
+                            'encryption' => $agent->smtp_encryption ?: 'tls',
+                            'username' => $agent->email_user,
+                            'password' => $agent->email_pass,
+                            'timeout' => 15,
+                        ]]);
+                        $mailer = 'agent_welcome';
+                    }
+                    \Mail::mailer($mailer)->to($lead->client_email)->send(new \App\Mail\LeadWelcomeMail($lead, $agent));
+                    \Log::error('Lead welcome email SENT', ['lead_id' => $lead->id, 'to' => $lead->client_email, 'via' => $mailer]);
                 }
-                \Mail::mailer($mailer)->to($lead->client_email)->send(new \App\Mail\LeadWelcomeMail($lead, $agent));
-                \Log::error('Lead welcome email SENT', ['lead_id' => $lead->id, 'to' => $lead->client_email, 'via' => $mailer]);
             } catch (\Throwable $e) {
                 \Log::error('Lead welcome email FAILED: ' . $e->getMessage(), ['lead_id' => $lead->id]);
             }
