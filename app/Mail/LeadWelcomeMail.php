@@ -28,6 +28,7 @@ class LeadWelcomeMail extends Mailable
     public $supportPhone;
     public $website;
     public $logoUrl;
+    public $heroImage;
 
     public function __construct(CrmEmail $lead, ?CrmUser $agent = null)
     {
@@ -53,6 +54,8 @@ class LeadWelcomeMail extends Mailable
             $this->website = 'premiumboxes.com';
             $this->logoUrl = 'https://premiumboxes.com/assets/images/logo.png';
         }
+        // Hero product photo (optional — blade falls back to a clean graphic if empty/unreachable).
+        $this->heroImage = 'https://tcbcrm.com/welcome-hero.png';
     }
 
     public function build()
