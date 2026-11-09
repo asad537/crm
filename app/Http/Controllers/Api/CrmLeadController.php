@@ -72,13 +72,27 @@ class CrmLeadController extends Controller
         }
 
         // Welcome email to the client the moment a NEW (non-spam) lead lands (e.g. from the AI chat).
+        // Delivered through the sales agent's OWN mailbox (Sara) so it is from and replies to her.
         if ($created && !(bool) ($data['is_spam'] ?? false) && filter_var($lead->client_email, FILTER_VALIDATE_EMAIL)) {
             try {
                 $agent = \App\CrmUser::where('email', 'sara@myboxprinting.com')->first();
-                \Mail::to($lead->client_email)->send(new \App\Mail\LeadWelcomeMail($lead, $agent));
-                \Log::info('Lead welcome email sent', ['lead_id' => $lead->id, 'to' => $lead->client_email]);
+                $mailer = 'smtp';
+                if ($agent && $agent->smtp_host && $agent->email_user && $agent->email_pass) {
+                    config(['mail.mailers.agent_welcome' => [
+                        'transport' => 'smtp',
+                        'host' => $agent->smtp_host,
+                        'port' => (int) ($agent->smtp_port ?: 587),
+                        'encryption' => $agent->smtp_encryption ?: 'tls',
+                        'username' => $agent->email_user,
+                        'password' => $agent->email_pass,
+                        'timeout' => 15,
+                    ]]);
+                    $mailer = 'agent_welcome';
+                }
+                \Mail::mailer($mailer)->to($lead->client_email)->send(new \App\Mail\LeadWelcomeMail($lead, $agent));
+                \Log::error('Lead welcome email SENT', ['lead_id' => $lead->id, 'to' => $lead->client_email, 'via' => $mailer]);
             } catch (\Throwable $e) {
-                \Log::warning('Lead welcome email failed: ' . $e->getMessage(), ['lead_id' => $lead->id]);
+                \Log::error('Lead welcome email FAILED: ' . $e->getMessage(), ['lead_id' => $lead->id]);
             }
         }
 

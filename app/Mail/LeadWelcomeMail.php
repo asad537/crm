@@ -57,18 +57,14 @@ class LeadWelcomeMail extends Mailable
 
     public function build()
     {
-        $fromAddress = config('mail.from.address') ?: 'support@myboxprinting.com';
+        // When we deliver through the agent's OWN mailbox (Sara's SMTP), the FROM must be her
+        // address or the provider rejects it; fall back to the brand support address otherwise.
+        $fromAddress = $this->agentEmail ?: (config('mail.from.address') ?: 'support@myboxprinting.com');
 
-        $mail = $this
+        return $this
             ->from($fromAddress, $this->agentName . ' — ' . $this->brandName)
+            ->replyTo($this->agentEmail ?: $fromAddress, $this->agentName)
             ->subject("Thanks for reaching out to {$this->brandName} — I'm here to help!")
             ->view('crm.emails.lead_welcome');
-
-        // Replies go straight to the sales agent (Sara).
-        if ($this->agentEmail) {
-            $mail->replyTo($this->agentEmail, $this->agentName);
-        }
-
-        return $mail;
     }
 }
