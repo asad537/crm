@@ -73,7 +73,10 @@ class CrmLeadController extends Controller
 
         // Welcome email to the client the moment a NEW (non-spam) lead lands (e.g. from the AI chat).
         // Delivered through the sales agent's OWN mailbox (Sara) so it is from and replies to her.
-        if ($created && !(bool) ($data['is_spam'] ?? false) && filter_var($lead->client_email, FILTER_VALIDATE_EMAIL)) {
+        // Only leads from the Alex LIVE CHAT get the auto welcome email (not website forms, WhatsApp, health-checks, etc.).
+        $isLiveChatLead = ($lead->source === 'premiumboxes-chat')
+            || \Illuminate\Support\Str::startsWith((string) $lead->external_lead_id, 'livechat2-');
+        if ($created && $isLiveChatLead && !(bool) ($data['is_spam'] ?? false) && filter_var($lead->client_email, FILTER_VALIDATE_EMAIL)) {
             try {
                 $agent = \App\CrmUser::where('email', 'sara@myboxprinting.com')->first();
                 $saraBox = \App\CrmMailAccount::withoutGlobalScopes()
