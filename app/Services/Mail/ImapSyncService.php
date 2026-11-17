@@ -457,10 +457,23 @@ class ImapSyncService
                 try {
                     $exists = CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('account_id', $account->id)->where('folder_id', $folder->id)->where('uid', $uid)->exists();
                     if ($exists) { $r['skipped']++; continue; }
+                    // Cheap re-point: a message already stored under this Message-ID (often mis-filed in
+                    // another folder by an earlier sync) is moved here from the overview header alone, with
+                    // NO full body fetch -- this is what lets a large inbox backfill finish quickly.
+                    $mid = $row['message_id'] ?? null;
+                    if ($mid) {
+                        $dupe = CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('account_id', $account->id)->where('message_id', $mid)->first();
+                        if ($dupe) {
+                            if ($dupe->uid === null || (int) $dupe->folder_id !== (int) $folder->id) {
+                                $dupe->forceFill(['folder_id' => $folder->id, 'uid' => $uid, 'deleted_at' => null])->saveQuietly();
+                            }
+                            $r['skipped']++; continue;
+                        }
+                    }
                     $parsed = $client->fetchMessage($folder->path, $uid);
                     if (!empty($parsed['message_id'])) {
                         $dupe = CrmMailMessage::withTrashed()->withoutGlobalScopes()->where('account_id', $account->id)->where('message_id', $parsed['message_id'])->first();
-                        if ($dupe) { if ($dupe->uid === null) $dupe->forceFill(['folder_id' => $folder->id, 'uid' => $uid, 'deleted_at' => null])->saveQuietly(); $r['skipped']++; continue; }
+                        if ($dupe) { if ($dupe->uid === null || (int) $dupe->folder_id !== (int) $folder->id) $dupe->forceFill(['folder_id' => $folder->id, 'uid' => $uid, 'deleted_at' => null])->saveQuietly(); $r['skipped']++; continue; }
                     }
                     $this->storeMessage($account, $folder, $parsed);
                     $r['imported']++;

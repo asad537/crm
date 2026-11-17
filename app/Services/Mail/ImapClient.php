@@ -282,7 +282,7 @@ class ImapClient
         $rows = $this->fetchOverviewOrFail($start . ':' . ($beforeUid - 1));
         $out = [];
         foreach ($rows as $r) {
-            if (!empty($r->uid) && (int) $r->uid < $beforeUid) $out[] = ['uid' => (int) $r->uid, 'udate' => (int) ($r->udate ?? 0)];
+            if (!empty($r->uid) && (int) $r->uid < $beforeUid) $out[] = ['uid' => (int) $r->uid, 'udate' => (int) ($r->udate ?? 0), 'message_id' => isset($r->message_id) && $r->message_id !== '' ? (string) $r->message_id : null];
         }
         usort($out, fn ($a, $b) => $b['uid'] <=> $a['uid']);
         return $out;
