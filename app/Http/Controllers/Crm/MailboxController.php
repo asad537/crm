@@ -186,7 +186,7 @@ class MailboxController extends Controller
             // inline images: placeholder / cid:xyz → authorised attachment URL (matched by Content-ID)
             $byCid = [];
             foreach ($attachments as $a) {
-                if ($a->content_id) $byCid[strtolower(trim($a->content_id, '<> '))] = route('crm.mail.attachments.show', $a->id);
+                if ($a->content_id) $byCid[strtolower(trim($a->content_id, '<> '))] = $this->inlineImageSrc($a);
             }
             $html = \App\Services\Mail\HtmlSanitizerService::resolveCids($html, function ($cid) use (&$byCid, $message) {
                 $key = strtolower(trim($cid, '<> '));
@@ -197,7 +197,7 @@ class MailboxController extends Controller
                     $other = CrmMailAttachment::whereNotNull('content_id')->whereRaw('LOWER(TRIM(BOTH \'<>\' FROM content_id)) = ?', [$key])
                         ->whereIn('message_id', CrmMailMessage::withoutGlobalScopes()->where('account_id', $message->account_id)->select('id'))
                         ->orderByDesc('id')->value('id');
-                    $byCid[$key] = $other ? route('crm.mail.attachments.show', $other) : null;
+                    $byCid[$key] = $other ? $this->inlineImageSrc(CrmMailAttachment::find($other)) : null;
                 }
                 return $byCid[$key];
             });
@@ -377,6 +377,23 @@ class MailboxController extends Controller
             ->header('Content-Type', $ct)
             ->header('Cache-Control', 'private, max-age=86400')
             ->header('X-Content-Type-Options', 'nosniff');
+    }
+
+    /**
+     * Inline a small cid image as a data: URI so it renders with NO extra authenticated request --
+     * which means it survives the sandboxed email iframe, privacy/ad-block extensions and caches that
+     * were blocking the per-image attachment requests. Larger files fall back to the attachment route.
+     */
+    private function inlineImageSrc(?CrmMailAttachment $a): ?string
+    {
+        if (!$a) return null;
+        $disk = Storage::disk($a->disk ?: 'local');
+        if (!$disk->exists($a->path)) return null;
+        $mime = (string) ($a->mime_type ?: '');
+        if (str_starts_with($mime, 'image/') && (int) $a->size > 0 && (int) $a->size <= 262144) {
+            try { return 'data:' . $mime . ';base64,' . base64_encode($disk->get($a->path)); } catch (\Throwable $e) {}
+        }
+        return route('crm.mail.attachments.show', $a->id);
     }
 
     public function attachment($id)
