@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 /**
  * Read side of the mail client: folders with counts, message lists (per folder type /
@@ -200,6 +203,17 @@ class MailboxController extends Controller
             });
             // still-unresolved inline references → drop the <img> rather than render a broken icon
             $html = preg_replace('#<img\b[^>]*\bsrc\s*=\s*["\']?(?:https://cid\.invalid/|cid:)[^>]*>#i', '', $html) ?? $html;
+            // Remote images (sender signatures/logos): route them through our proxy so they load
+            // over https (no mixed-content), leak no referrer to the sender, and are SSRF-guarded.
+            $__self = parse_url((string) config('app.url'), PHP_URL_HOST);
+            $html = preg_replace_callback('#<img\b[^>]*>#i', function ($mm) use ($__self) {
+                return preg_replace_callback('#\bsrc\s*=\s*(["\'])(https?://[^"\']+)\1#i', function ($s) use ($__self) {
+                    $h = parse_url($s[2], PHP_URL_HOST);
+                    if ($h && $__self && strcasecmp($h, $__self) === 0) return $s[0];
+                    return 'src=' . $s[1] . e(URL::signedRoute('crm.mail.image', ['u' => $s[2]])) . $s[1];
+                }, $mm[0]) ?? $mm[0];
+            }, $html) ?? $html;
+
         }
 
         // Only the mailbox owner's reading marks the message read (and pushes \Seen to the server);
@@ -328,6 +342,42 @@ class MailboxController extends Controller
     }
 
     // ---- attachments ----------------------------------------------------
+
+    /**
+     * Serve a remote image referenced by an email over https. Only signed URLs (minted when a
+     * message is rendered) are honoured, and the target is SSRF-guarded (public http/https only),
+     * so mixed-content / hotlink-protected signature images show without leaking the reader's IP.
+     */
+    public function imageProxy(Request $request)
+    {
+        abort_unless($this->user(), 403);
+        abort_unless($request->hasValidSignature(), 403);
+        $url = (string) $request->query('u', '');
+        $p = parse_url($url);
+        abort_unless($p && in_array(strtolower($p['scheme'] ?? ''), ['http', 'https'], true) && !empty($p['host']), 400);
+        $ips = filter_var($p['host'], FILTER_VALIDATE_IP) ? [$p['host']] : (@gethostbynamel($p['host']) ?: []);
+        abort_unless($ips, 400);
+        foreach ($ips as $ip) {
+            abort_unless(filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE), 403);
+        }
+        try {
+            $resp = Http::timeout(8)->connectTimeout(5)
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0 CRM-Mail-Image-Proxy', 'Accept' => 'image/*'])
+                ->withOptions(['allow_redirects' => false])
+                ->get($url);
+        } catch (\Throwable $e) {
+            abort(502);
+        }
+        abort_unless($resp->successful(), 404);
+        $ct = strtolower(trim(explode(';', (string) $resp->header('Content-Type'))[0]));
+        abort_unless(\Illuminate\Support\Str::startsWith($ct, 'image/'), 415);
+        $body = $resp->body();
+        abort_if(strlen($body) > 8 * 1024 * 1024, 413);
+        return response($body, 200)
+            ->header('Content-Type', $ct)
+            ->header('Cache-Control', 'private, max-age=86400')
+            ->header('X-Content-Type-Options', 'nosniff');
+    }
 
     public function attachment($id)
     {

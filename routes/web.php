@@ -227,6 +227,7 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
             Route::post('messages/bulk', 'MailboxController@bulk')->name('messages.bulk')->middleware('throttle:30,1');
             Route::post('sync', 'MailboxController@sync')->name('sync')->middleware('throttle:6,1');
             Route::get('attachments/{id}', 'MailboxController@attachment')->name('attachments.show')->where('id', '[0-9]+');
+            Route::get('img-proxy', 'MailboxController@imageProxy')->name('image');
             // Sending from a mailbox (owner only): new message, reply / reply-all / forward.
             Route::post('compose', 'MailComposeController@compose')->name('compose')->middleware('throttle:30,1');
             Route::post('messages/{id}/reply', 'MailComposeController@reply')->name('messages.reply')->where('id', '[0-9]+')->middleware('throttle:30,1');
