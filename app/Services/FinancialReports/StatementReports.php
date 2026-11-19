@@ -102,13 +102,14 @@ trait StatementReports
         $assets = array_merge($cashLines, [
             ['Customers (Accounts Receivable)', $receivable, route('crm.financial_reports.index', ['report' => 'receivables']), 'receivable'],
             ['Salary Advances to Employees', $advances, route('crm.employees.index', ['tab' => 'advances']), 'advances'],
-            ['Advances to Vendors (paid more than billed)', $vendorAdvances, route('crm.purchase_invoices.index', ['status' => 'overpaid']), 'vendor_advances'],
+            ['Advances to Vendors (paid more than billed)', $vendorAdvances, route('crm.purchase_invoices.index', ['status' => 'overpaid', 'type' => 'invoice']), 'vendor_advances'],
         ], $stockOnBooks ? [['Inventory (stock at cost)', $this->stock()->valueAsOf($end), $inventoryUrl, 'inventory']] : [], [
             ['Fixed Assets, at cost', $fixedAssets, route('crm.fixed_assets.index'), 'fixed'],
         ]);
         $liabilities = [
             ['Vendors (Accounts Payable)', $vendorPayable, route('crm.financial_reports.index', ['report' => 'payables']), 'vendor'],
-            ['Purchase Invoices Payable', $invoicePayable, route('crm.purchase_invoices.index'), 'invoice'],
+            // The list also shows vendor purchases; this line is the purchase invoices only.
+            ['Purchase Invoices Payable', $invoicePayable, route('crm.purchase_invoices.index', ['type' => 'invoice']), 'invoice'],
             ['Salaries Payable (approved, unpaid)', $salariesPayable, route('crm.payroll.index'), 'salary'],
             ['VAT Payable / (Refundable)', $vatPayable, route('crm.financial_reports.index', ['report' => 'vat']), 'vat'],
             ['Fixed Assets Bought on Credit', $assetsOnCredit, route('crm.fixed_assets.index'), 'credit_assets'],

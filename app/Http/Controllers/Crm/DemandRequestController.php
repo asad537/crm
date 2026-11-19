@@ -17,6 +17,15 @@ class DemandRequestController extends Controller
 
     public const PRIORITIES = ['Normal', 'Urgent'];
 
+    /** Summary cards that, when clicked, keep only the requests behind their figure in the list below. */
+    public const CARDS = [
+        'estimated' => 'Estimated Value',
+        'paid' => 'Total Paid',
+        'account' => 'Account Balance',
+        'company' => 'Company Outstanding',
+        'cash' => 'Cash in Hand Accounts',
+    ];
+
     /** Who the money came from when an item is received. Custom values also allowed. */
     public const PAYERS = ['Petty Cash', 'Bank', 'Cash', 'Company Account', 'Owner'];
 
@@ -71,7 +80,23 @@ class DemandRequestController extends Controller
         };
 
         $query = $applyFilters(DemandRequest::with(['creator', 'items', 'payments', 'settlements'])->orderBy('request_date', 'desc')->orderBy('id', 'desc'));
-        $requests = $query->paginate(20)->appends($request->all());
+        $card = array_key_exists($request->input('card'), self::CARDS) ? $request->input('card') : null;
+        if ($card) {
+            // The figures come from each request's payments, so the card's rows are picked here rather than in SQL.
+            $inCard = [
+                'estimated' => fn ($d) => (float) $d->estimated_total > 0.009,
+                'paid' => fn ($d) => $d->paidTotal() > 0.009,
+                'account' => fn ($d) => abs($d->accountOutstanding()) > 0.009 || (float) $d->cash_in_hand_used > 0.009,
+                'company' => fn ($d) => $d->status === 'Completed' && abs($d->companyOutstanding()) > 0.009,
+                'cash' => fn ($d) => ($d->status === 'Completed' && abs($d->accountOutstanding()) > 0.009) || (float) $d->cash_in_hand_used > 0.009,
+            ][$card];
+            $rows = $query->get()->filter($inCard)->values();
+            $page = \Illuminate\Pagination\Paginator::resolveCurrentPage();
+            $requests = new \Illuminate\Pagination\LengthAwarePaginator($rows->forPage($page, 20)->values(), $rows->count(), 20, $page,
+                ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]);
+        } else {
+            $requests = $query->paginate(20)->appends($request->all());
+        }
 
         // Summary reflects the current filters (Cash in Hand stays the global pool figure).
         $all = $applyFilters(DemandRequest::with(['items', 'payments', 'settlements']))->get();
@@ -91,6 +116,8 @@ class DemandRequestController extends Controller
             'requests' => $requests,
             'summary' => $summary,
             'priorities' => self::PRIORITIES,
+            'card' => $card,
+            'cards' => self::CARDS,
         ]);
     }
 

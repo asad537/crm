@@ -6,6 +6,7 @@ use App\CrmPurchaseInvoice;
 use App\Http\Controllers\Controller;
 use App\Services\InventoryAccounting;
 use App\Vendor;
+use App\VendorPurchase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,9 +14,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-/** Al Massa "Purchase Invoices": supplier bills with line items; fully paid ones also show under Payments. */
+/**
+ * Al Massa "Purchase Invoices": supplier bills with line items; fully paid ones also show under Payments.
+ * The list also shows the purchases entered on each vendor's page (Vendor Purchases), so every purchase from
+ * every vendor is in one place by date. Those stay vendor purchases: they open, are paid and are edited there.
+ */
 class PurchaseInvoiceController extends Controller
 {
+    const TYPES = ['invoice' => 'Purchase Invoices', 'vendor' => 'Vendor Purchases'];
+
     public function index(Request $request)
     {
         $this->authorizeAccess();
@@ -26,40 +33,66 @@ class PurchaseInvoiceController extends Controller
             'date_to' => $request->input('date_to') ?: null,
             'status' => array_key_exists($request->input('status'), CrmPurchaseInvoice::STATUSES) ? $request->input('status') : null,
             'vendor' => $request->input('vendor') ?: null,
+            'type' => array_key_exists($request->input('type'), self::TYPES) ? $request->input('type') : null,
         ];
 
-        $query = CrmPurchaseInvoice::with(['items', 'payments']);
-        if ($filters['date_from']) $query->whereDate('issue_date', '>=', $filters['date_from']);
-        if ($filters['date_to']) $query->whereDate('issue_date', '<=', $filters['date_to']);
-        if ($filters['vendor']) $query->where('vendor_name', $filters['vendor']);
-        if ($filters['search'] !== '') {
-            $like = '%' . $filters['search'] . '%';
-            $query->where(function ($q) use ($like) {
-                $q->where('vendor_name', 'like', $like)->orWhere('reference', 'like', $like)->orWhere('project', 'like', $like)
-                    ->orWhere('description', 'like', $like)
-                    ->orWhereHas('items', fn ($i) => $i->where('name', 'like', $like));
-            });
+        $rows = collect();
+        if ($filters['type'] !== 'vendor') {
+            $query = CrmPurchaseInvoice::with(['items', 'payments']);
+            if ($filters['date_from']) $query->whereDate('issue_date', '>=', $filters['date_from']);
+            if ($filters['date_to']) $query->whereDate('issue_date', '<=', $filters['date_to']);
+            if ($filters['vendor']) $query->where('vendor_name', $filters['vendor']);
+            if ($filters['search'] !== '') {
+                $like = '%' . $filters['search'] . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('vendor_name', 'like', $like)->orWhere('reference', 'like', $like)->orWhere('project', 'like', $like)
+                        ->orWhere('description', 'like', $like)
+                        ->orWhereHas('items', fn ($i) => $i->where('name', 'like', $like));
+                });
+            }
+            $rows = $rows->concat($query->get()->map(fn ($inv) => $this->invoiceRow($inv)));
         }
-        $invoices = $query->orderByDesc('issue_date')->orderByDesc('id')->get();
+        if ($filters['type'] !== 'invoice') {
+            $query = VendorPurchase::with('items');
+            if ($filters['date_from']) $query->whereDate('purchase_date', '>=', $filters['date_from']);
+            if ($filters['date_to']) $query->whereDate('purchase_date', '<=', $filters['date_to']);
+            if ($filters['vendor']) $query->where('vendor_name', $filters['vendor']);
+            if ($filters['search'] !== '') {
+                $like = '%' . $filters['search'] . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('vendor_name', 'like', $like)->orWhere('invoice_number', 'like', $like)->orWhere('job_id', 'like', $like)
+                        ->orWhere('item_name', 'like', $like)->orWhere('notes', 'like', $like)
+                        ->orWhereHas('items', fn ($i) => $i->where('item_name', 'like', $like)->orWhere('category', 'like', $like));
+                });
+            }
+            $rows = $rows->concat($query->get()->map(fn ($purchase) => $this->vendorPurchaseRow($purchase)));
+        }
         if ($filters['status']) {
-            $invoices = $invoices->filter(fn ($inv) => $inv->status() === $filters['status'])->values();
+            $rows = $rows->where('status', $filters['status']);
         }
+        // Newest first, whichever page the purchase was entered on.
+        $rows = $rows->sort(fn ($a, $b) => [$b->date->timestamp, $b->sort] <=> [$a->date->timestamp, $a->sort])->values();
 
-        $all = CrmPurchaseInvoice::with('payments')->get();
+        // Overdue counts everything past its due date, whatever the filters.
+        $overdue = CrmPurchaseInvoice::with('payments')->get()->map(fn ($inv) => $this->invoiceRow($inv))
+            ->concat(VendorPurchase::whereNotNull('due_date')->get()->map(fn ($purchase) => $this->vendorPurchaseRow($purchase)))
+            ->where('status', 'overdue');
         $totals = [
-            'invoiced' => (float) $invoices->sum('total'),
-            'count' => $invoices->count(),
-            'paid' => (float) $invoices->sum(fn ($inv) => $inv->paidTotal()),
-            'balance' => (float) $invoices->sum(fn ($inv) => max(0, $inv->balanceDue())),
-            'overdue' => (float) $all->filter(fn ($inv) => $inv->status() === 'overdue')->sum(fn ($inv) => $inv->balanceDue()),
-            'overdue_count' => $all->filter(fn ($inv) => $inv->status() === 'overdue')->count(),
+            'invoiced' => (float) $rows->sum('total'),
+            'count' => $rows->count(),
+            'invoice_count' => $rows->where('kind', 'invoice')->count(),
+            'vendor_count' => $rows->where('kind', 'vendor')->count(),
+            'paid' => (float) $rows->sum('paid'),
+            'balance' => (float) $rows->sum(fn ($row) => max(0, $row->balance)),
+            'overdue' => (float) $overdue->sum('balance'),
+            'overdue_count' => $overdue->count(),
         ];
 
         $perPage = 25;
         $page = \Illuminate\Pagination\Paginator::resolveCurrentPage();
         $entries = new \Illuminate\Pagination\LengthAwarePaginator(
-            $invoices->forPage($page, $perPage)->values(),
-            $invoices->count(),
+            $rows->forPage($page, $perPage)->values(),
+            $rows->count(),
             $perPage,
             $page,
             ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(), 'query' => $request->query()]
@@ -70,8 +103,78 @@ class PurchaseInvoiceController extends Controller
             'totals' => $totals,
             'filters' => $filters,
             'statuses' => CrmPurchaseInvoice::STATUSES,
-            'vendorOptions' => $all->pluck('vendor_name')->unique()->sort()->values(),
+            'types' => self::TYPES,
+            'vendorOptions' => CrmPurchaseInvoice::distinct()->pluck('vendor_name')->concat(VendorPurchase::distinct()->pluck('vendor_name'))
+                ->filter()->unique()->sort(SORT_NATURAL | SORT_FLAG_CASE)->values(),
         ]);
+    }
+
+    /** One purchase invoice as a row of the list. */
+    protected function invoiceRow(CrmPurchaseInvoice $invoice): object
+    {
+        return (object) [
+            'kind' => 'invoice',
+            'id' => $invoice->id,
+            'sort' => $invoice->id,
+            'date' => $invoice->issue_date,
+            'due' => $invoice->due_date,
+            'number' => $invoice->number,
+            'reference' => $invoice->reference,
+            'vendor_id' => $invoice->vendor_id,
+            'vendor_name' => $invoice->vendor_name,
+            'description' => $invoice->description ?: $invoice->items->pluck('name')->implode(', '),
+            'categories' => $invoice->items->pluck('category')->filter()->unique()->implode(', '),
+            'project' => $invoice->project,
+            'total' => (float) $invoice->total,
+            'currency' => $invoice->currency,
+            'paid' => $invoice->paidTotal(),
+            'balance' => $invoice->balanceDue(),
+            'status' => $invoice->status(),
+            'view_url' => route('crm.purchase_invoices.show', $invoice->id),
+            'edit_url' => route('crm.purchase_invoices.edit', $invoice->id),
+        ];
+    }
+
+    /** One vendor purchase as a row of the list, with the same statuses as a purchase invoice. */
+    protected function vendorPurchaseRow(VendorPurchase $purchase): object
+    {
+        $total = (float) $purchase->total_amount;
+        $paid = (float) $purchase->paid_amount;
+        $balance = round($total - $paid - (float) $purchase->deduction, 2);
+        $due = $purchase->due_date;
+        if ($balance < -0.009) {
+            $status = 'overpaid';
+        } elseif ($balance <= 0.009) {
+            $status = 'paid';
+        } elseif ($due && $due->lt(now()->startOfDay())) {
+            $status = 'overdue';
+        } else {
+            $status = $paid + (float) $purchase->deduction > 0.009 ? 'partial' : 'unpaid';
+        }
+        $items = $purchase->relationLoaded('items') ? $purchase->items : collect();
+
+        return (object) [
+            'kind' => 'vendor',
+            'id' => $purchase->id,
+            'sort' => $purchase->id,
+            'date' => $purchase->purchase_date ?: $purchase->created_at,
+            'due' => $due,
+            'number' => $purchase->invoice_number ?: 'Purchase #' . $purchase->id,
+            'reference' => $purchase->demand_no ? 'Demand ' . $purchase->demand_no : null,
+            'vendor_id' => $purchase->vendor_id,
+            'vendor_name' => $purchase->vendor_name,
+            'description' => $items->pluck('item_name')->filter()->implode(', ') ?: $purchase->item_name,
+            'categories' => $items->pluck('category')->filter()->unique()->implode(', ') ?: $purchase->category,
+            'project' => $purchase->job_id,
+            'total' => $total,
+            'currency' => $purchase->currency,
+            'paid' => $paid,
+            'balance' => $balance,
+            'status' => $status,
+            // Paid and edited on the vendor's page, where it was entered.
+            'view_url' => route('crm.vendor_purchases.index', array_filter(['vendor_id' => $purchase->vendor_id, 'search' => $purchase->invoice_number])),
+            'edit_url' => route('crm.vendor_purchases.edit', $purchase->id),
+        ];
     }
 
     public function create()

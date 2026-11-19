@@ -13,6 +13,11 @@
 .dr-card{padding:1rem 1.1rem;background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
 .dr-card span{display:block;color:#8a99ae;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .dr-card strong{display:block;margin-top:.3rem;color:#172033;font-size:1.4rem}
+a.dr-card{text-decoration:none;cursor:pointer;transition:border-color .14s,box-shadow .14s}
+a.dr-card:hover{border-color:var(--primary-purple)}
+a.dr-card.active{border:2px solid var(--primary-purple);box-shadow:0 0 0 3px var(--primary-soft),0 8px 24px rgba(15,23,42,.05)}
+.dr-showing{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border-bottom:1px solid #eef2f7;background:var(--primary-soft);font-size:.8rem;color:#334155}
+.dr-showing a{margin-left:auto;color:var(--primary-purple);font-weight:800;text-decoration:none}
 .dr-panel{background:#fff;border:1px solid #e5ebf2;border-radius:16px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}
 .dr-toolbar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;padding:.9rem 1rem;border-bottom:1px solid #eef2f7}
 .dr-control{min-height:40px;padding:.5rem .75rem;border:1px solid #d8e1eb;border-radius:10px;background:#fff;color:#263449;font-size:.82rem;outline:0}
@@ -40,16 +45,22 @@
 <div class="dr-wrap">
     @if(session('status'))<div class="dr-flash"><i class="fas fa-check-circle"></i> {{ session('status') }}</div>@endif
 
+    @php
+        // Each card opens the requests behind its figure below; clicking the open card again shows them all.
+        $__cardUrl = fn ($key) => route('crm.demand_requests.index', array_merge(request()->except(['card', 'page']), $key && $key !== $card ? ['card' => $key] : []));
+        $__signed = fn ($v) => $v < -0.009 ? '&minus; ' . number_format(abs($v), 2) : ($v > 0.009 ? '+ ' . number_format($v, 2) : number_format(0, 2));
+        $__tone = fn ($v) => $v < -0.009 ? '#e11d48' : '#159447';
+        $__ao = $summary['account_out'] ?? 0;
+        $__co = $summary['company_out'] ?? 0;
+        $__cih = $summary['cash_in_hand'] ?? 0;
+    @endphp
     <div class="dr-cards">
-        <div class="dr-card"><span>Total Requests</span><strong>{{ number_format($summary['total']) }}</strong></div>
-        <div class="dr-card"><span>Estimated Value</span><strong>{{ number_format($summary['estimated'], 2) }}</strong></div>
-        <div class="dr-card"><span>Total Paid</span><strong style="color:#159447">{{ number_format($summary['paid'], 2) }}</strong></div>
-        @php($__ao = $summary['account_out'] ?? 0)
-        <div class="dr-card"><span>Account Balance</span><strong style="color:{{ $__ao < -0.009 ? '#e11d48' : '#159447' }}">@if($__ao < -0.009)&minus; {{ number_format(abs($__ao),2) }}@elseif($__ao > 0.009)+ {{ number_format($__ao,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
-        @php($__co = $summary['company_out'] ?? 0)
-        <div class="dr-card"><span>Company Outstanding</span><strong style="color:{{ $__co < -0.009 ? '#e11d48' : '#159447' }}">@if($__co < -0.009)&minus; {{ number_format(abs($__co),2) }}@elseif($__co > 0.009)+ {{ number_format($__co,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
-        @php($__cih = $summary['cash_in_hand'] ?? 0)
-        <div class="dr-card"><span>Cash in Hand Accounts</span><strong style="color:{{ $__cih < -0.009 ? '#e11d48' : '#159447' }}" title="Account outstanding of completed demands">@if($__cih < -0.009)&minus; {{ number_format(abs($__cih),2) }}@elseif($__cih > 0.009)+ {{ number_format($__cih,2) }}@else{{ number_format(0,2) }}@endif</strong></div>
+        <a class="dr-card {{ $card ? '' : 'active' }}" href="{{ $__cardUrl(null) }}" title="Show every request"><span>Total Requests</span><strong>{{ number_format($summary['total']) }}</strong></a>
+        <a class="dr-card {{ $card === 'estimated' ? 'active' : '' }}" href="{{ $__cardUrl('estimated') }}" title="Show the requests with an estimate"><span>Estimated Value</span><strong>{{ number_format($summary['estimated'], 2) }}</strong></a>
+        <a class="dr-card {{ $card === 'paid' ? 'active' : '' }}" href="{{ $__cardUrl('paid') }}" title="Show the requests with payments"><span>Total Paid</span><strong style="color:#159447">{{ number_format($summary['paid'], 2) }}</strong></a>
+        <a class="dr-card {{ $card === 'account' ? 'active' : '' }}" href="{{ $__cardUrl('account') }}" title="Show the requests with an account balance"><span>Account Balance</span><strong style="color:{{ $__tone($__ao) }}">{!! $__signed($__ao) !!}</strong></a>
+        <a class="dr-card {{ $card === 'company' ? 'active' : '' }}" href="{{ $__cardUrl('company') }}" title="Show the completed requests the company still owes on, or overpaid"><span>Company Outstanding</span><strong style="color:{{ $__tone($__co) }}">{!! $__signed($__co) !!}</strong></a>
+        <a class="dr-card {{ $card === 'cash' ? 'active' : '' }}" href="{{ $__cardUrl('cash') }}" title="Account outstanding of completed demands, and cash in hand used"><span>Cash in Hand Accounts</span><strong style="color:{{ $__tone($__cih) }}">{!! $__signed($__cih) !!}</strong></a>
     </div>
 
     <div class="dr-panel">
@@ -68,8 +79,13 @@
             </select>
             <input class="dr-control dr-search" name="search" value="{{ request('search') }}" autocomplete="off" placeholder="Search request no, date, requested by…" oninput="drSearchDebounced(this)">
             <button class="dr-btn dr-btn-light" type="submit"><i class="fas fa-search"></i> Search</button>
+            @if($card)<input type="hidden" name="card" value="{{ $card }}">@endif
             <a class="dr-btn dr-btn-light" href="{{ route('crm.demand_requests.export') }}" style="margin-left:auto"><i class="fas fa-file-csv"></i> Export CSV</a>
         </form>
+        @if($card)
+            <div class="dr-showing"><i class="fas fa-filter" style="color:var(--primary-purple)"></i> Showing <b>{{ $requests->total() }}</b> request{{ $requests->total() === 1 ? '' : 's' }} behind <b>{{ $cards[$card] }}</b>
+                <a href="{{ $__cardUrl(null) }}">Show all <i class="fas fa-times"></i></a></div>
+        @endif
 
         <div style="overflow-x:auto">
         <table class="dr-table">
