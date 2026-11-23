@@ -46,6 +46,15 @@ class CrmUser extends Authenticatable
         return $this->activeWorkspaceRole() === 'super_admin';
     }
 
+    /**
+     * Mail client: only the people listed in config('crm.mail.overseers') see every shared mailbox
+     * (read-only). Everyone else, other owners / admins / sales managers included, sees only their own.
+     */
+    public function canSeeAllMailboxes()
+    {
+        return in_array(strtolower(trim((string) $this->email)), (array) config('crm.mail.overseers', []), true);
+    }
+
     public function isSalesManager()
     {
         return $this->activeWorkspaceRole() === 'sales_manager';

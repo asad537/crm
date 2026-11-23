@@ -100,10 +100,11 @@ class MailAccountOwnershipTest extends TestCase
         $this->assertSame('SuperSecretMailboxPass!', $account->fresh()->email_pass);
     }
 
-    public function test_admin_sees_shared_accounts_read_only(): void
+    public function test_overseer_sees_shared_accounts_read_only(): void
     {
         $owner = $this->makeUser('sales');
         $admin = $this->makeUser('admin');
+        config(['crm.mail.overseers' => [strtolower($admin->email)]]);
         $shared = $this->makeAccount($owner);
         $private = $this->makeAccount($owner, ['is_default' => false, 'share_with_admin' => false]);
 
@@ -116,6 +117,22 @@ class MailAccountOwnershipTest extends TestCase
             'email_address' => $shared->email_address, 'provider' => 'hostinger', 'verify' => false,
         ])->assertStatus(403);
         $this->as($admin)->deleteJson(route('crm.mail.accounts.destroy', $shared->id))->assertStatus(403);
+    }
+
+    public function test_other_admins_and_sales_managers_see_only_their_own_mailbox(): void
+    {
+        config(['crm.mail.overseers' => ['someone-else@example.com']]);
+        $owner = $this->makeUser('sales');
+        $shared = $this->makeAccount($owner);
+
+        foreach (['admin', 'super_admin', 'sales_manager'] as $role) {
+            $viewer = $this->makeUser($role);
+            $own = $this->makeAccount($viewer);
+            $ids = collect($this->as($viewer)->getJson(route('crm.mail.accounts.index'))->assertOk()->json('accounts'))->pluck('id');
+            $this->assertTrue($ids->contains($own->id), $role . ' must see their own mailbox');
+            $this->assertFalse($ids->contains($shared->id), $role . ' must not see another user\'s mailbox');
+            $this->assertFalse(\Illuminate\Support\Facades\Gate::forUser($viewer)->allows('view', $shared));
+        }
     }
 
     public function test_store_rejects_private_hosts_and_bad_ports_without_network(): void

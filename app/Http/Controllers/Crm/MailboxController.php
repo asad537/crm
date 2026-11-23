@@ -39,7 +39,7 @@ class MailboxController extends Controller
         $user = $this->user();
         abort_unless($user, 403);
         $q = CrmMailAccount::withoutGlobalScopes()->whereNull('deleted_at');
-        if ($user->isAdmin() || $user->isSalesManager()) {
+        if ($user->canSeeAllMailboxes()) {
             $q->where(fn ($w) => $w->where('crm_user_id', $user->id)->orWhere('share_with_admin', true));
         } else {
             $q->where('crm_user_id', $user->id);

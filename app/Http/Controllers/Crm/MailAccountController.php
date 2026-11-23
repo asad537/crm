@@ -56,7 +56,7 @@ class MailAccountController extends Controller
         $user = $this->allow('viewAny');
 
         $query = CrmMailAccount::with('user:id,name')->orderByDesc('is_default')->orderBy('email_address');
-        if ($user->isAdmin() || $user->isSalesManager()) {
+        if ($user->canSeeAllMailboxes()) {
             $query->where(function ($q) use ($user) {
                 $q->where('crm_user_id', $user->id)->orWhere('share_with_admin', true);
             });

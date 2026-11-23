@@ -13,6 +13,15 @@ return [
         'imap_login_fallback' => env('CRM_IMAP_LOGIN_FALLBACK', true),
     ],
 
+    'mail' => [
+        /*
+        | Logins (by CRM email) that see EVERY shared mailbox in the Mail client, read-only.
+        | All other users, admins and other owners included, see only their own mailbox.
+        | Comma-separated in CRM_MAIL_OVERSEERS.
+        */
+        'overseers' => array_values(array_filter(array_map('trim', explode(',', strtolower((string) env('CRM_MAIL_OVERSEERS', 'usama@almassapackaging.com')))))),
+    ],
+
     'calls' => [
         /*
         | Team Chat calls go browser to browser. STUN lets two browsers find each other across networks;

@@ -6,9 +6,10 @@ use App\CrmMailAccount;
 use App\CrmUser;
 
 /**
- * Mailboxes are private to their owner. Admins / Sales Managers get READ-ONLY
- * visibility when the account allows it (share_with_admin). Only the owner can
- * change, test, delete, or send from an account.
+ * Mailboxes are private to their owner. Only the mail overseers (config crm.mail.overseers)
+ * get READ-ONLY visibility of other people's mailboxes, when the account allows it
+ * (share_with_admin); other admins / owners / sales managers see only their own.
+ * Only the owner can change, test, delete, or send from an account.
  * Always evaluate with Gate::forUser($crmUser) — CRM users live on the 'crm' guard.
  */
 class CrmMailAccountPolicy
@@ -23,7 +24,7 @@ class CrmMailAccountPolicy
         if ($this->owns($user, $account)) {
             return true;
         }
-        return $account->share_with_admin && ($user->isAdmin() || $user->isSalesManager());
+        return $account->share_with_admin && $user->canSeeAllMailboxes();
     }
 
     public function create(CrmUser $user): bool
