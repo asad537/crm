@@ -117,7 +117,15 @@ class MailboxController extends Controller
         $type = $request->input('type', 'inbox');
         $q = CrmMailMessage::withoutGlobalScopes()->whereIn('crm_mail_messages.account_id', $ids)
             ->join('crm_mail_folders as f', 'f.id', '=', 'crm_mail_messages.folder_id')
-            ->select('crm_mail_messages.*', 'f.type as folder_type', 'f.name as folder_name');
+            // List columns only: selecting * dragged every message's html/text body through the sort (seconds per page).
+            ->select(
+                'crm_mail_messages.id', 'crm_mail_messages.account_id', 'crm_mail_messages.thread_id',
+                'crm_mail_messages.subject', 'crm_mail_messages.from_name', 'crm_mail_messages.from_email',
+                'crm_mail_messages.to_json', 'crm_mail_messages.snippet', 'crm_mail_messages.is_read',
+                'crm_mail_messages.is_starred', 'crm_mail_messages.is_outgoing', 'crm_mail_messages.has_attachments',
+                'crm_mail_messages.crm_email_id', 'crm_mail_messages.received_at',
+                'f.type as folder_type', 'f.name as folder_name'
+            );
 
         if ($request->filled('folder')) {
             $q->where('crm_mail_messages.folder_id', (int) $request->input('folder'));

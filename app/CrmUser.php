@@ -11,6 +11,9 @@ class CrmUser extends Authenticatable
 
     protected $table = 'crm_users';
 
+    /** Per-object cache for roleForWorkspace(); not a database column. */
+    protected $workspaceRoleMemo = [];
+
     protected $fillable = [
         'name', 'email', 'password', 'role', 'production_facility_id', 'allowed_ip',
         'imap_host', 'imap_port', 'imap_encryption',
@@ -187,13 +190,26 @@ class CrmUser extends Authenticatable
         $workspaceId = (int) $workspaceId;
         if (!$workspaceId) return null;
 
+        // Remembered on this user object, i.e. for the rest of the request: layouts call isAdmin()/isSales()
+        // dozens of times per page and each call used to run this query again.
+        if (array_key_exists($workspaceId, $this->workspaceRoleMemo)) {
+            return $this->workspaceRoleMemo[$workspaceId];
+        }
+
         if ($this->relationLoaded('workspaces')) {
             $workspace = $this->workspaces->firstWhere('id', $workspaceId);
-            if ($workspace) return $workspace->pivot->role;
+            if ($workspace) return $this->workspaceRoleMemo[$workspaceId] = $workspace->pivot->role;
         }
 
         $workspace = $this->workspaces()->where('crm_workspaces.id', $workspaceId)->first();
-        return $workspace ? $workspace->pivot->role : null;
+        return $this->workspaceRoleMemo[$workspaceId] = ($workspace ? $workspace->pivot->role : null);
+    }
+
+    /** Drop the remembered workspace roles (call after changing this same user object's workspace roles). */
+    public function forgetWorkspaceRoles()
+    {
+        $this->workspaceRoleMemo = [];
+        return $this;
     }
 
     public function scopeInWorkspace($query, $workspaceId = null, array $roles = null)

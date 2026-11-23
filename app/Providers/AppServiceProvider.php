@@ -33,11 +33,16 @@ class AppServiceProvider extends ServiceProvider
         // Wrapped in try/catch so app can boot before migrations run (fresh DBs, CI).
         $whatsappNumber = null;
         try {
-            $whatsappNumber = Cache::remember('public_site_settings:whatsapp', 600, function () {
-                if (!\Illuminate\Support\Facades\Schema::hasTable('site_settings')) return null;
-                $row = DB::table('site_settings')->first();
-                return $row->whatsapp_number ?? null;
-            });
+            // Cached as a string ('' = no number): a null result is never stored by Cache::remember, which
+            // made this run a schema check + a query on every single request.
+            $whatsappNumber = Cache::remember('public_site_settings:whatsapp:v2', 600, function () {
+                try {
+                    $row = DB::table('site_settings')->first();
+                    return (string) ($row->whatsapp_number ?? '');
+                } catch (\Throwable $e) {
+                    return '';
+                }
+            }) ?: null;
         } catch (\Throwable $e) {
             // silently ignore — DB not ready yet
         }

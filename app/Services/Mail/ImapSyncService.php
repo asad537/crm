@@ -92,13 +92,21 @@ class ImapSyncService
                 }
             }
 
-            $this->resolveOrphans($account);
-            foreach ($folders as $folder) { $this->refreshFolderCounts($folder->fresh() ?: $folder); }
+            $moved = $this->resolveOrphans($account);
+            // Folder counts are already refreshed by every real folder pass (syncFolder) and by every user
+            // action (MailActionService / OutgoingMailService). This full recount is only a safety net, so run
+            // it when this round changed something, otherwise at most every 5 minutes per account. It used to
+            // run for every folder on every round and was most of the database load.
+            if ($stats['imported'] > 0 || $moved > 0 || Cache::add('mail:acct:' . $account->id . ':recount', 1, 300)) {
+                foreach ($folders as $folder) { $this->refreshFolderCounts($folder->fresh() ?: $folder); }
+            }
 
-            $account->forceFill([
-                'last_synced_at' => now(),
-                'last_sync_error' => $stats['errors'] ? Str::limit(implode(' | ', $stats['errors']), 500) : null,
-            ])->saveQuietly();
+            // Stamp the account at most once a minute (or when the error text changes), not on every round.
+            $syncError = $stats['errors'] ? Str::limit(implode(' | ', $stats['errors']), 500) : null;
+            $stampedAt = $account->last_synced_at;
+            if (!$stampedAt || $stampedAt->lt(now()->subSeconds(60)) || $syncError !== $account->last_sync_error) {
+                $account->forceFill(['last_synced_at' => now(), 'last_sync_error' => $syncError])->saveQuietly();
+            }
         } catch (\Throwable $e) {
             $stats['status'] = 'error';
             $stats['errors'][] = $e->getMessage();
