@@ -27,6 +27,36 @@ class DesignRequirementTicket extends Model
         static::creating(function ($model) {
             if (!$model->workspace_id && ($id = \App\Support\CrmWorkspaceContext::id())) $model->workspace_id = $id;
         });
+        // Keep the sidebar "Design" badge live: the moment a ticket is created, claimed,
+        // released, completed or returned, clear the 30-second cached count for every
+        // designer/admin in its workspace so the number updates immediately instead of
+        // lingering for up to half a minute.
+        static::saved(function ($model) {
+            if ($model->wasRecentlyCreated || $model->wasChanged(['status', 'claimed_by'])) {
+                static::flushSidebarBadge($model->workspace_id);
+            }
+        });
+        static::deleted(function ($model) {
+            static::flushSidebarBadge($model->workspace_id);
+        });
+    }
+
+    /** Forget the cached sidebar design-ticket count for every designer/admin in this workspace. */
+    public static function flushSidebarBadge($workspaceId): void
+    {
+        $workspaceId = (int) $workspaceId;
+        if (!$workspaceId) return;
+        try {
+            $userIds = \Illuminate\Support\Facades\DB::table('crm_user_workspace')
+                ->where('workspace_id', $workspaceId)
+                ->whereIn('role', ['designer', 'admin', 'super_admin'])
+                ->pluck('crm_user_id');
+            foreach ($userIds as $uid) {
+                \Illuminate\Support\Facades\Cache::forget('crm:sidebar:' . $workspaceId . ':' . $uid . ':design_tickets');
+            }
+        } catch (\Throwable $e) {
+            // badge is a convenience; never let a cache miss break a ticket save
+        }
     }
 
     public function inquiry() { return $this->belongsTo(CrmEmail::class, 'crm_email_id'); }
