@@ -18,7 +18,9 @@
 .ws-dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px}
 .ws-name{font-weight:750;color:#27364b;flex:1}
 .ws-mini{padding:.4rem .6rem;border:0;border-radius:8px;font-weight:800;font-size:.68rem;cursor:pointer;text-decoration:none}
-.ws-mini.tog{background:#eef2ff;color:var(--primary-purple)}.ws-mini.del{background:#fff1f2;color:#be123c}
+.ws-mini.tog{background:#eef2ff;color:var(--primary-purple)}.ws-mini.del{background:#fff1f2;color:#be123c}.ws-mini.edit{background:#ecfdf5;color:#047857}
+.ws-edit{display:none;margin:.1rem 0 .4rem;padding:.8rem .9rem;border:1px solid #e8edf3;border-top:0;border-radius:0 0 11px 11px;background:#fbfdff}
+.ws-edit.open{display:block}.ws-edit .row{display:flex;gap:.6rem;align-items:flex-end}.ws-edit .row>div{min-width:0}
 .ws-badge{padding:.18rem .5rem;border-radius:999px;font-size:.62rem;font-weight:800}
 .ws-badge.on{background:#e1f8ef;color:#047857}.ws-badge.offb{background:#f1f5f9;color:#64748b}
 @media(max-width:820px){.ws-grid{grid-template-columns:1fr}}
@@ -44,6 +46,7 @@
             <h3>All Websites ({{ $websites->count() }})</h3>
             <div class="ws-list">
                 @forelse($websites as $w)
+                    <div class="ws-wrap">
                     <div class="ws-item {{ $w->is_active ? '' : 'off' }}">
                         @if($w->logo_url)
                             <img src="{{ $w->logo_url }}" alt="" title="{{ $w->name }}" style="width:28px;height:28px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid #eef2f7;flex:0 0 28px" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
@@ -53,8 +56,20 @@
                         @endif
                         <span class="ws-name">{{ $w->name }}</span>
                         <span class="ws-badge {{ $w->is_active ? 'on' : 'offb' }}">{{ $w->is_active ? 'Active' : 'Off' }}</span>
+                        <button type="button" class="ws-mini edit" title="Edit" onclick="document.getElementById('wsedit{{ $w->id }}').classList.toggle('open')"><i class="fas fa-pen"></i></button>
                         <form method="POST" action="{{ route('crm.websites.toggle', $w->id) }}" style="margin:0">{{ csrf_field() }}<button class="ws-mini tog" title="Toggle active"><i class="fas fa-power-off"></i></button></form>
                         <form method="POST" action="{{ route('crm.websites.destroy', $w->id) }}" style="margin:0" onsubmit="return confirm('Delete {{ $w->name }}?')">{{ csrf_field() }}{{ method_field('DELETE') }}<button class="ws-mini del" title="Delete"><i class="fas fa-trash"></i></button></form>
+                    </div>
+                    <form id="wsedit{{ $w->id }}" class="ws-edit" method="POST" action="{{ route('crm.websites.update', $w->id) }}">
+                        {{ csrf_field() }}{{ method_field('PUT') }}
+                        <label class="ws-label">Name</label>
+                        <input class="ws-control" name="name" value="{{ $w->name }}" required>
+                        <div class="row">
+                            <div><label class="ws-label">Color</label><input class="ws-control" name="color" type="color" value="{{ $w->color ?: '#6c5ce7' }}" style="height:42px;padding:.2rem;width:64px;margin-bottom:0"></div>
+                            <div style="flex:1"><label class="ws-label">Logo URL</label><input class="ws-control" name="logo_url" value="{{ $w->logo_url }}" placeholder="https://example.com/logo.svg" style="margin-bottom:0"></div>
+                        </div>
+                        <button class="ws-btn" style="margin-top:.8rem" type="submit"><i class="fas fa-check"></i> Save changes</button>
+                    </form>
                     </div>
                 @empty
                     <div style="text-align:center;padding:2rem;color:#94a3b8">No websites yet. Add one on the left.</div>
