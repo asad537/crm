@@ -28,10 +28,12 @@ class WebsiteController extends Controller
         $data = $request->validate([
             'name'  => 'required|string|max:120|unique:crm_websites,name',
             'color' => 'nullable|string|max:16',
+            'logo_url' => 'nullable|url|max:500',
         ]);
         CrmWebsite::create([
             'name' => trim($data['name']),
             'color' => $data['color'] ?: '#6c5ce7',
+            'logo_url' => $data['logo_url'] ?? null,
             'is_active' => true,
             'created_by' => \Auth::guard('crm')->id(),
         ]);
@@ -45,8 +47,9 @@ class WebsiteController extends Controller
         $data = $request->validate([
             'name'  => 'required|string|max:120|unique:crm_websites,name,'.$id,
             'color' => 'nullable|string|max:16',
+            'logo_url' => 'nullable|url|max:500',
         ]);
-        $website->update(['name' => trim($data['name']), 'color' => $data['color'] ?: $website->color]);
+        $website->update(['name' => trim($data['name']), 'color' => $data['color'] ?: $website->color, 'logo_url' => array_key_exists('logo_url', $data) ? ($data['logo_url'] ?: null) : $website->logo_url]);
         return back()->with('success', 'Website updated.');
     }
 

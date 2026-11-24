@@ -35,7 +35,9 @@
                 <input class="ws-control" name="name" placeholder="e.g. The Custom Boxes" required>
                 <label class="ws-label">Color</label>
                 <input class="ws-control" name="color" type="color" value="#6c5ce7" style="height:44px;padding:.25rem">
-                <button class="ws-btn" type="submit"><i class="fas fa-check"></i> Add Website</button>
+                <label class="ws-label" style="margin-top:.7rem">Logo URL</label>
+                <input class="ws-control" name="logo_url" placeholder="https://example.com/logo.svg" value="{{ old('logo_url') }}">
+                <button class="ws-btn" style="margin-top:.9rem" type="submit"><i class="fas fa-check"></i> Add Website</button>
             </form>
         </div>
         <div class="ws-card">
@@ -43,7 +45,12 @@
             <div class="ws-list">
                 @forelse($websites as $w)
                     <div class="ws-item {{ $w->is_active ? '' : 'off' }}">
-                        <span class="ws-dot" style="background:{{ $w->color ?: '#6c5ce7' }}"></span>
+                        @if($w->logo_url)
+                            <img src="{{ $w->logo_url }}" alt="" title="{{ $w->name }}" style="width:28px;height:28px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid #eef2f7;flex:0 0 28px" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+                            <span class="ws-dot" style="display:none;background:{{ $w->color ?: '#6c5ce7' }}"></span>
+                        @else
+                            <span class="ws-dot" style="background:{{ $w->color ?: '#6c5ce7' }}"></span>
+                        @endif
                         <span class="ws-name">{{ $w->name }}</span>
                         <span class="ws-badge {{ $w->is_active ? 'on' : 'offb' }}">{{ $w->is_active ? 'Active' : 'Off' }}</span>
                         <form method="POST" action="{{ route('crm.websites.toggle', $w->id) }}" style="margin:0">{{ csrf_field() }}<button class="ws-mini tog" title="Toggle active"><i class="fas fa-power-off"></i></button></form>
