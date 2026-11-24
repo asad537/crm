@@ -51,7 +51,32 @@ class PortalAccountService
                 array_merge(\App\CrmUser::inWorkspace(null, ['admin'])->pluck('email')->toArray(), ['support@myboxprinting.com']),
                 fn ($e) => $e && strcasecmp($e, $email) !== 0
             )));
-            Mail::to($email)->cc($cc)->send(new PortalCredentialsMail($account, $order, $plain, $agentUser));
+            // Send from the ACTING AGENT'S own connected mailbox when they have one: the shared system
+            // SMTP (support@myboxprinting.com) is frequently rejected, and sending through the agent's
+            // box also mirrors the email into the lead's Conversation thread and marks it Responded
+            // (via crm_email_id). Fall back to the framework mailer only if the agent has no usable box.
+            $agentBox = $agentUser
+                ? \App\CrmMailAccount::withoutGlobalScopes()->whereNull('deleted_at')
+                    ->where('is_active', true)->where('crm_user_id', $agentUser->id)
+                    ->orderByDesc('is_default')->orderByDesc('id')->first()
+                : null;
+            if ($agentBox) {
+                $label = $order->invoice_number ? 'TCB-' . $order->invoice_number : '#' . $order->id;
+                $brand = \App\Mail\OrderCcaMail::brandFor($order);
+                $subject = ($plain ? 'Your invoice portal login - Invoice ' : 'New invoice ready to pay - Invoice ')
+                    . $label . ' - ' . $brand['name'];
+                $html = (new PortalCredentialsMail($account, $order, $plain, $agentUser))->render();
+                app(\App\Services\Mail\OutgoingMailService::class)->send($agentBox, [
+                    'to' => $email,
+                    'cc' => $cc,
+                    'subject' => $subject,
+                    'html' => $html,
+                    'crm_email_id' => $order->crm_email_id,
+                    'sent_by' => $agentUser,
+                ]);
+            } else {
+                Mail::to($email)->cc($cc)->send(new PortalCredentialsMail($account, $order, $plain, $agentUser));
+            }
         } catch (\Throwable $e) {
             return [$account, null, 'Failed to email login details: ' . $e->getMessage()];
         }
