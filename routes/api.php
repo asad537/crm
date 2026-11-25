@@ -21,6 +21,9 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 Route::post('/crm/leads', 'Api\CrmLeadController@store')
     ->middleware(['crm.lead.api', 'throttle:30,1']);
 
+Route::post('/crm/estimate', 'Api\CrmEstimateController@store')
+    ->middleware(['crm.lead.api', 'throttle:60,1']);
+
 // Test route
 Route::get('/test', function () {
     return response()->json(['status' => 'API is working']);
