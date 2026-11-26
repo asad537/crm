@@ -91,6 +91,11 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('get-estimates/{id}/draft-pdf', 'EstimateTicketController@draftPdf')->name('crm.estimate_tickets.draft_pdf');
         Route::post('get-estimates/{id}/export', 'EstimateTicketController@exportInternalPdf')->name('crm.estimate_tickets.export');
 
+        // Sara (ElevenLabs) voice calls: place calls + transcripts, admin/sales only (checked in controller)
+        Route::get('voice-calls', 'VoiceCallController@index')->name('crm.voice_calls.index');
+        Route::post('voice-calls/call', 'VoiceCallController@call')->name('crm.voice_calls.call');
+        Route::get('voice-calls/{id}/transcript', 'VoiceCallController@transcript')->name('crm.voice_calls.transcript');
+
         // My Box customer-app workflow (not shared with other CRM workspaces)
         Route::group(['middleware' => 'crm.workspace.slug:my-box-printing'], function () {
         // App Projects

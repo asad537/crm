@@ -1224,6 +1224,16 @@
             </a>
             @endif
 
+            {{-- Voice Calls (Sara AI): admin / sales --}}
+            @if($__navUser->isAdmin() || $__navUser->isSuperAdmin() || $__navUser->isSalesManager() || $__navUser->isSales())
+                <a href="{{ route('crm.voice_calls.index') }}"
+                class="nav-item {{ request()->routeIs('crm.voice_calls.*') ? 'active' : '' }}">
+                <i class="fas fa-phone-alt" style="margin-top:2px;"></i>
+                <span class="nav-label">Voice Calls</span>
+                <span class="nav-right"><i class="fas fa-chevron-right arrow"></i></span>
+            </a>
+            @endif
+
             {{-- Prepress Tickets: Prepress only --}}
             @if($__navUser->isPrepress() || $__navUser->isAdmin())
             @php
