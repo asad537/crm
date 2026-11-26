@@ -4,18 +4,22 @@ namespace App\Http\Controllers\Crm;
 
 use App\CrmEmail;
 use App\Http\Controllers\Controller;
+use App\Services\VoiceCallService;
+use App\VoiceCallQueue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 
 /**
- * Sara (ElevenLabs) voice calls from inside the CRM: place outbound calls,
- * see recent calls + transcripts, and the leads they created.
- * Credentials live in .env (ELEVENLABS_API_KEY / _AGENT_ID / _PHONE_ID) and are
- * kept in sync by /opt/elvoice/el_migrate.py when the ElevenLabs account changes.
+ * Sara (ElevenLabs) voice calls from inside the CRM: manual calls, per-lead follow-up
+ * calls, a bulk follow-up queue (worked one-at-a-time by voice:process-queue via cron),
+ * recent calls + transcripts, and the leads those calls created.
  */
 class VoiceCallController extends Controller
 {
+    public function __construct(private VoiceCallService $voice)
+    {
+    }
+
     private function guardAccess(): void
     {
         $u = Auth::guard('crm')->user();
@@ -24,39 +28,23 @@ class VoiceCallController extends Controller
         }
     }
 
-    private function cfg(): array
-    {
-        return [
-            'key'   => (string) env('ELEVENLABS_API_KEY', ''),
-            'agent' => (string) env('ELEVENLABS_AGENT_ID', ''),
-            'phone' => (string) env('ELEVENLABS_PHONE_ID', ''),
-        ];
-    }
-
-    private function api()
-    {
-        return Http::withHeaders(['xi-api-key' => $this->cfg()['key']])
-            ->baseUrl('https://api.elevenlabs.io/v1');
-    }
-
-    public function index()
+    public function index(Request $request)
     {
         $this->guardAccess();
-        $cfg = $this->cfg();
-        $configured = $cfg['key'] && $cfg['agent'] && $cfg['phone'];
+        $configured = $this->voice->configured();
         $credits = null;
         $calls = [];
         $error = null;
 
         if ($configured) {
             try {
-                $sub = $this->api()->timeout(15)->get('/user/subscription')->json() ?: [];
+                $sub = $this->voice->api()->timeout(15)->get('/user/subscription')->json() ?: [];
                 $credits = [
                     'used'  => $sub['character_count'] ?? null,
                     'limit' => $sub['character_limit'] ?? null,
                 ];
-                $list = $this->api()->timeout(20)->get('/convai/conversations', [
-                    'agent_id' => $cfg['agent'], 'page_size' => 25,
+                $list = $this->voice->api()->timeout(20)->get('/convai/conversations', [
+                    'agent_id' => $this->voice->cfg()['agent'], 'page_size' => 25,
                 ])->json() ?: [];
                 $calls = $list['conversations'] ?? [];
             } catch (\Throwable $e) {
@@ -64,58 +52,121 @@ class VoiceCallController extends Controller
             }
         }
 
-        $leadKeys = collect($calls)->pluck('conversation_id')
-            ->map(fn ($i) => 'elvoice-' . $i)->all();
-        $leads = $leadKeys
+        $leadKeys = collect($calls)->pluck('conversation_id')->map(fn ($i) => 'elvoice-' . $i)->all();
+        $callLeads = $leadKeys
             ? CrmEmail::whereIn('external_lead_id', $leadKeys)->get()->keyBy('external_lead_id')
             : collect();
 
-        return view('crm.voice_calls.index', compact('configured', 'credits', 'calls', 'leads', 'error'));
+        // Follow-up section: CRM leads that have a phone number (newest first, searchable).
+        $q = trim((string) $request->query('q', ''));
+        $leads = CrmEmail::whereNotNull('client_phone')->where('client_phone', '!=', '')
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    $w->where('client_name', 'like', "%{$q}%")
+                        ->orWhere('client_email', 'like', "%{$q}%")
+                        ->orWhere('client_phone', 'like', "%{$q}%")
+                        ->orWhere('product_name', 'like', "%{$q}%")
+                        ->orWhere('status', 'like', "%{$q}%");
+                });
+            })
+            ->orderByDesc('id')->limit(60)->get();
+
+        // Latest queue row per lead + overall queue counters.
+        $queueRows = VoiceCallQueue::whereIn('crm_email_id', $leads->pluck('id'))
+            ->orderBy('id')->get()->keyBy('crm_email_id'); // later rows overwrite earlier = latest wins
+        $queueStats = [
+            'pending' => VoiceCallQueue::where('status', 'pending')->count(),
+            'calling' => VoiceCallQueue::where('status', 'calling')->count(),
+        ];
+
+        return view('crm.voice_calls.index', compact(
+            'configured', 'credits', 'calls', 'callLeads', 'error', 'leads', 'queueRows', 'queueStats', 'q'
+        ));
     }
 
+    /** Manual call to any number typed on the page. */
     public function call(Request $request)
     {
         $this->guardAccess();
         $data = $request->validate(['phone' => 'required|string|max:30']);
-
-        $raw = preg_replace('/[^0-9+]/', '', $data['phone']);
-        if (str_starts_with($raw, '+')) {
-            $to = '+' . preg_replace('/\D/', '', substr($raw, 1));
-        } elseif (str_starts_with($raw, '00')) {
-            $to = '+' . substr($raw, 2);
-        } elseif (str_starts_with($raw, '0') && strlen($raw) === 11) {
-            $to = '+92' . substr($raw, 1); // Pakistani local format, e.g. 03454428186
-        } else {
-            $to = '+' . $raw;
+        $to = $this->voice->normalizePhone($data['phone']);
+        if (!$to) {
+            return back()->with('vc_error', 'Number samajh nahi aaya. +923001234567 ya 03001234567 style use karein.');
         }
-        if (!preg_match('/^\+[1-9]\d{9,14}$/', $to)) {
-            return back()->with('vc_error', "Number samajh nahi aaya ({$to}). +923001234567 ya 03001234567 style use karein.");
-        }
-
-        $cfg = $this->cfg();
-        if (!($cfg['key'] && $cfg['agent'] && $cfg['phone'])) {
-            return back()->with('vc_error', 'ElevenLabs keys CRM .env mein set nahi hain.');
-        }
-
         set_time_limit(120);
-        try {
-            $res = $this->api()->timeout(90)->post('/convai/sip-trunk/outbound-call', [
-                'agent_id' => $cfg['agent'],
-                'agent_phone_number_id' => $cfg['phone'],
-                'to_number' => $to,
-            ]);
-            $body = $res->json() ?: [];
-            if ($res->ok() && ($body['success'] ?? false)) {
-                return back()->with('vc_success', "Call ja rahi hai {$to} par (" . ($body['conversation_id'] ?? '') . '). Baat khatam hone ke ~1 minute baad transcript/lead yahan aa jayegi.');
-            }
-            $msg = $body['message'] ?? ('HTTP ' . $res->status());
-            if (str_contains($msg, 'not available')) {
-                $msg .= ' — aam taur par iska matlab ElevenLabs ke credits khatam hain.';
-            }
-            return back()->with('vc_error', 'Call nahi lagi: ' . $msg);
-        } catch (\Throwable $e) {
-            return back()->with('vc_error', 'Request time out — lambi ring par call phir bhi lag sakti hai; neeche list refresh kar ke dekhein. (' . $e->getMessage() . ')');
+        [$ok, $result] = $this->voice->placeCall($to);
+        return $ok
+            ? back()->with('vc_success', "Call ja rahi hai {$to} par ({$result}).")
+            : back()->with('vc_error', 'Call nahi lagi: ' . $result);
+    }
+
+    /** Immediate follow-up call to one lead, with the lead's context given to Sara. */
+    public function callLead($id)
+    {
+        $this->guardAccess();
+        $lead = CrmEmail::findOrFail($id);
+        $to = $this->voice->normalizePhone($lead->client_phone);
+        if (!$to) {
+            return back()->with('vc_error', "Lead #{$lead->id} ka phone number ({$lead->client_phone}) E.164 mein nahi badla ja saka.");
         }
+        set_time_limit(120);
+        [$ok, $result] = $this->voice->placeCall($to, $lead);
+        if ($ok) {
+            VoiceCallQueue::create([
+                'crm_email_id' => $lead->id, 'phone' => $to, 'status' => 'calling',
+                'conversation_id' => $result, 'queued_by' => Auth::guard('crm')->id(),
+                'note' => 'direct call from page',
+            ]);
+            return back()->with('vc_success', "Follow-up call ja rahi hai {$lead->client_name} ({$to}) par.");
+        }
+        return back()->with('vc_error', 'Call nahi lagi: ' . $result);
+    }
+
+    /** Queue many leads for one-at-a-time follow-up calls (cron works the queue every minute). */
+    public function queueStore(Request $request)
+    {
+        $this->guardAccess();
+        $data = $request->validate(['lead_ids' => 'required|array|min:1', 'lead_ids.*' => 'integer']);
+        $leads = CrmEmail::whereIn('id', $data['lead_ids'])
+            ->whereNotNull('client_phone')->where('client_phone', '!=', '')->get();
+
+        $already = VoiceCallQueue::whereIn('crm_email_id', $leads->pluck('id'))
+            ->whereIn('status', ['pending', 'calling'])->pluck('crm_email_id')->all();
+
+        $added = 0;
+        $badPhone = 0;
+        foreach ($leads as $lead) {
+            if (in_array($lead->id, $already)) {
+                continue;
+            }
+            $to = $this->voice->normalizePhone($lead->client_phone);
+            if (!$to) {
+                $badPhone++;
+                continue;
+            }
+            VoiceCallQueue::create([
+                'crm_email_id' => $lead->id, 'phone' => $to, 'status' => 'pending',
+                'queued_by' => Auth::guard('crm')->id(),
+            ]);
+            $added++;
+        }
+
+        $msg = "{$added} leads call queue mein lag gaye — Sara aik aik kar ke sab ko call karegi (har minute agli call).";
+        if (count($already)) {
+            $msg .= ' ' . count($already) . ' pehle se queue mein thay.';
+        }
+        if ($badPhone) {
+            $msg .= " {$badPhone} ka number theek nahi tha.";
+        }
+        return back()->with('vc_success', $msg);
+    }
+
+    /** Stop the campaign: cancel every pending row (the in-flight call finishes on its own). */
+    public function queueCancel()
+    {
+        $this->guardAccess();
+        $n = VoiceCallQueue::where('status', 'pending')->update(['status' => 'cancelled']);
+        return back()->with('vc_success', "{$n} pending calls cancel kar diye.");
     }
 
     public function transcript($id)
@@ -125,7 +176,7 @@ class VoiceCallController extends Controller
             abort(404);
         }
         try {
-            $conv = $this->api()->timeout(20)->get('/convai/conversations/' . $id)->json() ?: [];
+            $conv = $this->voice->api()->timeout(20)->get('/convai/conversations/' . $id)->json() ?: [];
         } catch (\Throwable $e) {
             $conv = ['_error' => $e->getMessage()];
         }

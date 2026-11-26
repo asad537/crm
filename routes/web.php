@@ -95,6 +95,9 @@ Route::group(['prefix' => 'crm', 'namespace' => 'Crm'], function () {
         Route::get('voice-calls', 'VoiceCallController@index')->name('crm.voice_calls.index');
         Route::post('voice-calls/call', 'VoiceCallController@call')->name('crm.voice_calls.call');
         Route::get('voice-calls/{id}/transcript', 'VoiceCallController@transcript')->name('crm.voice_calls.transcript');
+        Route::post('voice-calls/lead/{id}/call', 'VoiceCallController@callLead')->name('crm.voice_calls.call_lead');
+        Route::post('voice-calls/queue', 'VoiceCallController@queueStore')->name('crm.voice_calls.queue');
+        Route::post('voice-calls/queue/cancel', 'VoiceCallController@queueCancel')->name('crm.voice_calls.queue_cancel');
 
         // My Box customer-app workflow (not shared with other CRM workspaces)
         Route::group(['middleware' => 'crm.workspace.slug:my-box-printing'], function () {
