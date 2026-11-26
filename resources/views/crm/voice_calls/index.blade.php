@@ -2,7 +2,7 @@
 @section('title', 'Voice Calls')
 @section('content')
 <style>
-.vc-page{color:#233047;max-width:1100px}
+.vc-page{color:#233047;width:100%}
 .vc-hero{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.15rem 1.35rem;margin-bottom:1rem;background:linear-gradient(135deg,#fff,var(--primary-soft));border:1px solid #e4eaf1;border-radius:17px;flex-wrap:wrap}
 .vc-hero h2{margin:0;font-size:1.3rem}
 .vc-hero p{margin:.2rem 0 0;color:#8290a3;font-size:.78rem}
