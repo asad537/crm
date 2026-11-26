@@ -32,10 +32,18 @@ class ProcessVoiceCallQueue extends Command
                 $row->update(['status' => 'failed', 'note' => 'calling without conversation_id']);
                 continue;
             }
-            [$state, $dur] = $voice->conversationState($row->conversation_id);
+            [$state, $dur, $transcript] = $voice->conversationData($row->conversation_id);
             if ($state === 'done') {
-                $row->update(['status' => 'done', 'duration_secs' => $dur]);
-                $this->info("done: lead {$row->crm_email_id} ({$dur}s)");
+                $note = null;
+                $outcome = $voice->analyzeOutcome($transcript);
+                if ($outcome) {
+                    $note = trim('outcome: ' . ($outcome['outcome'] ?? 'unclear')
+                        . (!empty($outcome['callback_time']) ? ' (callback: ' . $outcome['callback_time'] . ')' : '')
+                        . ' — ' . ($outcome['summary'] ?? ''));
+                    $this->applyOutcomeToLead($row->crm_email_id, $outcome);
+                }
+                $row->update(['status' => 'done', 'duration_secs' => $dur, 'note' => $note ? mb_substr($note, 0, 480) : $row->note]);
+                $this->info("done: lead {$row->crm_email_id} ({$dur}s)" . ($note ? " {$note}" : ''));
             } elseif ($state === 'failed') {
                 $row->update(['status' => 'failed', 'note' => 'call failed (busy / no answer / rejected)']);
                 $this->info("failed: lead {$row->crm_email_id}");
@@ -72,5 +80,28 @@ class ProcessVoiceCallQueue extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** Push the call outcome onto the CRM lead: status upgrade on interest + a dated note. */
+    private function applyOutcomeToLead(int $leadId, array $outcome): void
+    {
+        $lead = CrmEmail::withoutGlobalScopes()->find($leadId);
+        if (!$lead) {
+            return;
+        }
+        try {
+            if (($outcome['outcome'] ?? '') === 'interested'
+                && in_array($lead->status, ['New', 'Viewed', 'Client Replied', 'Responded'], true)) {
+                $lead->status = 'Qualified Lead';
+            }
+            $note = '[Sara call ' . now()->format('d M Y H:i') . '] '
+                . ($outcome['outcome'] ?? 'unclear')
+                . (!empty($outcome['callback_time']) ? ' | callback: ' . $outcome['callback_time'] : '')
+                . (!empty($outcome['summary']) ? ' | ' . $outcome['summary'] : '');
+            $lead->message = mb_substr(trim((string) $lead->message . "\n\n" . $note), 0, 60000);
+            $lead->save();
+        } catch (\Throwable $e) {
+            $this->warn("lead {$leadId} outcome update failed: {$e->getMessage()}");
+        }
     }
 }

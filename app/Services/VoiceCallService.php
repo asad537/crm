@@ -74,18 +74,24 @@ class VoiceCallService
             $lead->client_email ? 'Email on file: ' . $lead->client_email : null,
         ]);
 
+        $emailRule = $lead->client_email
+            ? 'Their email on file is ' . $lead->client_email . '. NEVER ask them to dictate an email address; if the email needs confirming, read THIS one back, spelling the part before the at sign letter by letter, and ask if it is still correct. Only if they say it is wrong, ask them to spell the new one and read it back. '
+            : 'No email is on file: ask for their email address and read it back, spelling the part before the at sign letter by letter. ';
+
         $prompt =
             'You are Sara, a professional female sales representative for The Premium Boxes, a direct manufacturer of custom printed packaging. ' .
             'This is a FOLLOW-UP phone call to an existing lead, not a first enquiry. If asked, you are an AI assistant. ' .
             'Lead details on file: ' . implode('; ', $facts) . '. ' .
             'How you speak: polished, warm but businesslike; one or two short sentences per turn and only ONE question at a time; ' .
             'no gushing words (lovely, wonderful, amazing, perfect, great), no exclamation marks, never output emotion tags like [happy]. ' .
+            $emailRule .
             'Call goals, in order: (1) confirm you are speaking with ' . ($lead->client_name ?: 'the customer') . '; ' .
-            '(2) say you are following up on their ' . $product . ' enquiry and ask if they received the quote email from our team - if not, ask them to check spam and confirm the email address on file; ' .
-            '(3) answer questions using the lead details above; NEVER state any price, discount or price range - pricing always comes from the team by email; ' .
+            '(2) say you are following up on their ' . $product . ' enquiry and ask if they received the quote email from our team - if not, ask them to check spam and confirm the email on file as described above; ' .
+            '(3) answer questions using the lead details above; ' .
             '(4) if they want changes to the specs, note the changes clearly and say the team will email an updated quote; ' .
             '(5) if they are ready to proceed, say the team will email the next steps for artwork and production right away; ' .
             '(6) if they are not interested, politely ask the reason, note it, and thank them for their time. ' .
+            'Pricing: NEVER invent a price. If they ask about price and you know the size and quantity (use the lead details on file), call the get_price_estimate tool and share its unit_price and total_price as an APPROXIMATE estimate in US dollars, saying the team confirms the exact quote by email. If they push for a discount, defend the value once, then you MAY come down once, as a special price, to about the tool\'s best_unit_price and best_total_price, and NO lower - never reveal that a lower price existed, or anything about costs, profit or margins. ' .
             'Do not re-qualify from scratch; only ask for a genuinely missing essential detail if the conversation needs it. ' .
             'When the conversation is finished or they say goodbye, give a brief professional goodbye and END THE CALL using the end_call tool. Never stay silent on the line.';
 
@@ -133,6 +139,64 @@ class VoiceCallService
         } catch (\Throwable $e) {
             return [false, 'timeout/error: ' . $e->getMessage()];
         }
+    }
+
+    /** Full conversation data: [state, durationSecs, transcriptText] ("Customer:/Sara:" lines). */
+    public function conversationData(string $conversationId): array
+    {
+        try {
+            $c = $this->api()->timeout(20)->get('/convai/conversations/' . $conversationId)->json() ?: [];
+        } catch (\Throwable $e) {
+            return ['unknown', 0, ''];
+        }
+        $status = $c['status'] ?? 'unknown';
+        $state = match (true) {
+            $status === 'done' => 'done',
+            $status === 'failed' => 'failed',
+            in_array($status, ['initiated', 'in-progress', 'processing'], true) => 'active',
+            default => 'unknown',
+        };
+        $dur = (int) ($c['metadata']['call_duration_secs'] ?? 0);
+        $lines = [];
+        foreach (($c['transcript'] ?? []) as $t) {
+            $msg = trim((string) ($t['message'] ?? ''));
+            if ($msg !== '') {
+                $lines[] = (($t['role'] ?? '') === 'user' ? 'Customer: ' : 'Sara: ') . $msg;
+            }
+        }
+        return [$state, $dur, implode("\n", $lines)];
+    }
+
+    /**
+     * Claude reads the call transcript -> ['outcome' => interested|not_interested|callback|no_answer|unclear,
+     * 'callback_time' => ?string, 'summary' => string]. Null when analysis is not possible.
+     */
+    public function analyzeOutcome(string $transcript): ?array
+    {
+        $key = (string) env('ANTHROPIC_API_KEY', '');
+        if ($key === '' || !str_contains($transcript, 'Customer:')) {
+            return null;
+        }
+        try {
+            $res = Http::withHeaders(['x-api-key' => $key, 'anthropic-version' => '2023-06-01'])
+                ->timeout(30)->post('https://api.anthropic.com/v1/messages', [
+                    'model' => (string) env('ANTHROPIC_MODEL', 'claude-haiku-5-5'),
+                    'max_tokens' => 300,
+                    'system' => 'You read a packaging-sales phone call transcript (Sara is our agent). Reply with ONLY a JSON object: '
+                        . '{"outcome":"interested|not_interested|callback|no_answer|unclear","callback_time":string or null,"summary":string}. '
+                        . '"interested" only if the customer clearly wants to proceed or asked for the quote/next steps; "callback" if they asked to be contacted later (put when in callback_time, verbatim); '
+                        . '"summary" is ONE short line on where the deal stands, based only on what the customer said.',
+                    'messages' => [['role' => 'user', 'content' => mb_substr($transcript, 0, 12000)]],
+                ]);
+            $text = collect($res->json()['content'] ?? [])->where('type', 'text')->pluck('text')->implode('');
+            if (preg_match('/\{.*\}/s', $text, $m)) {
+                $out = json_decode($m[0], true);
+                return is_array($out) && isset($out['outcome']) ? $out : null;
+            }
+        } catch (\Throwable $e) {
+            // analysis is best-effort
+        }
+        return null;
     }
 
     /** status + duration of a conversation: [state, durationSecs] where state is active|done|failed|unknown */
