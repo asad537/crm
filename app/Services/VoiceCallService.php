@@ -91,7 +91,7 @@ class VoiceCallService
             '(4) if they want changes to the specs, note the changes clearly and say the team will email an updated quote; ' .
             '(5) if they are ready to proceed, say the team will email the next steps for artwork and production right away; ' .
             '(6) if they are not interested, politely ask the reason, note it, and thank them for their time. ' .
-            'Pricing: NEVER invent a price. If they ask about price and you know the size and quantity (use the lead details on file), call the get_price_estimate tool and share its unit_price and total_price as an APPROXIMATE estimate in US dollars, saying the team confirms the exact quote by email. If they push for a discount, defend the value once, then you MAY come down once, as a special price, to about the tool\'s best_unit_price and best_total_price, and NO lower - never reveal that a lower price existed, or anything about costs, profit or margins. ' .
+            'Pricing: NEVER state any price, discount or price range on the call - pricing always comes from the team by email. ' .
             'Do not re-qualify from scratch; only ask for a genuinely missing essential detail if the conversation needs it. ' .
             'When the conversation is finished or they say goodbye, give a brief professional goodbye and END THE CALL using the end_call tool. Never stay silent on the line.';
 
